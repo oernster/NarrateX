@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QFont, QTextCursor
+from PySide6.QtGui import QColor, QFont, QImage, QPixmap, QTextCursor
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -24,9 +24,12 @@ from PySide6.QtWidgets import (
 class UiStrings:
     select_book: str = "📚 Select Book"
     select_voice: str = "🎙 Select Voice"
+    # Windows renders the official Pause/Stop "button" emoji codepoints as blue
+    # emoji glyphs. Use monochrome symbol characters instead so they stay
+    # readable on the dark theme and match text height.
     play: str = "▶ Play"
-    pause: str = "⏸ Pause"
-    stop: str = "⏹ Stop"
+    pause: str = "Ⅱ Pause"
+    stop: str = "■ Stop"
 
 
 class MainWindow(QMainWindow):
@@ -46,7 +49,16 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(12, 12, 12, 12)
         root.setSpacing(10)
 
-        # Controls
+        # Top panel: controls + progress (left) + device/engine (right).
+        top_panel = QHBoxLayout()
+        top_panel.setSpacing(12)
+        top_panel.setAlignment(Qt.AlignTop)
+
+        left_panel = QVBoxLayout()
+        left_panel.setSpacing(8)
+        left_panel.setAlignment(Qt.AlignTop)
+
+        # Controls row
         controls = QHBoxLayout()
         controls.setSpacing(8)
         self.btn_select_book = QPushButton(self._strings.select_book)
@@ -65,29 +77,64 @@ class MainWindow(QMainWindow):
         controls.addWidget(self.btn_play)
         controls.addWidget(self.btn_pause)
         controls.addWidget(self.btn_stop)
-        root.addLayout(controls)
+        left_panel.addLayout(controls)
 
-        # Status row
+        # Status/progress row (kept on the left)
         status = QHBoxLayout()
         status.setSpacing(12)
-        self.lbl_device = QLabel("Device: -")
-        self.lbl_engine = QLabel("Engine: -")
         self.lbl_progress = QLabel("0/0")
+        self.lbl_progress.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
-        status.addWidget(self.lbl_device)
-        status.addWidget(self.lbl_engine)
         status.addStretch(1)
         status.addWidget(self.lbl_progress)
         status.addWidget(self.progress)
-        root.addLayout(status)
+        left_panel.addLayout(status)
 
-        # Reader
+        top_panel.addLayout(left_panel)
+        top_panel.addStretch(1)
+
+        # Right side: right-justified device/engine labels.
+        right_panel = QVBoxLayout()
+        right_panel.setSpacing(6)
+        right_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
+
+        self.lbl_device = QLabel("Device: -")
+        self.lbl_engine = QLabel("Engine: -")
+        for lbl in (self.lbl_device, self.lbl_engine):
+            lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        right_panel.addWidget(self.lbl_device)
+        right_panel.addWidget(self.lbl_engine)
+        right_panel.addStretch(1)
+
+        top_panel.addLayout(right_panel)
+
+        root.addLayout(top_panel)
+
+        # Reader row: text on the left, cover on the right.
+        reader_row = QHBoxLayout()
+        reader_row.setSpacing(12)
+
         self.reader = QTextEdit()
         self.reader.setReadOnly(True)
         self.reader.setFont(QFont("Segoe UI", 11))
-        root.addWidget(self.reader, stretch=3)
+        reader_row.addWidget(self.reader, stretch=1)
+
+        cover_panel = QVBoxLayout()
+        cover_panel.setSpacing(6)
+        cover_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
+        self.cover = QLabel("No cover")
+        self.cover.setAlignment(Qt.AlignCenter)
+        self.cover.setFixedSize(150, 220)
+        self.cover.setScaledContents(False)
+        self.cover.setObjectName("cover")
+        cover_panel.addWidget(self.cover)
+        cover_panel.addStretch(1)
+        reader_row.addLayout(cover_panel)
+
+        root.addLayout(reader_row, stretch=3)
 
         # Logs
         self.log = QPlainTextEdit()
@@ -122,6 +169,10 @@ class MainWindow(QMainWindow):
                 background: {panel};
                 border: 1px solid #1f2937;
                 padding: 4px 8px;
+            }}
+            QLabel#cover {{
+                background: {panel};
+                border: 1px solid #1f2937;
             }}
             QPushButton {{
                 background: {panel};
@@ -160,3 +211,31 @@ class MainWindow(QMainWindow):
 
     def append_log(self, line: str) -> None:
         self.log.appendPlainText(line)
+
+    def set_cover_image(self, image_bytes: bytes | None) -> None:
+        """Set the displayed book cover.
+
+        Args:
+            image_bytes: Encoded image bytes (PNG/JPG/etc.) or None to clear.
+        """
+
+        if not image_bytes:
+            self.cover.setPixmap(QPixmap())
+            self.cover.setText("No cover")
+            return
+
+        img = QImage.fromData(image_bytes)
+        if img.isNull():
+            self.cover.setPixmap(QPixmap())
+            self.cover.setText("No cover")
+            return
+
+        pm = QPixmap.fromImage(img)
+        pm = pm.scaled(
+            self.cover.width(),
+            self.cover.height(),
+            Qt.KeepAspectRatio,
+            Qt.SmoothTransformation,
+        )
+        self.cover.setText("")
+        self.cover.setPixmap(pm)
