@@ -61,7 +61,7 @@ def main() -> int:
             log.exception("Failed to clear cache on launch")
 
     device = DeviceDetectionService().detect()
-    log.info("Detected device: %s", device)
+    log.debug("Detected device: %s", device)
 
     # Infrastructure
     converter = CalibreConverter(temp_books_dir=config.paths.temp_books_dir)
@@ -99,6 +99,19 @@ def main() -> int:
         device=device,
         engine_name=tts_engine.engine_name,
     )
+
+    # Ensure background threads are stopped cleanly on window close / app quit.
+    def _on_quit() -> None:
+        try:
+            narration_service.stop()
+        except Exception:
+            log.exception("Failed to stop narration on quit")
+
+    try:
+        app.aboutToQuit.connect(_on_quit)
+    except Exception:
+        log.exception("Failed to register aboutToQuit handler")
+
     window.show()
     return app.exec()
 

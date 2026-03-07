@@ -6,11 +6,11 @@ Keeps app wiring simple while supporting optional heavy dependencies.
 from __future__ import annotations
 
 import importlib.util
-import sys
 from dataclasses import dataclass
 
 from voice_reader.domain.interfaces.tts_engine import TTSEngine
 from voice_reader.infrastructure.tts.hybrid_engine import HybridTTSEngine
+from voice_reader.infrastructure.tts.kokoro_engine import KokoroEngine
 from voice_reader.infrastructure.tts.pyttsx3_engine import Pyttsx3Engine
 from voice_reader.infrastructure.tts.xtts_engine import XTTSCoquiEngine
 
@@ -23,23 +23,30 @@ class TTSEngineFactory:
         """Create best available engine.
 
         Preference order:
-        1) Coqui XTTS (voice cloning) when `TTS` is importable.
-        2) pyttsx3 fallback when not.
+        1) Kokoro native voices when `kokoro` is importable.
+        2) Coqui XTTS (voice cloning) when `TTS` is importable.
+        3) pyttsx3 fallback.
         """
 
-        # Prefer checking availability without importing heavy modules.
-        try:
-            has_tts = (
-                "TTS" in sys.modules or importlib.util.find_spec("TTS") is not None
-            )
-        except Exception:
-            has_tts = False
+        def _has_module(name: str) -> bool:
+            try:
+                return importlib.util.find_spec(name) is not None
+            except Exception:
+                return False
 
-        # If XTTS is available, keep pyttsx3 as a functional fallback for the
-        # special "system" voice (no reference audio).
+        has_kokoro = _has_module("kokoro")
+        has_tts = _has_module("TTS")
+
+        if has_kokoro and has_tts:
+            return HybridTTSEngine(
+                cloning_engine=XTTSCoquiEngine(model_name=self.model_name),
+                native_engine=KokoroEngine(),
+            )
+        if has_kokoro:
+            return KokoroEngine()
         if has_tts:
             return HybridTTSEngine(
-                xtts=XTTSCoquiEngine(model_name=self.model_name),
-                pyttsx3=Pyttsx3Engine(),
+                cloning_engine=XTTSCoquiEngine(model_name=self.model_name),
+                native_engine=Pyttsx3Engine(),
             )
         return Pyttsx3Engine()
