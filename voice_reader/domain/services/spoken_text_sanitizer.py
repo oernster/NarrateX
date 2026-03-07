@@ -13,6 +13,15 @@ from dataclasses import dataclass
 _NUMBER_ONLY = re.compile(r"^\s*\d+(?:\.\d+)*\s*$")
 _NUMBER_PREFIX = re.compile(r"^\s*\d+(?:\.\d+)*\s+")
 
+# Initialisms/acronyms like "CTO", "API", "UK".
+# - include plural 's' ("APIs")
+# - handle hyphenated contexts ("CTO-level") via non-alpha boundaries
+_ACRONYM_TOKEN = re.compile(r"(?<![A-Za-z])([A-Z]{2,6})(s)?(?![A-Za-z])")
+_DOTTED_INITIALISM = re.compile(r"\b(?:[A-Z]\.)(?:[A-Z]\.)(?:[A-Z]\.){0,4}")
+_MULTI_DOT = re.compile(r"\.{2,}")
+_DOTLIKE = re.compile(r"[\u2024\u2219\u00B7\uFF0E\uFE52]")
+_ISOLATED_DOT = re.compile(r"\s+\.\s+")
+
 
 @dataclass(frozen=True, slots=True)
 class SpokenTextSanitizer:
@@ -27,4 +36,47 @@ class SpokenTextSanitizer:
             cleaned = cleaned.strip()
             if cleaned:
                 lines.append(cleaned)
-        return "\n".join(lines).strip()
+
+        # IMPORTANT: use spaces instead of newlines.
+        # Many TTS engines interpret newlines as stronger breaks and can add
+        # unnatural pauses.
+        out = " ".join(lines).strip()
+        out = self._normalize_punctuation(out)
+        out = self._expand_initialisms(out)
+        out = re.sub(r"\s+", " ", out).strip()
+        return out
+
+    @staticmethod
+    def _normalize_punctuation(text: str) -> str:
+        # Reduce odd cadence from double-dots / ellipses produced by OCR/EPUB
+        # extraction.
+        text = text.replace("…", "...")
+        # Normalise other dot-like characters (common in PDFs / OCR).
+        text = _DOTLIKE.sub(".", text)
+        # Collapse multi-dot sequences.
+        text = _MULTI_DOT.sub(".", text)
+        # Remove isolated dots left behind by broken ellipses (". ." -> " ").
+        # Keep sentence-ending punctuation at the end of the string.
+        text = _ISOLATED_DOT.sub(" ", text)
+        return text
+
+    @staticmethod
+    def _expand_initialisms(text: str) -> str:
+        # Expand dotted forms first: "U.K." -> "U K"
+        def undot(m: re.Match[str]) -> str:
+            token = m.group(0)
+            letters = [ch for ch in token if ch.isalpha()]
+            return " ".join(letters)
+
+        text = _DOTTED_INITIALISM.sub(undot, text)
+
+        # Expand plain tokens: "CTO" -> "C T O"; "APIs" -> "A P I s"
+        def expand(m: re.Match[str]) -> str:
+            letters = list(m.group(1))
+            plural = m.group(2) or ""
+            expanded = " ".join(letters)
+            if plural:
+                expanded = f"{expanded} {plural}"
+            return expanded
+
+        return _ACRONYM_TOKEN.sub(expand, text)

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import shutil
 from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
@@ -35,6 +37,28 @@ def main() -> int:
     project_root = Path(__file__).resolve().parent
     config = Config.from_project_root(project_root)
     config.ensure_directories()
+
+    # Cache policy:
+    # For now we ALWAYS clear synthesized audio cache on launch, so changes to
+    # parsing/sanitization/voice/reference audio are reflected immediately.
+    #
+    # If you want to keep cache for faster startup, set:
+    #   NARRATEX_PRESERVE_CACHE=1
+    preserve_cache = os.getenv("NARRATEX_PRESERVE_CACHE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    if not preserve_cache:
+        try:
+            shutil.rmtree(config.paths.cache_dir, ignore_errors=True)
+            config.paths.cache_dir.mkdir(parents=True, exist_ok=True)
+            log.warning(
+                "Cleared cache dir on launch (set NARRATEX_PRESERVE_CACHE=1 to disable): %s",
+                config.paths.cache_dir.as_posix(),
+            )
+        except Exception:
+            log.exception("Failed to clear cache on launch")
 
     device = DeviceDetectionService().detect()
     log.info("Detected device: %s", device)

@@ -106,6 +106,10 @@ class UiController(QObject):
             self.window.append_log("No voice profiles available")
             return
 
+        self.window.append_log(
+            f"Selected voice: {voice.name} (engine: {self.engine_name})"
+        )
+
         self.narration_service.prepare(voice=voice)
         self.narration_service.start()
 
@@ -117,7 +121,11 @@ class UiController(QObject):
 
     def on_state(self, state: NarrationState) -> None:
         # Called from background thread.
-        self.state_received.emit(state)
+        try:
+            self.state_received.emit(state)
+        except RuntimeError:
+            # QObject already destroyed; ignore late updates.
+            return
 
     def _apply_state(self, state: object) -> None:
         if not isinstance(state, NarrationState):

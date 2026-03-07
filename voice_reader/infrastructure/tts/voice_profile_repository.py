@@ -31,7 +31,21 @@ class FilesystemVoiceProfileRepository(VoiceProfileRepository):
             return profiles
         voice_dirs = sorted([p for p in self.voices_dir.iterdir() if p.is_dir()])
         for voice_dir in voice_dirs:
-            wavs = sorted(list(voice_dir.glob("*.wav")))
+            # XTTS reference WAV preprocessing historically wrote "*.ref.wav"
+            # next to the original. Those derived files must NOT be treated as
+            # user-provided reference samples, otherwise the voice can drift and
+            # the folder can explode with ref.ref.ref.wav variants.
+            wavs = []
+            for p in sorted(list(voice_dir.glob("*.wav"))):
+                name = p.name.lower()
+                if name.endswith(".ref.wav") or ".ref.ref" in name:
+                    continue
+                # Historical artifacts: we previously wrote multiple derived
+                # PCM16 copies into the voice directory. They are not suitable
+                # as *reference* samples and can degrade voice similarity.
+                if ".pcm16" in name:
+                    continue
+                wavs.append(p)
             if not wavs:
                 continue
             profiles.append(

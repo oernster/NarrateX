@@ -11,6 +11,16 @@ def test_sanitizer_removes_number_only_lines_and_prefixes() -> None:
     assert "1.1" not in out
     assert "Perspective" in out
     assert "Hello there." in out
+    assert "\n" not in out
+
+
+def test_sanitizer_expands_acronyms() -> None:
+    s = SpokenTextSanitizer()
+    out = s.sanitize("I'm a CTO-level leader working with APIs in the U.K.")
+    # Keep words but expand initialisms for TTS.
+    assert "C T O" in out
+    assert "A P I" in out
+    assert "U K" in out
 
 
 def test_sanitizer_can_return_empty_for_number_only_text() -> None:
