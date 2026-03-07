@@ -1,0 +1,15 @@
+TTS>=0.22.0; python_version < "3.12"
+torch; python_version < "3.13"
+numpy
+sounddevice
+soundfile
+PySide6
+ebooklib
+beautifulsoup4
+pymupdf
+pyttsx3
+pytest
+pytest-cov
+black
+flake8
+
