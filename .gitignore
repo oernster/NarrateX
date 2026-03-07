@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Rubbish
+generate_scripts.py
+ALL_SOURCES.txt
+1
+cache/
