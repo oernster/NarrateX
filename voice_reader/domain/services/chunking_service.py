@@ -89,6 +89,9 @@ class ChunkingService:
                 current = f"{current} {sent}"
             else:
                 if len(current) < self.min_chars and len(sent) > self.min_chars:
+                    # BUGFIX: the previous logic dropped `current` entirely,
+                    # causing audible sentence omissions.
+                    yield current, current_start, current_start + len(current)
                     yield from self._hard_wrap(sent, consumed)
                     current = ""
                 else:

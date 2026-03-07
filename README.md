@@ -24,11 +24,37 @@ Dependency direction: UI → Application → Domain, and Infrastructure implemen
 
 ## Python version support (important)
 
-Voice cloning (Coqui XTTS via `TTS` + `torch`) typically supports Python 3.11.
+### Voice cloning requires Coqui `TTS` (typically Python 3.11)
 
-This workspace is currently running Python 3.13, which cannot install Coqui `TTS` at the time of writing.
+Voice cloning (Coqui XTTS via the `TTS` package + `torch`) requires an
+environment where `TTS` is installable (typically Python **3.11**).
 
-To keep the app working end-to-end on Python 3.13, the app automatically falls back to offline system TTS (`pyttsx3`).
+This workspace is currently running Python 3.13, which cannot install Coqui
+`TTS` at the time of writing.
+
+To keep the app working end-to-end on Python 3.13, the app automatically falls
+back to offline system TTS (`pyttsx3`).
+
+Important: `pyttsx3` cannot do voice cloning. It can only select among
+installed system voices. Voice samples under `voices/<voice_name>/*.wav` are
+only used when the engine is **Coqui XTTS**.
+
+### Can I use voice cloning on Python 3.13?
+
+Not currently with the Coqui `TTS` Python package. For voice cloning in this
+project, **Python 3.11 is mandatory**.
+
+On Python 3.13, `pip` cannot install `TTS` because there is no compatible wheel
+published for that Python version at the time of writing (you’ll see
+"No matching distribution found for TTS" if you try).
+
+Practical options:
+
+1) Use a separate Python 3.11 environment for XTTS voice cloning, and run the UI
+   app in that environment.
+2) (More advanced) Run XTTS as a separate local service (Python 3.11) and keep
+   the UI on Python 3.13; the UI would call the service over HTTP/IPC.
+
 
 Engine selection is done by [`voice_reader.application.services.tts_engine_factory.TTSEngineFactory`](voice_reader/application/services/tts_engine_factory.py:1).
 
@@ -54,6 +80,10 @@ Place WAV samples here:
 ```
 voices/<voice_name>/*.wav
 ```
+
+Note: the app does **not** currently scan `voices/*.wav` directly. A single file
+like `voices/oliver.wav` must live under a voice folder, e.g.
+`voices/oliver/oliver.wav`.
 
 Multiple samples are supported.
 
