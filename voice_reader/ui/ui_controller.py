@@ -14,6 +14,7 @@ from voice_reader.application.dto.narration_state import NarrationStatus
 from voice_reader.application.services.narration_service import NarrationService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
+from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
 from voice_reader.ui.main_window import MainWindow
 
 
@@ -44,6 +45,7 @@ class UiController(QObject):
         self.engine_name = engine_name
         self._voices: Sequence[VoiceProfile] = []
         self._last_prepared_voice_id: str | None = None
+        self._cover_extractor = CoverExtractor()
 
         self.window.lbl_device.setText(f"Device: {self.device}")
         self.window.lbl_engine.setText(f"Engine: {self.engine_name}")
@@ -84,6 +86,18 @@ class UiController(QObject):
         path = Path(path_str)
         book = self.narration_service.load_book(path)
         self.window.set_reader_text(book.normalized_text)
+
+        # Best-effort cover extraction (EPUB/PDF). Non-blocking would be nicer,
+        # but extraction is fast and failure is silent.
+        try:
+            cover = self._cover_extractor.extract_cover_bytes(path)
+        except Exception:
+            cover = None
+        try:
+            self.window.set_cover_image(cover)
+        except Exception:
+            # If the window implementation changes, don't fail book loading.
+            pass
         self._log.info("Selected book: %s", book.title)
 
     def _selected_voice(self) -> VoiceProfile | None:
