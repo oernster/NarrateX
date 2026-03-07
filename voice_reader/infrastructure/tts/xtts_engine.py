@@ -8,6 +8,7 @@ from __future__ import annotations
 import inspect
 import logging
 import os
+import random
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -85,6 +86,11 @@ class XTTSCoquiEngine(TTSEngine):
             tts = self._get_or_create(device=device)
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
+            # XTTS generation is sampling-based and can vary noticeably across
+            # chunks/runs. Set a stable seed so voice/prosody doesn't “wander”
+            # when cache is cleared or when re-synthesizing.
+            self._apply_deterministic_seed(text=text, voice_profile=voice_profile)
+
             # torchaudio 2.10 on Windows routes `torchaudio.load()` through
             # TorchCodec (and therefore FFmpeg DLLs). XTTS uses `torchaudio.load`
             # internally for speaker WAVs; we only need basic WAV decoding.
@@ -119,12 +125,34 @@ class XTTSCoquiEngine(TTSEngine):
                     len(text),
                     output_path.as_posix(),
                 )
-                tts.tts_to_file(
-                    text=text,
-                    speaker_wav=speaker_wav,
-                    language=language,
-                    file_path=str(output_path),
-                )
+
+                # We already chunk text in-app; XTTS's internal sentence
+                # splitting can introduce odd cadence and occasional repeats.
+                # Prefer disabling it when supported.
+                try:
+                    tts.tts_to_file(
+                        text=text,
+                        speaker_wav=speaker_wav,
+                        language=language,
+                        file_path=str(output_path),
+                        split_sentences=False,
+                    )
+                except TypeError:
+                    try:
+                        tts.tts_to_file(
+                            text=text,
+                            speaker_wav=speaker_wav,
+                            language=language,
+                            file_path=str(output_path),
+                            enable_text_splitting=False,
+                        )
+                    except TypeError:
+                        tts.tts_to_file(
+                            text=text,
+                            speaker_wav=speaker_wav,
+                            language=language,
+                            file_path=str(output_path),
+                        )
                 if t0_all is not None:
                     import time
 
@@ -343,6 +371,63 @@ class XTTSCoquiEngine(TTSEngine):
             return picked.reshape(-1, 1)
         except Exception:
             return data
+
+    def _apply_deterministic_seed(self, *, text: str, voice_profile: VoiceProfile) -> None:
+        """Best-effort determinism for XTTS sampling.
+
+        This reduces chunk-to-chunk prosody drift and run-to-run differences,
+        especially now that we can clear cache every launch.
+
+        Control:
+        - Set `NARRATEX_TTS_SEED` to an int to pin the seed (default: 0).
+        - Set `NARRATEX_TTS_SEED_MODE=per_run|per_chunk` (default: per_run).
+        """
+
+        raw_seed = os.getenv("NARRATEX_TTS_SEED", "0").strip()
+        try:
+            base_seed = int(raw_seed)
+        except Exception:
+            base_seed = 0
+
+        mode = os.getenv("NARRATEX_TTS_SEED_MODE", "per_run").strip().lower()
+        seed = base_seed
+        if mode == "per_chunk":
+            # Deterministic, but varies between chunks.
+            # Keep it stable across runs by hashing text and voice name.
+            import hashlib
+
+            h = hashlib.sha256(
+                (voice_profile.name + "|" + text).encode("utf-8", errors="ignore")
+            ).hexdigest()
+            seed = (base_seed + int(h[:8], 16)) % (2**31 - 1)
+
+        try:
+            random.seed(seed)
+        except Exception:
+            pass
+
+        try:
+            import numpy as np
+
+            np.random.seed(seed % (2**32 - 1))
+        except Exception:
+            pass
+
+        try:
+            import torch
+
+            torch.manual_seed(seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(seed)
+
+            # Determinism knobs (best-effort; safe on CPU and GPU).
+            try:
+                torch.backends.cudnn.deterministic = True
+                torch.backends.cudnn.benchmark = False
+            except Exception:
+                pass
+        except Exception:
+            pass
 
     def _get_or_create(self, *, device: str) -> Any:
         use_gpu = device == "cuda"

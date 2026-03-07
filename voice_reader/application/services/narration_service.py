@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import queue
 import threading
 import time
 from dataclasses import dataclass
@@ -245,7 +246,10 @@ class NarrationService:
         # - v9: voice reference selection filtering (avoid derived PCM16)
         # - v10: reference window selection for long/noisy reference clips
         # - v11: remove first-chunk truncation debug hack (was skipping content)
-        version_tag = "v11"
+        # - v12: synthesis prefetch changes (gap reduction)
+        # - v13: deterministic seeding (reduce voice drift)
+        # - v14: disable XTTS internal sentence splitting (reduce repeats)
+        version_tag = "v14"
         engine_tag = self.tts_engine.engine_name.strip().lower()
         payload = (
             f"{self._book.normalized_text}|"
@@ -293,6 +297,164 @@ class NarrationService:
                 self.language,
             )
 
+            # Producer/consumer boundary:
+            # - a synth thread ensures cache and pushes ready-to-play paths
+            # - the audio streamer consumes paths and plays them
+            #
+            # This allows synthesis to run ahead of playback (reduces gaps).
+            path_q: "queue.Queue[Path | None]" = queue.Queue(maxsize=8)
+            synth_done = threading.Event()
+            synth_errors: list[BaseException] = []
+
+            warmup_enabled = os.getenv("NARRATEX_WARMUP", "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+            }
+
+            def _synth_worker() -> None:
+                try:
+                    if warmup_enabled:
+                        try:
+                            # Warm the model/codepaths without altering narrated text.
+                            tmp = (
+                                self.cache_repo.audio_path(
+                                    book_id=book_id,
+                                    voice_name=voice.name,
+                                    chunk_id=-999999,
+                                )
+                            ).with_name("__warmup.wav")
+                            self.cache_repo.ensure_parent_dir(tmp)
+                            self._log.info(
+                                "Warmup synthesis start (path=%s)", tmp.as_posix()
+                            )
+                            tts_engine.synthesize_to_file(
+                                text="Warmup.",
+                                voice_profile=voice,
+                                output_path=tmp,
+                                device=self.device,
+                                language=self.language,
+                            )
+                            try:
+                                tmp.unlink(missing_ok=True)
+                            except Exception:
+                                pass
+                            self._log.info("Warmup synthesis done")
+                        except Exception:
+                            self._log.exception("Warmup synthesis failed")
+
+                    for idx, (chunk, speak_text, path) in enumerate(candidates):
+                        if self._stop_event.is_set():
+                            return
+
+                        self._set_state(
+                            NarrationState(
+                                status=NarrationStatus.SYNTHESIZING,
+                                current_chunk_id=idx,
+                                total_chunks=playback_total,
+                                progress=idx / max(playback_total, 1),
+                                message=f"Preparing chunk {idx + 1}/{playback_total}",
+                                highlight_start=chunk.start_char,
+                                highlight_end=chunk.end_char,
+                            )
+                        )
+
+                        if not self.cache_repo.exists(
+                            book_id=book_id,
+                            voice_name=voice.name,
+                            chunk_id=chunk.chunk_id,
+                        ):
+                            self.cache_repo.ensure_parent_dir(path)
+                            t0 = time.perf_counter()
+                            self._log.info(
+                                "TTS start idx=%s chunk_id=%s text_len=%s out=%s",
+                                idx,
+                                chunk.chunk_id,
+                                len(speak_text),
+                                path.as_posix(),
+                            )
+                            tts_engine.synthesize_to_file(
+                                text=speak_text,
+                                voice_profile=voice,
+                                output_path=path,
+                                device=self.device,
+                                language=self.language,
+                            )
+                            elapsed = time.perf_counter() - t0
+                            size = None
+                            try:
+                                size = path.stat().st_size
+                            except Exception:
+                                pass
+                            self._log.info(
+                                "TTS done idx=%s elapsed=%.2fs size_bytes=%s out=%s",
+                                idx,
+                                elapsed,
+                                size,
+                                path.as_posix(),
+                            )
+                        else:
+                            self._log.info(
+                                "Cache hit idx=%s chunk_id=%s out=%s",
+                                idx,
+                                chunk.chunk_id,
+                                path.as_posix(),
+                            )
+
+                        # Append BEFORE publishing path so on_start can map.
+                        playback_chunks.append(chunk)
+                        self._log.info(
+                            "Publishing audio path idx=%s out=%s",
+                            idx,
+                            path.as_posix(),
+                        )
+                        path_q.put(path)
+                except BaseException as exc:  # pragma: no cover
+                    synth_errors.append(exc)
+                    self._log.exception("Synthesis worker failed")
+                finally:
+                    synth_done.set()
+                    # Signal end-of-stream to path iterator.
+                    try:
+                        path_q.put_nowait(None)
+                    except Exception:
+                        try:
+                            path_q.put(None)
+                        except Exception:
+                            pass
+
+            synth_thread = threading.Thread(
+                target=_synth_worker,
+                name="tts-synth",
+                daemon=True,
+            )
+            synth_thread.start()
+
+            # Optional prefetch: wait for a couple paths to be ready so playback
+            # doesn't pause between early chunks.
+            try:
+                prefetch = int(os.getenv("NARRATEX_PREFETCH_CHUNKS", "2"))
+            except Exception:
+                prefetch = 2
+            if prefetch > 0:
+                t0_prefetch = time.perf_counter()
+                while (
+                    not synth_done.is_set()
+                    and path_q.qsize() < prefetch
+                    and not self._stop_event.is_set()
+                    and (time.perf_counter() - t0_prefetch) < 30.0
+                ):
+                    time.sleep(0.05)
+
+            def audio_paths_iter():
+                self._log.info("audio_paths_iter: start")
+                while not self._stop_event.is_set():
+                    item = path_q.get()
+                    if item is None:
+                        self._log.info("audio_paths_iter: exhausted")
+                        return
+                    yield item
+
             def on_start(play_index: int) -> None:
                 if play_index < 0 or play_index >= playback_total:
                     return
@@ -309,118 +471,14 @@ class NarrationService:
                     )
                 )
 
-            def audio_paths_iter():
-                self._log.info("audio_paths_iter: start")
-
-                # Optional warmup to reduce time-to-first-audio without changing
-                # narrated content.
-                warmup_enabled = os.getenv("NARRATEX_WARMUP", "").strip().lower() in {
-                    "1",
-                    "true",
-                    "yes",
-                }
-                did_warmup = False
-
-                for idx, (chunk, speak_text, path) in enumerate(candidates):
-                    if self._stop_event.is_set():
-                        self._log.info("audio_paths_iter: stop_event set; exiting")
-                        return
-
-                    self._set_state(
-                        NarrationState(
-                            status=NarrationStatus.SYNTHESIZING,
-                            current_chunk_id=idx,
-                            total_chunks=playback_total,
-                            progress=idx / max(playback_total, 1),
-                            message=f"Preparing chunk {idx + 1}/{playback_total}",
-                            highlight_start=chunk.start_char,
-                            highlight_end=chunk.end_char,
-                        )
-                    )
-
-                    if not self.cache_repo.exists(
-                        book_id=book_id,
-                        voice_name=voice.name,
-                        chunk_id=chunk.chunk_id,
-                    ):
-                        self.cache_repo.ensure_parent_dir(path)
-
-                        if warmup_enabled and not did_warmup:
-                            did_warmup = True
-                            try:
-                                warmup_path = path.with_name("__warmup.wav")
-                                self._log.info(
-                                    "Warmup synthesis start (path=%s)",
-                                    warmup_path.as_posix(),
-                                )
-                                tts_engine.synthesize_to_file(
-                                    text="Warmup.",
-                                    voice_profile=voice,
-                                    output_path=warmup_path,
-                                    device=self.device,
-                                    language=self.language,
-                                )
-                                try:
-                                    warmup_path.unlink(missing_ok=True)
-                                except Exception:
-                                    pass
-                                self._log.info("Warmup synthesis done")
-                            except Exception:
-                                self._log.exception("Warmup synthesis failed")
-
-                        speak_for_tts = speak_text
-
-                        t0 = time.perf_counter()
-                        self._log.info(
-                            "TTS start idx=%s chunk_id=%s text_len=%s out=%s",
-                            idx,
-                            chunk.chunk_id,
-                            len(speak_for_tts),
-                            path.as_posix(),
-                        )
-                        tts_engine.synthesize_to_file(
-                            text=speak_for_tts,
-                            voice_profile=voice,
-                            output_path=path,
-                            device=self.device,
-                            language=self.language,
-                        )
-                        elapsed = time.perf_counter() - t0
-                        size = None
-                        try:
-                            size = path.stat().st_size
-                        except Exception:
-                            pass
-                        self._log.info(
-                            "TTS done idx=%s elapsed=%.2fs size_bytes=%s out=%s",
-                            idx,
-                            elapsed,
-                            size,
-                            path.as_posix(),
-                        )
-                    else:
-                        self._log.info(
-                            "Cache hit idx=%s chunk_id=%s out=%s",
-                            idx,
-                            chunk.chunk_id,
-                            path.as_posix(),
-                        )
-
-                    # Important: append BEFORE yielding so the on_start callback
-                    # can map play_index -> chunk.
-                    playback_chunks.append(chunk)
-                    self._log.info(
-                        "Yielding audio path idx=%s out=%s", idx, path.as_posix()
-                    )
-                    yield path
-
-                self._log.info("audio_paths_iter: exhausted")
-
             self.audio_streamer.start(
                 chunk_audio_paths=audio_paths_iter(),
                 on_chunk_start=on_start,
                 on_chunk_end=None,
             )
+
+            if synth_errors:
+                raise synth_errors[0]
 
             self._set_state(
                 NarrationState(
