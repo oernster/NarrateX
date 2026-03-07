@@ -74,12 +74,17 @@ def main() -> int:
     tts_engine = TTSEngineFactory(model_name=config.tts_model_name).create()
     audio_streamer = SoundDeviceAudioStreamer(target_buffer_seconds=15.0)
 
+    # NOTE: XTTS warns/truncates when text > ~250 chars for language='en'.
+    # Keep chunks comfortably under that to avoid truncated audio (which can
+    # sound like stutters/restarts/jumps between sentence groups).
+    chunker = ChunkingService(min_chars=120, max_chars=220)
+
     narration_service = NarrationService(
         book_repo=book_repo,
         cache_repo=cache_repo,
         tts_engine=tts_engine,
         audio_streamer=audio_streamer,
-        chunking_service=ChunkingService(),
+        chunking_service=chunker,
         device=device,
         language=config.default_language,
     )
