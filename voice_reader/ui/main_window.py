@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QMainWindow,
     QPushButton,
-    QPlainTextEdit,
     QProgressBar,
     QTextEdit,
     QVBoxLayout,
@@ -127,7 +126,8 @@ class MainWindow(QMainWindow):
         cover_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
         self.cover = QLabel("No cover")
         self.cover.setAlignment(Qt.AlignCenter)
-        self.cover.setFixedSize(150, 220)
+        # Make cover prominently visible (approx 1.5x previous size).
+        self.cover.setFixedSize(225, 330)
         self.cover.setScaledContents(False)
         self.cover.setObjectName("cover")
         cover_panel.addWidget(self.cover)
@@ -136,11 +136,9 @@ class MainWindow(QMainWindow):
 
         root.addLayout(reader_row, stretch=3)
 
-        # Logs
-        self.log = QPlainTextEdit()
-        self.log.setReadOnly(True)
-        self.log.setMaximumBlockCount(5000)
-        root.addWidget(self.log, stretch=1)
+        # Logs panel removed from the main UI. For normal usage, stdout logging
+        # is sufficient and keeps the interface focused.
+        self.log = None
 
         self.setCentralWidget(central)
         self._apply_theme()
@@ -210,7 +208,8 @@ class MainWindow(QMainWindow):
         self.reader.ensureCursorVisible()
 
     def append_log(self, line: str) -> None:
-        self.log.appendPlainText(line)
+        # Backwards-compatible no-op: we no longer show an in-app log panel.
+        del line
 
     def set_cover_image(self, image_bytes: bytes | None) -> None:
         """Set the displayed book cover.
