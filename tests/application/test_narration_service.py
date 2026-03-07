@@ -65,8 +65,19 @@ class FakeTTSEngine(TTSEngine):
 
 
 @dataclass
+class FakeKokoroEngine(FakeTTSEngine):
+    @property
+    def engine_name(self) -> str:
+        return "kokoro"
+
+
+@dataclass
 class FakeStreamer(AudioStreamer):
     played: List[Path]
+    pause_after_chunks: int | None = None
+    pause_calls: int = 0
+    _stop_flag: bool = False
+    _pause_flag: bool = False
 
     def start(
         self,
@@ -75,20 +86,46 @@ class FakeStreamer(AudioStreamer):
         on_chunk_start=None,
         on_chunk_end=None,
     ) -> None:
-        for i, p in enumerate(chunk_audio_paths):
+        it = iter(chunk_audio_paths)
+        i = 0
+        while not self._stop_flag:
+            # When paused, stop consuming further paths (backpressure).
+            while self._pause_flag and not self._stop_flag:
+                return
+
+            try:
+                p = next(it)
+            except StopIteration:
+                return
+
             if on_chunk_start is not None:
                 on_chunk_start(i)
             self.played.append(p)
+            if self.pause_after_chunks is not None and i + 1 >= self.pause_after_chunks:
+                self.pause()
             if on_chunk_end is not None:
                 on_chunk_end(i)
+            i += 1
 
     def pause(self) -> None:
+        self.pause_calls += 1
+        self._pause_flag = True
+        # Let NarrationService gate synthesis based on its pause event.
+        try:
+            owner = getattr(self, "_owner", None)
+            if owner is not None and hasattr(owner, "pause"):
+                owner.pause()
+        except Exception:
+            pass
         return
 
     def resume(self) -> None:
+        self._pause_flag = False
         return
 
     def stop(self) -> None:
+        self._stop_flag = True
+        self._pause_flag = False
         return
 
 
@@ -140,6 +177,130 @@ def test_narration_uses_cache_before_synthesis(tmp_path: Path) -> None:
     assert streamer.played
     # Engine should have been called for chunks except cached ones.
     assert len(engine.calls) == max(len(streamer.played) - 1, 0)
+
+
+def test_prepare_can_restart_from_playback_index(tmp_path: Path) -> None:
+    # Make enough text to produce multiple chunks.
+    book = Book(
+        id="b1",
+        title="Test",
+        raw_text="x",
+        normalized_text=("A sentence. " * 200),
+    )
+    voice = VoiceProfile(name="v", reference_audio_paths=[tmp_path / "a.wav"])
+    (tmp_path / "a.wav").write_bytes(b"x")
+
+    cache = FakeCache(base=tmp_path / "cache", existing=set())
+    engine = FakeTTSEngine(calls=[])
+    streamer = FakeStreamer(played=[])
+
+    svc = NarrationService(
+        book_repo=FakeBookRepo(book=book),
+        cache_repo=cache,
+        tts_engine=engine,
+        audio_streamer=streamer,
+        chunking_service=ChunkingService(min_chars=10, max_chars=60),
+        device="cpu",
+        language="en",
+        reading_start_detector=FixedStart(fixed_start_char=0),
+    )
+    svc.load_book(tmp_path / "book.txt")
+    chunks = svc.prepare(voice=voice)
+    assert len(chunks) >= 3
+
+    # Restart from the 2nd playback chunk.
+    svc.prepare(voice=voice, start_playback_index=1)
+    svc.start()
+    assert svc.wait(timeout_seconds=5.0)
+    # Should play fewer than full chunk count.
+    assert len(streamer.played) < len(chunks)
+
+
+def test_pause_stops_prefetch_beyond_current_chunk(tmp_path: Path) -> None:
+    book = Book(
+        id="b1",
+        title="Test",
+        raw_text="x",
+        normalized_text=("A sentence. " * 300),
+    )
+    voice = VoiceProfile(name="v", reference_audio_paths=[tmp_path / "a.wav"])
+    (tmp_path / "a.wav").write_bytes(b"x")
+
+    cache = FakeCache(base=tmp_path / "cache", existing=set())
+    engine = FakeTTSEngine(calls=[])
+    streamer = FakeStreamer(played=[], pause_after_chunks=1)
+
+    svc = NarrationService(
+        book_repo=FakeBookRepo(book=book),
+        cache_repo=cache,
+        tts_engine=engine,
+        audio_streamer=streamer,
+        chunking_service=ChunkingService(min_chars=10, max_chars=60),
+        device="cpu",
+        language="en",
+        reading_start_detector=FixedStart(fixed_start_char=0),
+    )
+    # Wire back-reference so FakeStreamer.pause triggers svc.pause.
+    streamer._owner = svc  # type: ignore[attr-defined]
+
+    svc.load_book(tmp_path / "book.txt")
+    svc.prepare(voice=voice)
+    svc.start()
+
+    # Wait briefly for pause to engage.
+    import time
+
+    t0 = time.perf_counter()
+    while streamer.pause_calls < 1 and (time.perf_counter() - t0) < 1.0:
+        time.sleep(0.01)
+
+    # Give synthesis a moment; it should not run away.
+    calls_at_pause = len(engine.calls)
+    time.sleep(0.2)
+    calls_after = len(engine.calls)
+
+    assert streamer.pause_calls >= 1
+    assert calls_after == calls_at_pause
+
+    # Stop so the narration thread terminates.
+    svc.stop()
+    assert svc.wait(timeout_seconds=5.0)
+
+
+def test_parallel_kokoro_workers_can_be_enabled(monkeypatch, tmp_path: Path) -> None:
+    # This test is intentionally light: it verifies that the code path doesn't
+    # crash and still plays audio when the env var is enabled.
+    monkeypatch.setenv("NARRATEX_KOKORO_WORKERS", "2")
+    monkeypatch.setenv("NARRATEX_MAX_AHEAD_CHUNKS", "2")
+
+    book = Book(
+        id="b1",
+        title="Test",
+        raw_text="x",
+        normalized_text=("A sentence. " * 50),
+    )
+    voice = VoiceProfile(name="v", reference_audio_paths=[])
+
+    cache = FakeCache(base=tmp_path / "cache", existing=set())
+    engine = FakeKokoroEngine(calls=[])
+    streamer = FakeStreamer(played=[])
+
+    svc = NarrationService(
+        book_repo=FakeBookRepo(book=book),
+        cache_repo=cache,
+        tts_engine=engine,
+        audio_streamer=streamer,
+        chunking_service=ChunkingService(min_chars=10, max_chars=60),
+        device="cpu",
+        language="en",
+        reading_start_detector=FixedStart(fixed_start_char=0),
+    )
+
+    svc.load_book(tmp_path / "book.txt")
+    svc.prepare(voice=voice)
+    svc.start()
+    assert svc.wait(timeout_seconds=5.0)
+    assert streamer.played
 
 
 def test_narration_skips_front_matter_by_start_offset(tmp_path: Path) -> None:

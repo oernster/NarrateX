@@ -211,3 +211,4 @@ generate_scripts.py
 ALL_SOURCES.txt
 1
 cache/
+temp_books/

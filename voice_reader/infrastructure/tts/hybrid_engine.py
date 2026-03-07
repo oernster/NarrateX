@@ -9,8 +9,8 @@ Motivation:
 
 This engine delegates:
 
-- to XTTS when `voice_profile.reference_audio_paths` is non-empty
-- otherwise to pyttsx3
+- to the cloning engine when `voice_profile.reference_audio_paths` is non-empty
+- otherwise to the native engine (e.g. Kokoro)
 """
 
 from __future__ import annotations
@@ -24,12 +24,14 @@ from voice_reader.domain.interfaces.tts_engine import TTSEngine
 
 @dataclass(frozen=True, slots=True)
 class HybridTTSEngine(TTSEngine):
-    xtts: TTSEngine
-    pyttsx3: TTSEngine
+    cloning_engine: TTSEngine
+    native_engine: TTSEngine
 
     @property
     def engine_name(self) -> str:
-        return f"Hybrid ({self.xtts.engine_name} + {self.pyttsx3.engine_name})"
+        return (
+            f"Hybrid ({self.cloning_engine.engine_name} + {self.native_engine.engine_name})"
+        )
 
     def synthesize_to_file(
         self,
@@ -41,14 +43,14 @@ class HybridTTSEngine(TTSEngine):
         language: str,
     ) -> Path:
         if voice_profile.reference_audio_paths:
-            return self.xtts.synthesize_to_file(
+            return self.cloning_engine.synthesize_to_file(
                 text=text,
                 voice_profile=voice_profile,
                 output_path=output_path,
                 device=device,
                 language=language,
             )
-        return self.pyttsx3.synthesize_to_file(
+        return self.native_engine.synthesize_to_file(
             text=text,
             voice_profile=voice_profile,
             output_path=output_path,

@@ -98,6 +98,16 @@ class SoundDeviceAudioStreamer:
         self._out_stream_sr: int | None = None
         self._out_stream_ch: int | None = None
 
+    def _is_tearing_down(self) -> bool:
+        """Return True when playback is being stopped/paused and errors are expected.
+
+        During stop/pause/app shutdown, PortAudio calls can legitimately fail
+        (device disappeared, default device is invalid, etc.). We avoid logging
+        noisy tracebacks in those situations.
+        """
+
+        return bool(self._stop.is_set() or self._pause.is_set())
+
     def start(
         self,
         *,
@@ -111,9 +121,9 @@ class SoundDeviceAudioStreamer:
         self.stop(clear_pause=False)
         self._stop.clear()
 
-        self._log.info("AudioStreamer starting")
+        self._log.debug("AudioStreamer starting")
         try:
-            self._log.info("AudioStreamer pause=%s", self._pause.is_set())
+            self._log.debug("AudioStreamer pause=%s", self._pause.is_set())
         except Exception:
             pass
 
@@ -135,22 +145,22 @@ class SoundDeviceAudioStreamer:
         for t in self._threads:
             t.join()
 
-        self._log.info("AudioStreamer finished")
+        self._log.debug("AudioStreamer finished")
 
     def pause(self) -> None:
         self._pause.set()
-        self._log.info("AudioStreamer paused")
+        self._log.debug("AudioStreamer paused")
         self._stop_playback_device()
 
     def resume(self) -> None:
         self._pause.clear()
-        self._log.info("AudioStreamer resumed")
+        self._log.debug("AudioStreamer resumed")
 
     def stop(self, *, clear_pause: bool = True) -> None:
         self._stop.set()
         if clear_pause:
             self._pause.clear()
-        self._log.info("AudioStreamer stop requested")
+        self._log.debug("AudioStreamer stop requested")
         self._stop_playback_device()
         while not self._audio_q.empty():
             try:
@@ -181,6 +191,64 @@ class SoundDeviceAudioStreamer:
             # we still want pause/stop to behave consistently via events.
             return
 
+    @staticmethod
+    def _safe_output_device(sd) -> int | None:
+        """Return a safe PortAudio output device index or None.
+
+        On some Windows machines `sd.default.device` resolves to -1 (or a scalar
+        wrapping -1). Passing `device=-1` causes PortAudioError.
+        """
+
+        out_dev = None
+        try:
+            default_dev = getattr(sd.default, "device", None)
+            if isinstance(default_dev, (list, tuple)) and len(default_dev) >= 2:
+                out_dev = default_dev[1]
+            else:
+                out_dev = default_dev
+        except Exception:
+            out_dev = None
+
+        try:
+            if out_dev is None:
+                return None
+            out_dev_int = int(out_dev)
+        except Exception:
+            return None
+
+        if out_dev_int < 0:
+            return None
+
+        # Validate when possible.
+        try:
+            if hasattr(sd, "query_devices"):
+                sd.query_devices(out_dev_int)
+        except Exception:
+            return None
+
+        return out_dev_int
+
+    @staticmethod
+    def _sd_play(sd, *, data, sr: int, blocking: bool, device: int | None) -> None:
+        """Play audio with sounddevice, retrying without device on device errors."""
+
+        if device is None:
+            sd.play(data, sr, blocking=blocking)
+            return
+
+        try:
+            sd.play(data, sr, blocking=blocking, device=device)
+        except TypeError:
+            # Older sounddevice versions may not accept device=.
+            sd.play(data, sr, blocking=blocking)
+        except Exception as exc:
+            msg = str(exc).lower()
+            # Fallback: if explicit device selection is broken, retry without it.
+            if "querying device" in msg or "device" in msg:
+                sd.play(data, sr, blocking=blocking)
+            else:
+                raise
+
     def _producer(self, paths: Iterable[Path]) -> None:
         # Read files and push audio arrays to queue.
         import numpy as np
@@ -194,7 +262,7 @@ class SoundDeviceAudioStreamer:
         # Maintaining an accurate "seconds buffered" counter would require
         # cross-thread coordination to decrement as playback consumes.
         # A bounded queue provides a robust, deadlock-free buffer.
-        self._log.info("Producer thread started")
+        self._log.debug("Producer thread started")
 
         # IMPORTANT DEBUGGING NOTE:
         # The iterator `paths` may block while it synthesizes the *next* chunk.
@@ -204,16 +272,14 @@ class SoundDeviceAudioStreamer:
         idx = 0
         while True:
             if self._stop.is_set():
-                self._log.info("Producer stopping (stop event set)")
+                self._log.debug("Producer stopping (stop event set)")
                 return
 
-            self._log.info("Producer waiting for next path idx=%s", idx)
             try:
                 path = next(it)
             except StopIteration:
                 break
 
-            self._log.info("Producer got path idx=%s path=%s", idx, path.as_posix())
             data, sr = sf.read(str(path), dtype="float32", always_2d=False)
 
             data = _trim_silence(
@@ -226,25 +292,21 @@ class SoundDeviceAudioStreamer:
                 trim_leading=False,
                 trim_trailing=True,
             )
-            self._log.info(
-                "Producer read idx=%s sr=%s path=%s", idx, sr, path.as_posix()
-            )
             if isinstance(data, np.ndarray) and data.ndim == 1:
                 frames = data.shape[0]
             else:
                 frames = len(data)
             del frames
             self._audio_q.put((idx, data, sr))
-            self._log.info("Producer enqueued idx=%s", idx)
 
             idx += 1
 
-        self._log.info("Producer exhausted paths")
+        self._log.debug("Producer exhausted paths")
 
     def _player(self, on_start, on_end) -> None:
         import sounddevice as sd
 
-        self._log.info("Player thread started")
+        self._log.debug("Player thread started")
         played_seconds = 0.0
 
         def ensure_output_stream(*, sr: int, channels: int):
@@ -279,16 +341,7 @@ class SoundDeviceAudioStreamer:
                     self._out_stream_sr = None
                     self._out_stream_ch = None
 
-                # Select output device if available.
-                out_dev = None
-                try:
-                    default_dev = getattr(sd.default, "device", None)
-                    if isinstance(default_dev, (list, tuple)) and len(default_dev) >= 2:
-                        out_dev = default_dev[1]
-                    if isinstance(out_dev, int) and out_dev < 0:
-                        out_dev = None
-                except Exception:
-                    out_dev = None
+                out_dev = self._safe_output_device(sd)
 
                 try:
                     self._out_stream = sd.OutputStream(
@@ -300,14 +353,17 @@ class SoundDeviceAudioStreamer:
                     self._out_stream.start()
                     self._out_stream_sr = int(sr)
                     self._out_stream_ch = int(channels)
-                    self._log.info(
+                    self._log.debug(
                         "OutputStream opened sr=%s ch=%s dev=%s",
                         self._out_stream_sr,
                         self._out_stream_ch,
                         out_dev,
                     )
                 except Exception:
-                    self._log.exception("Failed to open OutputStream; falling back")
+                    # On shutdown/stop, this is expected on some systems.
+                    if not self._is_tearing_down():
+                        self._log.warning("Failed to open OutputStream; falling back")
+                        self._log.debug("OutputStream open failed", exc_info=True)
                     self._out_stream = None
                     self._out_stream_sr = None
                     self._out_stream_ch = None
@@ -317,7 +373,7 @@ class SoundDeviceAudioStreamer:
             except queue.Empty:
                 # Producer may still be working.
                 if self._threads and not self._threads[0].is_alive():
-                    self._log.info("Player exiting: producer not alive and queue empty")
+                    self._log.debug("Player exiting: producer not alive and queue empty")
                     return
                 continue
 
@@ -383,40 +439,31 @@ class SoundDeviceAudioStreamer:
                     # Fall back to sd.play below.
                     pass
 
-                # Some Windows setups (and some host APIs) fail to query the
-                # default output device using device=-1. Prefer an explicit
-                # output device index when available.
-                out_dev = None
-                try:
-                    default_dev = getattr(sd.default, "device", None)
-                    if isinstance(default_dev, (list, tuple)) and len(default_dev) >= 2:
-                        out_dev = default_dev[1]
-                    if isinstance(out_dev, int) and out_dev < 0:
-                        out_dev = None
-                except Exception:
-                    out_dev = None
+                out_dev = self._safe_output_device(sd)
 
                 try:
                     with self._sd_lock:
-                        try:
-                            sd.play(data, sr, blocking=False, device=out_dev)
-                        except TypeError:
-                            # Older sounddevice versions may not accept device=.
-                            sd.play(data, sr, blocking=False)
+                        self._sd_play(sd, data=data, sr=int(sr), blocking=False, device=out_dev)
                 except Exception:
                     # If the audio backend can't open a default device on this
                     # machine, fall back to blocking playback. This sacrifices
                     # mid-chunk interruption but keeps the app functional.
-                    self._log.exception("sd.play(non-blocking) failed; falling back")
+                    if self._is_tearing_down():
+                        return False
+
+                    self._log.warning("sd.play(non-blocking) failed; falling back")
+                    self._log.debug("sd.play(non-blocking) failed", exc_info=True)
                     try:
                         with self._sd_lock:
-                            try:
-                                sd.play(data, sr, blocking=True, device=out_dev)
-                            except TypeError:
-                                sd.play(data, sr, blocking=True)
+                            self._sd_play(sd, data=data, sr=int(sr), blocking=True, device=out_dev)
                         return True
                     except Exception:
-                        self._log.exception("sd.play(blocking) failed")
+                        if not self._is_tearing_down():
+                            self._log.error("sd.play(blocking) failed")
+                            self._log.debug("sd.play(blocking) failed", exc_info=True)
+                        # Avoid an infinite retry loop if the audio backend is
+                        # broken (e.g. invalid default device). End playback.
+                        self._stop.set()
                         return False
 
                 # If sounddevice doesn't expose get_stream (e.g., stubbed in
@@ -452,7 +499,7 @@ class SoundDeviceAudioStreamer:
                         time.sleep(0.02)
 
             while True:
-                self._log.info("Player starting idx=%s sr=%s", idx, sr)
+                # Avoid per-chunk spam; keep only higher-level thread lifecycle logs.
                 finished = play_interruptible()
                 if self._stop.is_set():
                     return
@@ -475,7 +522,7 @@ class SoundDeviceAudioStreamer:
                 except Exception:
                     self._log.exception("on_chunk_end failed")
 
-        self._log.info("Player exiting: stop set")
+        self._log.debug("Player exiting: stop set")
 
         # Best-effort close stream.
         try:

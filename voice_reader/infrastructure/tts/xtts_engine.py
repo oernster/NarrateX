@@ -77,7 +77,7 @@ class XTTSCoquiEngine(TTSEngine):
             # conditioning time). Cap it deterministically.
             if self.max_reference_files > 0:
                 speaker_wav = speaker_wav[: self.max_reference_files]
-            self._log.info(
+            self._log.debug(
                 "XTTS synthesize: speaker_wav=%s",
                 [Path(p).name for p in speaker_wav],
             )
@@ -120,7 +120,7 @@ class XTTSCoquiEngine(TTSEngine):
                 original_torchaudio_load = None
 
             try:
-                self._log.info(
+                self._log.debug(
                     "XTTS tts_to_file start: text_len=%s out=%s",
                     len(text),
                     output_path.as_posix(),
@@ -156,7 +156,7 @@ class XTTSCoquiEngine(TTSEngine):
                 if t0_all is not None:
                     import time
 
-                    self._log.info(
+                    self._log.debug(
                         "XTTS tts_to_file done: elapsed=%.2fs out=%s",
                         time.perf_counter() - t0_all,
                         output_path.as_posix(),
@@ -208,7 +208,7 @@ class XTTSCoquiEngine(TTSEngine):
 
             try:
                 seconds = float(data.shape[0]) / float(sr)
-                self._log.info(
+                self._log.debug(
                     "XTTS ref preprocess: in=%s sr=%s seconds=%.2f",
                     path.name,
                     int(sr),
@@ -255,7 +255,7 @@ class XTTSCoquiEngine(TTSEngine):
 
             try:
                 trimmed_seconds = float(wav.shape[1]) / float(self.reference_sample_rate)
-                self._log.info(
+                self._log.debug(
                     "XTTS ref preprocess: out=%s sr=%s seconds=%.2f",
                     out.name,
                     int(self.reference_sample_rate),
@@ -434,6 +434,7 @@ class XTTSCoquiEngine(TTSEngine):
         if self._tts is not None and self._gpu == use_gpu:
             return self._tts
 
+        # Model load is expensive but not frequent; keep at INFO.
         self._log.info("Loading TTS model %s (gpu=%s)", self.model_name, use_gpu)
         torch_load_original = None
         try:

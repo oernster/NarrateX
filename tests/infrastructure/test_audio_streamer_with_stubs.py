@@ -63,6 +63,8 @@ def test_audio_streamer_plays_all_chunks(monkeypatch, tmp_path: Path) -> None:
         play=fake_play,
         stop=fake_stop,
         get_stream=fake_get_stream,
+        query_devices=lambda dev=None, kind=None: {"index": dev, "kind": kind},
+        default=types.SimpleNamespace(device=[-1, -1]),
         OutputStream=FakeOutputStream,
         sleep=lambda ms: None,
     )
