@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import sys
 from pathlib import Path
 
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from voice_reader.application.services.device_detection_service import (
@@ -26,13 +28,19 @@ from voice_reader.infrastructure.tts.voice_profile_repository import (
 )
 from voice_reader.shared.config import Config
 from voice_reader.shared.logging_utils import configure_logging
+from voice_reader.shared.resources import find_app_icon_path
+from voice_reader.shared.windows_integration import set_app_user_model_id
 from voice_reader.ui.main_window import MainWindow
 from voice_reader.ui.ui_controller import UiController
+from voice_reader.version import APP_APPUSERMODELID, APP_NAME
 
 
 def main() -> int:
     configure_logging(logging.INFO)
     log = logging.getLogger("app")
+
+    # Windows taskbar identity must be set before creating any windows.
+    set_app_user_model_id(APP_APPUSERMODELID)
 
     project_root = Path(__file__).resolve().parent
     config = Config.from_project_root(project_root)
@@ -91,7 +99,29 @@ def main() -> int:
 
     # UI
     app = QApplication([])
+
+    # Set a stable application identity for the OS.
+    try:
+        app.setApplicationName(APP_NAME)
+        app.setApplicationDisplayName(APP_NAME)
+    except Exception:
+        # Older bindings/platform quirks shouldn't stop startup.
+        pass
+
+    icon_path = find_app_icon_path(project_root=project_root)
+    if icon_path is not None:
+        try:
+            app_icon = QIcon(str(icon_path))
+            app.setWindowIcon(app_icon)
+        except Exception:
+            log.exception("Failed to set application icon")
+
     window = MainWindow()
+    if icon_path is not None:
+        try:
+            window.setWindowIcon(QIcon(str(icon_path)))
+        except Exception:
+            log.exception("Failed to set main window icon")
     UiController(
         window=window,
         narration_service=narration_service,

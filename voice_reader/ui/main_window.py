@@ -13,10 +13,14 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
     QProgressBar,
+    QMessageBox,
     QTextEdit,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
+
+from voice_reader.version import APP_AUTHOR, APP_COPYRIGHT, APP_NAME, __version__
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,7 +44,8 @@ class MainWindow(QMainWindow):
     def __init__(self, strings: UiStrings | None = None) -> None:
         super().__init__()
         self._strings = strings or UiStrings()
-        self.setWindowTitle("Voice Reader")
+
+        self.setWindowTitle(APP_NAME)
         self.resize(1100, 700)
 
         central = QWidget()
@@ -98,6 +103,24 @@ class MainWindow(QMainWindow):
         right_panel = QVBoxLayout()
         right_panel.setSpacing(6)
         right_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
+
+        # Info button (top-right) that opens About directly.
+        self.btn_help = QToolButton()
+        # Blue help/info glyph as requested.
+        self.btn_help.setText("ℹ")
+        self.btn_help.setObjectName("helpButton")
+        self.btn_help.setToolTip(f"About {APP_NAME}")
+        self.btn_help.setCursor(Qt.PointingHandCursor)
+        self.btn_help.setAutoRaise(True)
+        self.btn_help.setFixedSize(34, 34)
+        self.btn_help.setFont(QFont("Segoe UI", 15))
+        self.btn_help.clicked.connect(self.show_about_dialog)
+
+        help_row = QHBoxLayout()
+        help_row.setContentsMargins(0, 0, 0, 0)
+        help_row.addStretch(1)
+        help_row.addWidget(self.btn_help)
+        right_panel.addLayout(help_row)
 
         self.lbl_device = QLabel("Device: -")
         self.lbl_engine = QLabel("Engine: -")
@@ -180,6 +203,21 @@ class MainWindow(QMainWindow):
             }}
             QPushButton:hover {{ border-color: {purple}; }}
             QPushButton:pressed {{ background: #111827; }}
+
+            QToolButton#helpButton {{
+                background: transparent;
+                border: 2px solid transparent;
+                border-radius: 17px;
+                padding: 0px;
+                color: #3b82f6;
+            }}
+            QToolButton#helpButton:hover {{
+                border-color: #ffffff;
+            }}
+            QToolButton#helpButton:pressed {{
+                background: rgba(255, 255, 255, 0.08);
+            }}
+
             QProgressBar {{
                 background: {panel};
                 border: 1px solid #1f2937;
@@ -187,6 +225,57 @@ class MainWindow(QMainWindow):
             }}
             QProgressBar::chunk {{ background: {purple}; }}
             """)
+
+    def build_about_dialog(self) -> QMessageBox:
+        box = QMessageBox(self)
+        box.setWindowTitle(f"About {APP_NAME}")
+        box.setTextFormat(Qt.RichText)
+
+        # Prefer the runtime-set window icon (which should be narratex.ico).
+        icon = self.windowIcon()
+        if not icon.isNull():
+            try:
+                box.setIconPixmap(icon.pixmap(64, 64))
+            except Exception:
+                # Not fatal.
+                pass
+
+        thanks = "<br>".join(
+            [
+                "PySide6 (Qt for Python) developers",
+                "The Python development team",
+                "The Nuitka team",
+                "Kokoro TTS library",
+                "Coqui TTS (TTS)",
+                "EbookLib",
+                "PyMuPDF",
+                "sounddevice",
+            ]
+        )
+
+        box.setText(
+            """
+            <div>
+              <div style="font-size: 16px;"><b>{app}</b> <span style="font-size: 12px;">v{ver}</span></div>
+              <div style="margin-top: 6px;">{copyright}</div>
+              <div style="margin-top: 10px;"><b>Author</b>: {author}</div>
+              <div style="margin-top: 10px;"><b>Thanks</b>:</div>
+              <div style="margin-top: 4px;">{thanks}</div>
+            </div>
+            """.format(
+                app=APP_NAME,
+                ver=__version__,
+                author=APP_AUTHOR,
+                copyright=APP_COPYRIGHT,
+                thanks=thanks,
+            )
+        )
+
+        box.setStandardButtons(QMessageBox.Ok)
+        return box
+
+    def show_about_dialog(self) -> None:
+        self.build_about_dialog().exec()
 
     def set_reader_text(self, text: str) -> None:
         self.reader.setPlainText(text)
