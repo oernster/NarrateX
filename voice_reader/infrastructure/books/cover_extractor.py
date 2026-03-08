@@ -14,16 +14,105 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+_KINDLE_EXTS = {".mobi", ".azw", ".azw3", ".prc", ".kfx"}
+_IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
+_MAX_SIDECAR_BYTES = 12 * 1024 * 1024  # 12MB: avoid accidentally reading huge files
+
 
 @dataclass(frozen=True, slots=True)
 class CoverExtractor:
     def extract_cover_bytes(self, source_path: Path) -> bytes | None:
+        """Return encoded cover bytes (PNG/JPG/etc.) if found.
+
+        Strategy (best-effort):
+        1) Prefer Calibre-style *sidecar* images next to the book file
+           (e.g. cover.jpg in the same directory).
+        2) Fall back to embedded extraction for formats we understand (EPUB/PDF).
+        3) For Kindle formats, try converting to a temporary EPUB via Calibre
+           `ebook-convert` and then extract from the converted EPUB.
+        """
+
+        sidecar = self._extract_sidecar_image(source_path)
+        if sidecar:
+            return sidecar
+
         ext = source_path.suffix.lower()
         if ext == ".epub":
             return self._extract_epub(source_path)
         if ext == ".pdf":
             return self._extract_pdf(source_path)
+        if ext in _KINDLE_EXTS:
+            return self._extract_kindle_via_conversion(source_path)
         # TXT and unknown formats: no cover.
+        return None
+
+    def _extract_sidecar_image(self, source_path: Path) -> bytes | None:
+        """Look for Calibre-style sidecar cover images in the same folder.
+
+        Many Calibre libraries store a `cover.jpg` adjacent to the ebook file
+        (especially for Kindle formats), rather than embedding a cover inside the
+        ebook.
+        """
+
+        folder = source_path.parent
+        if not folder.exists():
+            return None
+
+        def _safe_read(p: Path) -> bytes | None:
+            try:
+                if not p.exists() or not p.is_file():
+                    return None
+                try:
+                    if p.stat().st_size > _MAX_SIDECAR_BYTES:
+                        return None
+                except Exception:
+                    # If we can't stat it, we also shouldn't try reading it.
+                    return None
+                return p.read_bytes()
+            except Exception:
+                return None
+
+        # 1) Common Calibre/Windows names.
+        preferred_stems = (
+            "cover",
+            "folder",
+            "front",
+        )
+        for stem in preferred_stems:
+            for ext in _IMAGE_EXTS:
+                data = _safe_read(folder / f"{stem}{ext}")
+                if data:
+                    return data
+
+        # 2) Heuristic scan: any image file with "cover"/"folder" in name.
+        try:
+            candidates: list[Path] = []
+            for p in folder.iterdir():
+                if not p.is_file():
+                    continue
+                if p.suffix.lower() not in _IMAGE_EXTS:
+                    continue
+                name = p.name.lower()
+                if "cover" in name or "folder" in name:
+                    candidates.append(p)
+
+            def _rank(p: Path) -> tuple[int, str]:
+                n = p.name.lower()
+                if n.startswith("cover"):
+                    return (0, n)
+                if "cover" in n:
+                    return (1, n)
+                if n.startswith("folder"):
+                    return (2, n)
+                return (3, n)
+
+            for p in sorted(candidates, key=_rank):
+                data = _safe_read(p)
+                if data:
+                    return data
+        except Exception:
+            return None
+
         return None
 
     def _extract_epub(self, path: Path) -> bytes | None:
@@ -82,12 +171,25 @@ class CoverExtractor:
                     # IMPORTANT: cover.xhtml often includes a CSS <link href=...>
                     # before the actual cover <image xlink:href=...>, so we must
                     # prefer *image-like* targets.
+                    # Support both single and double quotes, plus unquoted forms.
+                    # We avoid full HTML parsing here by design.
                     matches = re.findall(
-                        r"(?:xlink:href|src|href)\s*=\s*\"([^\"]+)\"",
+                        r"(?:xlink:href|src|href)\s*=\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s>]+))",
                         html,
                         flags=re.IGNORECASE,
                     )
                     if not matches:
+                        continue
+
+                    flat: list[str] = []
+                    for m in matches:
+                        if isinstance(m, tuple):
+                            for part in m:
+                                if part:
+                                    flat.append(part)
+                        elif m:
+                            flat.append(m)
+                    if not flat:
                         continue
 
                     def _is_image_target(s: str) -> bool:
@@ -104,12 +206,12 @@ class CoverExtractor:
 
                     # Prefer explicit image refs, else fall back to first match.
                     href = None
-                    for cand in matches:
+                    for cand in flat:
                         if _is_image_target(cand):
                             href = cand
                             break
                     if href is None:
-                        href = matches[0]
+                        href = flat[0]
                     href = href.split("#", 1)[0]
                     if not href:
                         continue
@@ -142,6 +244,36 @@ class CoverExtractor:
                     if data:
                         return data
                 return None
+        except Exception:
+            return None
+
+    def _extract_kindle_via_conversion(self, path: Path) -> bytes | None:
+        """Convert Kindle formats to a temporary EPUB and reuse EPUB extraction.
+
+        This is best-effort and intentionally silent on failure; callers treat a
+        None return as "no cover".
+        """
+
+        try:
+            import subprocess
+            import tempfile
+
+            with tempfile.TemporaryDirectory(prefix="narratex-cover-") as tmp:
+                out_path = Path(tmp) / f"{path.stem}.epub"
+                cmd = ["ebook-convert", str(path), str(out_path)]
+                try:
+                    completed = subprocess.run(
+                        cmd,
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                except FileNotFoundError:
+                    return None
+
+                if completed.returncode != 0 or not out_path.exists():
+                    return None
+                return self._extract_epub(out_path)
         except Exception:
             return None
 
