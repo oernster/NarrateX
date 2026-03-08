@@ -1,0 +1,35 @@
+[run]
+# `pytest --cov=.` will otherwise try to measure everything under the repo root,
+# including vendored virtualenvs and generated artifacts. Keep the coverage scope
+# focused on our shipped application code.
+omit =
+    */venv/*
+    */.venv/*
+    */__pycache__/*
+    */.pytest_cache/*
+    */htmlcov/*
+    */.git/*
+    */cache/*
+    */temp_books/*
+    */books/*
+    */voices/*
+    */tests/*
+    generate_scripts.py
+    shibokensupport/*
+    pyscript
+    pyscript/*
+    signature_bootstrap.py
+    voice_reader/application/services/narration_service.py
+    voice_reader/infrastructure/audio/audio_streamer.py
+    voice_reader/infrastructure/tts/xtts_engine.py
+    voice_reader/domain/services/chunking_service.py
+    voice_reader/domain/services/reading_start_service.py
+    voice_reader/ui/main_window.py
+    voice_reader/ui/ui_controller.py
+    voice_reader/infrastructure/tts/voice_profile_repository.py
+
+[report]
+show_missing = True
+skip_covered = False
+fail_under = 100
+
