@@ -1,4 +1,5 @@
-<img width="57" height="48" alt="{CB13D3C4-7566-4A2F-8604-7C4239B293A5}" src="https://github.com/user-attachments/assets/a166e3b6-0c0e-4687-bf4e-f0e55331482c" /> # NarrateX (Voice Reader app)
+<img width="57" height="48" alt="{CB13D3C4-7566-4A2F-8604-7C4239B293A5}" src="https://github.com/user-attachments/assets/a166e3b6-0c0e-4687-bf4e-f0e55331482c" /> 
+# NarrateX (Voice Reader app)
 
 Desktop eBook voice reader built on the Kokoro TTS library: select from multiple machine voices, load a book, and control playback (play/pause/stop) while it reads.
 
