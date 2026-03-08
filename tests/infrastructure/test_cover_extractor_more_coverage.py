@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import subprocess
 import zipfile
 from pathlib import Path
 from types import SimpleNamespace
@@ -24,6 +25,17 @@ def test_cover_extractor_epub_finds_image_from_cover_doc(tmp_path: Path) -> None
         )
         z.writestr("Images/cover.jpg", b"JPGDATA")
     assert CoverExtractor().extract_cover_bytes(epub) == b"JPGDATA"
+
+
+def test_cover_extractor_epub_single_quotes_are_supported(tmp_path: Path) -> None:
+    epub = tmp_path / "b2.epub"
+    with zipfile.ZipFile(epub, "w") as z:
+        z.writestr(
+            "OEBPS/cover.xhtml",
+            "<html><body><img src='../Images/cover.png'/></body></html>",
+        )
+        z.writestr("Images/cover.png", b"PNGDATA")
+    assert CoverExtractor().extract_cover_bytes(epub) == b"PNGDATA"
 
 
 def test_cover_extractor_epub_suffix_match_when_nested_folder(tmp_path: Path) -> None:
@@ -85,4 +97,53 @@ def test_cover_extractor_pdf_failure_returns_none(monkeypatch, tmp_path: Path) -
     fake_fitz = SimpleNamespace(open=lambda path: (_ for _ in ()).throw(RuntimeError("x")))
     monkeypatch.setitem(__import__("sys").modules, "fitz", fake_fitz)
     assert CoverExtractor().extract_cover_bytes(pdf) is None
+
+
+def test_cover_extractor_prefers_calibre_sidecar_cover(tmp_path: Path) -> None:
+    # Calibre commonly stores a cover.jpg adjacent to the ebook file.
+    book = tmp_path / "Book.azw3"
+    book.write_bytes(b"dummy")
+    (tmp_path / "cover.jpg").write_bytes(b"JPG")
+    assert CoverExtractor().extract_cover_bytes(book) == b"JPG"
+
+
+def test_cover_extractor_sidecar_heuristic_scan_finds_cover_named_file(tmp_path: Path) -> None:
+    book = tmp_path / "Book.azw3"
+    book.write_bytes(b"dummy")
+    (tmp_path / "my_cover.png").write_bytes(b"PNG")
+    assert CoverExtractor().extract_cover_bytes(book) == b"PNG"
+
+
+def test_cover_extractor_kindle_convert_to_epub_fallback(monkeypatch, tmp_path: Path) -> None:
+    # No sidecar. Ensure we fall back to ebook-convert and then parse the produced EPUB.
+    book = tmp_path / "Book.azw3"
+    book.write_bytes(b"dummy")
+
+    def fake_run(cmd, capture_output: bool, text: bool, check: bool):
+        assert cmd[0] == "ebook-convert"
+        out_path = Path(cmd[2])
+        # Produce a minimal EPUB with a cover doc pointing at an image.
+        with zipfile.ZipFile(out_path, "w") as z:
+            z.writestr(
+                "cover.xhtml",
+                '<html><body><img src="images/cover.jpg"/></body></html>',
+            )
+            z.writestr("images/cover.jpg", b"COVER")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert CoverExtractor().extract_cover_bytes(book) == b"COVER"
+
+
+def test_cover_extractor_kindle_convert_missing_ebook_convert_returns_none(
+    monkeypatch, tmp_path: Path
+) -> None:
+    book = tmp_path / "Book.azw3"
+    book.write_bytes(b"dummy")
+
+    def fake_run(*a, **k):
+        raise FileNotFoundError("ebook-convert")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert CoverExtractor().extract_cover_bytes(book) is None
 
