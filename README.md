@@ -1,10 +1,16 @@
-# voice_reader
+<img width="57" height="48" alt="{CB13D3C4-7566-4A2F-8604-7C4239B293A5}" src="https://github.com/user-attachments/assets/a166e3b6-0c0e-4687-bf4e-f0e55331482c" /> 
+
+# NarrateX (Voice Reader app)
 
 Desktop eBook voice reader built on the Kokoro TTS library: select from multiple machine voices, load a book, and control playback (play/pause/stop) while it reads.
 
 Where available, the UI also displays the book cover and other metadata during book handling.
 
 For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITECTURE.md`](ARCHITECTURE.md:1).
+
+# Screenshot
+
+<img width="1105" height="726" alt="{07899890-5135-4BC2-A6C8-DD26CE3296A8}" src="https://github.com/user-attachments/assets/bb3f7f7f-4304-4962-8761-faa206ab9851" />
 
 ## Supported book formats
 
