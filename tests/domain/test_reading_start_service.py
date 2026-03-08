@@ -82,6 +82,22 @@ def test_detect_start_uses_prologue_when_no_chapter_one() -> None:
     assert text[start.start_char :].lstrip().startswith("It begins")
 
 
+def test_detect_start_prologue_does_not_skip_first_short_sentence() -> None:
+    # Regression: prose detection should not treat a short opening sentence as a heading.
+    text = (
+        "Some Title\n\n"
+        "Contents\n"
+        "Prologue .... i\n\n"
+        "PROLOGUE\n"
+        "This is not a guide to becoming a CTO.\n"
+        "It is a story about leadership under pressure.\n"
+    )
+    svc = ReadingStartService()
+    start = svc.detect_start(text)
+    assert start.reason == "Detected Prologue"
+    assert text[start.start_char :].lstrip().startswith("This is not a guide")
+
+
 def test_detect_start_skips_toc_when_present() -> None:
     text = (
         "Title\n\n"
