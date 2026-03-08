@@ -8,6 +8,10 @@ Where available, the UI also displays the book cover and other metadata during b
 
 For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITECTURE.md`](ARCHITECTURE.md:1).
 
+# Screenshot
+
+<img width="1105" height="726" alt="{07899890-5135-4BC2-A6C8-DD26CE3296A8}" src="https://github.com/user-attachments/assets/bb3f7f7f-4304-4962-8761-faa206ab9851" />
+
 ## Supported book formats
 
 Native:
