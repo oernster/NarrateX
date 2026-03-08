@@ -84,6 +84,21 @@ class UiController(QObject):
         if not path_str:
             return
         path = Path(path_str)
+        try:
+            abs_path = path.resolve()
+        except Exception:
+            abs_path = path
+        try:
+            abs_parent = path.parent.resolve()
+        except Exception:
+            abs_parent = path.parent
+        cover_jpg_exists = (path.parent / "cover.jpg").exists()
+        self._log.info(
+            "Selected book path=%s parent=%s cover.jpg.exists=%s",
+            abs_path,
+            abs_parent,
+            cover_jpg_exists,
+        )
         book = self.narration_service.load_book(path)
         self.window.set_reader_text(book.normalized_text)
 
@@ -92,12 +107,17 @@ class UiController(QObject):
         try:
             cover = self._cover_extractor.extract_cover_bytes(path)
         except Exception:
+            self._log.exception("Cover extraction failed for path=%s", abs_path)
             cover = None
+        self._log.info(
+            "Cover bytes loaded=%s",
+            "None" if cover is None else str(len(cover)),
+        )
         try:
             self.window.set_cover_image(cover)
         except Exception:
             # If the window implementation changes, don't fail book loading.
-            pass
+            self._log.exception("Failed to set cover image")
         self._log.info("Selected book: %s", book.title)
 
     def _selected_voice(self) -> VoiceProfile | None:

@@ -11,6 +11,8 @@ Returns raw encoded image bytes (PNG/JPG/etc.) suitable for Qt `QImage.fromData`
 
 from __future__ import annotations
 
+import logging
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -32,21 +34,237 @@ class CoverExtractor:
            `ebook-convert` and then extract from the converted EPUB.
         """
 
-        sidecar = self._extract_sidecar_image(source_path)
-        if sidecar:
-            return sidecar
+        log = logging.getLogger(self.__class__.__name__)
+        try:
+            abs_source = source_path.resolve()
+        except Exception:
+            abs_source = source_path
+
+        log.debug("Cover: extract start source=%s", abs_source)
+
+        # 1) Deterministic Calibre sidecar cover: exact cover.(jpg|jpeg|png|webp)
+        # next to the selected book file.
+        det_path = self._resolve_calibre_sidecar_cover_path(source_path)
+        if det_path is not None:
+            try:
+                abs_det = det_path.resolve()
+            except Exception:
+                abs_det = det_path
+            log.debug(
+                "Cover: deterministic sidecar candidate=%s exists=%s",
+                abs_det,
+                det_path.exists(),
+            )
+            # For the deterministic Calibre cover path, prefer correctness over
+            # the heuristic size-guard. Some real-world Calibre covers can be
+            # large (high-res scans); skipping them leads to confusing fallbacks.
+            det_bytes = self._safe_read_image_bytes(det_path, max_bytes=None)
+            if det_bytes:
+                log.info(
+                    "Cover: using deterministic sidecar path=%s bytes=%s",
+                    abs_det,
+                    len(det_bytes),
+                )
+                log.debug(
+                    "Cover: deterministic sidecar hit path=%s bytes=%s",
+                    abs_det,
+                    len(det_bytes),
+                )
+                self._maybe_dump_cover_bytes(
+                    source_path=abs_source,
+                    cover_bytes=det_bytes,
+                    strategy="deterministic-sidecar",
+                    cover_path=abs_det,
+                )
+                return det_bytes
+            log.debug(
+                "Cover: deterministic sidecar unreadable/empty path=%s; falling back",
+                abs_det,
+            )
+        else:
+            try:
+                abs_parent = source_path.parent.resolve()
+            except Exception:
+                abs_parent = source_path.parent
+            log.debug(
+                "Cover: deterministic sidecar not found in folder=%s; falling back",
+                abs_parent,
+            )
+
+        # 2) Generic sidecar fallback (heuristic)
+        sidecar_bytes, sidecar_path = self._extract_sidecar_image_with_path(source_path)
+        if sidecar_bytes:
+            if sidecar_path is not None:
+                try:
+                    abs_sidecar = sidecar_path.resolve()
+                except Exception:
+                    abs_sidecar = sidecar_path
+                log.info(
+                    "Cover: using generic sidecar path=%s bytes=%s",
+                    abs_sidecar,
+                    len(sidecar_bytes),
+                )
+                self._maybe_dump_cover_bytes(
+                    source_path=abs_source,
+                    cover_bytes=sidecar_bytes,
+                    strategy="generic-sidecar",
+                    cover_path=abs_sidecar,
+                )
+            log.debug("Cover: generic sidecar hit bytes=%s", len(sidecar_bytes))
+            return sidecar_bytes
 
         ext = source_path.suffix.lower()
         if ext == ".epub":
-            return self._extract_epub(source_path)
+            data = self._extract_epub(source_path)
+            if data:
+                log.info("Cover: using epub extraction bytes=%s", len(data))
+                self._maybe_dump_cover_bytes(
+                    source_path=abs_source,
+                    cover_bytes=data,
+                    strategy="epub",
+                    cover_path=None,
+                )
+            log.debug(
+                "Cover: epub extraction %s",
+                f"hit bytes={len(data)}" if data else "miss",
+            )
+            return data
         if ext == ".pdf":
-            return self._extract_pdf(source_path)
+            data = self._extract_pdf(source_path)
+            if data:
+                log.info("Cover: using pdf extraction bytes=%s", len(data))
+                self._maybe_dump_cover_bytes(
+                    source_path=abs_source,
+                    cover_bytes=data,
+                    strategy="pdf",
+                    cover_path=None,
+                )
+            log.debug(
+                "Cover: pdf extraction %s",
+                f"hit bytes={len(data)}" if data else "miss",
+            )
+            return data
         if ext in _KINDLE_EXTS:
-            return self._extract_kindle_via_conversion(source_path)
+            data = self._extract_kindle_via_conversion(source_path)
+            if data:
+                log.info("Cover: using kindle conversion bytes=%s", len(data))
+                self._maybe_dump_cover_bytes(
+                    source_path=abs_source,
+                    cover_bytes=data,
+                    strategy="kindle-conversion",
+                    cover_path=None,
+                )
+            log.debug(
+                "Cover: kindle conversion %s",
+                f"hit bytes={len(data)}" if data else "miss",
+            )
+            return data
         # TXT and unknown formats: no cover.
         return None
 
+    def _maybe_dump_cover_bytes(
+        self,
+        *,
+        source_path: Path,
+        cover_bytes: bytes,
+        strategy: str,
+        cover_path: Path | None,
+    ) -> None:
+        """Optionally dump the extracted cover bytes to disk for debugging.
+
+        Enabled by setting environment variable `NARRATEX_DUMP_COVER_BYTES=1`.
+
+        By default, dumps to `%TEMP%/narratex-cover-dumps/` (Windows) / temp dir.
+        Optionally override with `NARRATEX_COVER_DUMP_DIR`.
+        """
+
+        raw = os.getenv("NARRATEX_DUMP_COVER_BYTES", "").strip().lower()
+        if raw not in ("1", "true", "yes", "on"):
+            return
+
+        try:
+            import tempfile
+            import time
+
+            dump_dir_raw = os.getenv("NARRATEX_COVER_DUMP_DIR", "").strip()
+            dump_dir = Path(dump_dir_raw) if dump_dir_raw else Path(tempfile.gettempdir()) / "narratex-cover-dumps"
+            dump_dir.mkdir(parents=True, exist_ok=True)
+
+            ts = int(time.time() * 1000)
+            safe_stem = source_path.stem.replace(" ", "_")[:80]
+            ext = None
+            if cover_path is not None:
+                ext = cover_path.suffix.lower().lstrip(".") or None
+            if ext is None:
+                ext = "bin"
+
+            out_path = dump_dir / f"{safe_stem}__{strategy}__{ts}.{ext}"
+            out_path.write_bytes(cover_bytes)
+
+            log = logging.getLogger(self.__class__.__name__)
+            log.info(
+                "Cover: dumped bytes=%s strategy=%s dump_path=%s",
+                len(cover_bytes),
+                strategy,
+                out_path,
+            )
+        except Exception:
+            logging.getLogger(self.__class__.__name__).exception(
+                "Cover: failed to dump cover bytes (strategy=%s)",
+                strategy,
+            )
+
+    def _resolve_calibre_sidecar_cover_path(self, source_path: Path) -> Path | None:
+        """Resolve an *exact* Calibre sidecar cover path.
+
+        This intentionally implements the boring, deterministic CalibreBooks shape:
+
+        - Look only in source_path.parent
+        - Prefer exact cover.jpg
+        - Then exact cover.jpeg
+        - Then exact cover.png
+        - Then exact cover.webp
+
+        No recursion; no heuristics.
+        """
+
+        folder = source_path.parent
+        if not folder.exists():
+            return None
+
+        for name in ("cover.jpg", "cover.jpeg", "cover.png", "cover.webp"):
+            candidate = folder / name
+            try:
+                if candidate.exists() and candidate.is_file():
+                    return candidate
+            except Exception:
+                # Permission errors or other IO surprises should not kill cover loading.
+                continue
+        return None
+
+    @staticmethod
+    def _safe_read_image_bytes(p: Path, *, max_bytes: int | None = _MAX_SIDECAR_BYTES) -> bytes | None:
+        try:
+            if not p.exists() or not p.is_file():
+                return None
+            if max_bytes is not None:
+                try:
+                    if p.stat().st_size > max_bytes:
+                        return None
+                except Exception:
+                    # If we can't stat it, we also shouldn't try reading it.
+                    return None
+            return p.read_bytes()
+        except Exception:
+            return None
+
     def _extract_sidecar_image(self, source_path: Path) -> bytes | None:
+        data, _ = self._extract_sidecar_image_with_path(source_path)
+        return data
+
+    def _extract_sidecar_image_with_path(
+        self, source_path: Path
+    ) -> tuple[bytes | None, Path | None]:
         """Look for Calibre-style sidecar cover images in the same folder.
 
         Many Calibre libraries store a `cover.jpg` adjacent to the ebook file
@@ -56,21 +274,16 @@ class CoverExtractor:
 
         folder = source_path.parent
         if not folder.exists():
-            return None
+            return None, None
 
-        def _safe_read(p: Path) -> bytes | None:
-            try:
-                if not p.exists() or not p.is_file():
-                    return None
-                try:
-                    if p.stat().st_size > _MAX_SIDECAR_BYTES:
-                        return None
-                except Exception:
-                    # If we can't stat it, we also shouldn't try reading it.
-                    return None
-                return p.read_bytes()
-            except Exception:
-                return None
+        _safe_read = self._safe_read_image_bytes
+
+        # 0) Exact cover.* should always win over any other heuristic.
+        for name in ("cover.jpg", "cover.jpeg", "cover.png", "cover.webp"):
+            candidate = folder / name
+            data = _safe_read(candidate)
+            if data:
+                return data, candidate
 
         # 1) Common Calibre/Windows names.
         preferred_stems = (
@@ -80,9 +293,10 @@ class CoverExtractor:
         )
         for stem in preferred_stems:
             for ext in _IMAGE_EXTS:
-                data = _safe_read(folder / f"{stem}{ext}")
+                candidate = folder / f"{stem}{ext}"
+                data = _safe_read(candidate)
                 if data:
-                    return data
+                    return data, candidate
 
         # 2) Heuristic scan: any image file with "cover"/"folder" in name.
         try:
@@ -109,11 +323,11 @@ class CoverExtractor:
             for p in sorted(candidates, key=_rank):
                 data = _safe_read(p)
                 if data:
-                    return data
+                    return data, p
         except Exception:
-            return None
+            return None, None
 
-        return None
+        return None, None
 
     def _extract_epub(self, path: Path) -> bytes | None:
         # NOTE:

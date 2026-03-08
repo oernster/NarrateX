@@ -107,6 +107,50 @@ def test_cover_extractor_prefers_calibre_sidecar_cover(tmp_path: Path) -> None:
     assert CoverExtractor().extract_cover_bytes(book) == b"JPG"
 
 
+def test_cover_extractor_calibrebooks_shape_uses_adjacent_cover_jpg(tmp_path: Path) -> None:
+    # Real CalibreBooks shape:
+    #   Author/Title (ID)/Title - Author.azw3
+    #   Author/Title (ID)/cover.jpg
+    book_dir = tmp_path / "Some Author" / "Some Title (123)"
+    book_dir.mkdir(parents=True)
+    book = book_dir / "Some Title - Some Author.azw3"
+    book.write_bytes(b"dummy")
+    (book_dir / "cover.jpg").write_bytes(b"REALCOVER")
+    assert CoverExtractor().extract_cover_bytes(book) == b"REALCOVER"
+
+
+def test_cover_extractor_exact_cover_jpg_wins_over_heuristic_named_images(tmp_path: Path) -> None:
+    book = tmp_path / "Book.azw3"
+    book.write_bytes(b"dummy")
+    (tmp_path / "my_cover.png").write_bytes(b"PNG")
+    (tmp_path / "cover.jpg").write_bytes(b"JPG")
+    assert CoverExtractor().extract_cover_bytes(book) == b"JPG"
+
+
+def test_cover_extractor_no_cover_jpg_falls_back_to_other_sidecar(tmp_path: Path) -> None:
+    book = tmp_path / "Book.azw3"
+    book.write_bytes(b"dummy")
+    (tmp_path / "my_cover.png").write_bytes(b"PNG")
+    assert CoverExtractor().extract_cover_bytes(book) == b"PNG"
+
+
+def test_cover_extractor_exact_sidecar_prevents_kindle_conversion(monkeypatch, tmp_path: Path) -> None:
+    # If an exact sidecar cover exists, we must not invoke ebook-convert.
+    book = tmp_path / "Book.azw3"
+    book.write_bytes(b"dummy")
+    (tmp_path / "cover.jpg").write_bytes(b"JPG")
+
+    called = {"run": 0}
+
+    def fake_run(*a, **k):
+        called["run"] += 1
+        raise AssertionError("ebook-convert should not be called when cover.jpg exists")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert CoverExtractor().extract_cover_bytes(book) == b"JPG"
+    assert called["run"] == 0
+
+
 def test_cover_extractor_sidecar_heuristic_scan_finds_cover_named_file(tmp_path: Path) -> None:
     book = tmp_path / "Book.azw3"
     book.write_bytes(b"dummy")

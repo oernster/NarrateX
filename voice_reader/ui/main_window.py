@@ -218,15 +218,16 @@ class MainWindow(QMainWindow):
             image_bytes: Encoded image bytes (PNG/JPG/etc.) or None to clear.
         """
 
+        # Always reset state first so we never accidentally keep a previous pixmap
+        # when new cover bytes are missing/invalid.
+        self.cover.setPixmap(QPixmap())
+        self.cover.setText("No cover")
+
         if not image_bytes:
-            self.cover.setPixmap(QPixmap())
-            self.cover.setText("No cover")
             return
 
         img = QImage.fromData(image_bytes)
         if img.isNull():
-            self.cover.setPixmap(QPixmap())
-            self.cover.setText("No cover")
             return
 
         pm = QPixmap.fromImage(img)
@@ -238,3 +239,7 @@ class MainWindow(QMainWindow):
         )
         self.cover.setText("")
         self.cover.setPixmap(pm)
+
+        # Force repaint so users don't see a stale pixmap due to event-loop timing.
+        # (Observed in some environments when rapidly switching books.)
+        self.cover.repaint()
