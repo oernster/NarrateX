@@ -153,8 +153,28 @@ class ReadingStartService:
     @staticmethod
     def _looks_like_prose(line: str) -> bool:
         words = [w for w in re.split(r"\s+", line) if w]
-        # Short headings sometimes end with a period. Require enough words/length.
+
+        # If punctuation is present, it might be either prose or a short title.
+        # Many books open with short, valid sentences (especially in prologues).
+        # We treat a short line as prose when it *looks like a sentence*, e.g.
+        # contains lowercase letters and a common verb ("is", "was", etc.).
         if re.search(r"[.!?]", line):
+            has_lowercase = any(ch.islower() for ch in line)
+            ends_like_sentence = bool(re.search(r"[.!?]\s*$", line))
+            looks_sentence_like = bool(
+                re.search(
+                    r"\b(?:am|is|are|was|were|be|been|being|have|has|had|do|does|did|"
+                    r"can|could|will|would|should|may|might|must)\b",
+                    line,
+                    re.IGNORECASE,
+                )
+            )
+
+            if ends_like_sentence and has_lowercase and looks_sentence_like and len(words) >= 3:
+                return True
+
+            # Otherwise, require enough words/length to avoid classifying headings
+            # like "Part I." or "A New Beginning." as prose.
             if len(words) >= 12 or len(line) >= 90:
                 return True
             return False
