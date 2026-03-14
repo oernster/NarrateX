@@ -21,7 +21,6 @@ import sys
 import time
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent
 ENTRYPOINT = PROJECT_ROOT / "app.py"
 ICON_ICO = PROJECT_ROOT / "narratex.ico"
@@ -87,7 +86,9 @@ def _run(cmd: list[str]) -> None:
                 now = time.monotonic()
                 if now - last_output_at >= heartbeat_s:
                     elapsed_s = int(now - start)
-                    tail = (last_line[:140] + "…") if len(last_line) > 140 else last_line
+                    tail = (
+                        (last_line[:140] + "…") if len(last_line) > 140 else last_line
+                    )
                     pct = int(((phase_index + 1) / len(phases)) * 100)
                     if tail:
                         print(
@@ -173,7 +174,6 @@ def main() -> int:
         "--windowed",
         "--icon",
         str(ICON_ICO),
-
         # Collect package data for components that rely on data files.
         "--collect-all=kokoro",
         # NOTE: Do *not* use --collect-all=misaki.
@@ -192,12 +192,10 @@ def main() -> int:
         "--collect-all=espeakng_loader",
         "--collect-all=spacy",
         "--collect-all=en_core_web_sm",
-
         # Required at runtime by `segments` -> `csvw` -> `language_tags`.
         # If omitted, the frozen app fails with:
         #   FileNotFoundError: .../_internal/language_tags/data/json/index.json
         "--collect-data=language_tags",
-
         # PyInstaller already has a robust built-in hook for torch.
         # Avoid --collect-all=torch: it forces PyInstaller to import/scan a huge
         # submodule surface (including deprecated compat modules) during
@@ -208,12 +206,10 @@ def main() -> int:
         "--collect-data=torch",
         "--hidden-import=torch",
         "--collect-all=transformers",
-
         # Optional extras referenced by torch hooks; exclude to avoid warnings
         # and reduce output size.
         "--exclude-module=tensorboard",
         "--exclude-module=torch.utils.tensorboard",
-
         # Avoid importing/packaging torch distributed compatibility shims that
         # emit deprecation warnings during PyInstaller analysis.
         # NOTE:
@@ -227,7 +223,6 @@ def main() -> int:
         "--exclude-module=torch.distributed._shard.checkpoint",
         # Keep RPC available; include explicitly to make packaging intent clear.
         "--hidden-import=torch.distributed.rpc",
-
         # scipy is not a dependency of NarrateX, but some packages include
         # optional scipy integrations. Exclude it explicitly to avoid PyInstaller
         # attempting to run hook-scipy.py in environments without scipy.
@@ -254,4 +249,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

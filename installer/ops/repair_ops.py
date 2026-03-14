@@ -52,7 +52,10 @@ def repair(
     manifest = load_manifest()
     with zipfile.ZipFile(payload_zip_path(), "r") as zf:
         for e in iter_manifest_entries(manifest):
-            if cancel_event is not None and getattr(cancel_event, "is_set", lambda: False)():
+            if (
+                cancel_event is not None
+                and getattr(cancel_event, "is_set", lambda: False)()
+            ):
                 raise InstallerOperationError("Cancelled")
             if progress:
                 progress(f"Verifying {e.path}...")
@@ -100,4 +103,3 @@ def repair(
         shortcut_start_menu=opts.restore_start_menu_shortcut,
         installer_path=entry.installer_path or "",
     )
-

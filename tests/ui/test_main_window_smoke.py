@@ -31,6 +31,9 @@ def test_main_window_help_and_about_smoke(qapp) -> None:
     about = w.build_about_dialog()
     assert APP_NAME in about.windowTitle()
 
+    # Exercise the about dialog show path (doesn't need to be visible).
+    w.show_about_dialog()
+
 
 def test_main_window_speed_combo_smoke(qapp) -> None:
     del qapp

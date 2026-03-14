@@ -35,7 +35,9 @@ class InstallerState:
 
         cmp_ = compare_versions(self.installer_version, self.installed.version)
         if cmp_ == 0:
-            return frozenset({Operation.REINSTALL, Operation.REPAIR, Operation.UNINSTALL})
+            return frozenset(
+                {Operation.REINSTALL, Operation.REPAIR, Operation.UNINSTALL}
+            )
         if cmp_ > 0:
             return frozenset({Operation.UPGRADE, Operation.UNINSTALL})
 
@@ -49,4 +51,3 @@ class InstallerState:
             f"{app_name} v{self.installed.version} is already installed at "
             f"{self.installed.location}."
         )
-

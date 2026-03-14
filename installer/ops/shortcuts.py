@@ -57,7 +57,9 @@ def get_shortcut_paths(identity: InstallerIdentity) -> ShortcutPaths:
     )
 
 
-def create_shortcut(target_exe: Path, shortcut_path: Path, *, working_dir: Path | None = None) -> None:
+def create_shortcut(
+    target_exe: Path, shortcut_path: Path, *, working_dir: Path | None = None
+) -> None:
     _require_windows()
     shortcut_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -131,4 +133,3 @@ def remove_shortcut(shortcut_path: Path) -> None:
             shortcut_path.parent.rmdir()
     except Exception:
         return
-

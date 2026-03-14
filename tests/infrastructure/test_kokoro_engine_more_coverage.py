@@ -30,7 +30,9 @@ def test_kokoro_resolve_lang_code_defaults_and_known_variants() -> None:
     assert k._resolve_lang_code("fr") == "b"  # pylint: disable=protected-access
 
 
-def test_kokoro_pipeline_is_cached_per_thread_and_lang(monkeypatch, tmp_path: Path) -> None:
+def test_kokoro_pipeline_is_cached_per_thread_and_lang(
+    monkeypatch, tmp_path: Path
+) -> None:
     # Provide a fake `kokoro.KPipeline`.
     fake_kokoro = SimpleNamespace(KPipeline=_FakePipeline)
     monkeypatch.setitem(__import__("sys").modules, "kokoro", fake_kokoro)
@@ -40,8 +42,12 @@ def test_kokoro_pipeline_is_cached_per_thread_and_lang(monkeypatch, tmp_path: Pa
     vp = VoiceProfile(name="bf_emma", reference_audio_paths=[])
 
     k = KokoroEngine(language="b")
-    k.synthesize_to_file(text="hello", voice_profile=vp, output_path=out1, device="cpu", language="en-gb")
-    k.synthesize_to_file(text="hello", voice_profile=vp, output_path=out2, device="cpu", language="en-gb")
+    k.synthesize_to_file(
+        text="hello", voice_profile=vp, output_path=out1, device="cpu", language="en-gb"
+    )
+    k.synthesize_to_file(
+        text="hello", voice_profile=vp, output_path=out2, device="cpu", language="en-gb"
+    )
 
     # Pipeline should be cached in TLS.
     cache = getattr(k._tls, "pipelines")  # pylint: disable=protected-access
@@ -59,6 +65,7 @@ def test_kokoro_pipeline_fallback_when_repo_id_kw_not_supported(monkeypatch) -> 
     monkeypatch.setitem(__import__("sys").modules, "kokoro", fake_kokoro)
 
     k = KokoroEngine(language="b")
-    p = k._get_pipeline(KPipeline=_OldPipeline, lang_code="b", repo_id="x")  # pylint: disable=protected-access
+    p = k._get_pipeline(
+        KPipeline=_OldPipeline, lang_code="b", repo_id="x"
+    )  # pylint: disable=protected-access
     assert isinstance(p, _OldPipeline)
-

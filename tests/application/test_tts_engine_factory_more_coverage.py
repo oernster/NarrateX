@@ -27,4 +27,3 @@ def test_factory_handles_find_spec_errors(monkeypatch) -> None:
         assert False, "Expected RuntimeError when Kokoro is missing"
     except RuntimeError as exc:
         assert "Kokoro" in str(exc)
-

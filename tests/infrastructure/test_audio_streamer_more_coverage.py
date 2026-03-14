@@ -75,7 +75,9 @@ def test_streamer_pause_resume_stop_smoke(monkeypatch, tmp_path: Path) -> None:
     p = tmp_path / "a.wav"
     p.write_bytes(b"x")
 
-    fake_sf = SimpleNamespace(read=lambda path, dtype, always_2d: (np.zeros(100, dtype=np.float32), 8000))
+    fake_sf = SimpleNamespace(
+        read=lambda path, dtype, always_2d: (np.zeros(100, dtype=np.float32), 8000)
+    )
 
     class _FakeStream:
         active = False
@@ -113,4 +115,3 @@ def test_streamer_pause_resume_stop_smoke(monkeypatch, tmp_path: Path) -> None:
     s.resume()
     s.stop()
     s.start(chunk_audio_paths=[p])
-

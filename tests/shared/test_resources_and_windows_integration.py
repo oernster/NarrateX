@@ -14,7 +14,9 @@ def test_find_app_icon_path_prefers_project_root(tmp_path: Path) -> None:
     assert res.find_app_icon_path(project_root=tmp_path) == ico
 
 
-def test_find_app_icon_path_returns_none_when_missing(tmp_path: Path, monkeypatch) -> None:
+def test_find_app_icon_path_returns_none_when_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
     # Ensure we don't hit the repo-root fallback based on this module's __file__.
     monkeypatch.setattr(res, "__file__", None)
     # Ensure we don't hit the sys.executable fallback.
@@ -80,4 +82,3 @@ def test_config_user_dirs_flag_covered(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.delenv("NARRATEX_USER_DIRS", raising=False)
     cfg2 = Config.from_project_root(tmp_path)
     assert cfg2.paths.voices_dir == tmp_path / "voices"
-

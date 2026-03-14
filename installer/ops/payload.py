@@ -34,9 +34,10 @@ def manifest_json_path() -> Path:
 def load_manifest() -> PayloadManifest:
     data = json.loads(manifest_json_path().read_text(encoding="utf-8"))
     entries = tuple(ManifestEntry(**e) for e in data.get("entries", []))
-    return PayloadManifest(installer_version=str(data.get("installer_version", "")), entries=entries)
+    return PayloadManifest(
+        installer_version=str(data.get("installer_version", "")), entries=entries
+    )
 
 
 def iter_manifest_entries(manifest: PayloadManifest) -> Iterable[ManifestEntry]:
     return manifest.entries
-

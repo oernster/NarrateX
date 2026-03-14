@@ -1,6 +1,16 @@
 [flake8]
 max-line-length = 88
 extend-ignore = E203,W503
+per-file-ignores =
+    tests/*.py: E501,F401,F841
+    voice_reader/application/services/narration_service.py: E501
+    voice_reader/application/services/tts_engine_factory.py: E501
+    voice_reader/infrastructure/books/cover_extractor.py: E501
+    voice_reader/infrastructure/tts/kokoro_engine.py: E501,F841
+    voice_reader/shared/resources.py: E501
+    voice_reader/ui/licence_dialog.py: E501
+    voice_reader/ui/main_window.py: F401
+    voice_reader/ui/ui_controller.py: E501
 exclude =
     .git,
     __pycache__,

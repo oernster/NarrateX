@@ -32,4 +32,3 @@ def set_app_user_model_id(app_id: str) -> None:
     except Exception:
         # Best-effort only; failing to set this should not prevent startup.
         return
-

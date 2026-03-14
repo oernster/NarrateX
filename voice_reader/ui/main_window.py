@@ -21,8 +21,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from voice_reader.version import APP_AUTHOR, APP_COPYRIGHT, APP_NAME, __version__
-from voice_reader.ui.licence_dialog import PlainTextLicenceDialog, read_licence_text
+from voice_reader.version import APP_NAME
+from voice_reader.ui.window_helpers import (
+    apply_main_window_theme,
+    build_about_dialog,
+    open_licence_dialog,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,6 +46,7 @@ class MainWindow(QMainWindow):
     play_clicked = Signal()
     pause_clicked = Signal()
     stop_clicked = Signal()
+    bookmarks_clicked = Signal()
     speed_changed = Signal(str)
 
     def __init__(self, strings: UiStrings | None = None) -> None:
@@ -84,6 +89,15 @@ class MainWindow(QMainWindow):
         for b in [self.btn_select_book, self.btn_play, self.btn_pause, self.btn_stop]:
             b.setCursor(Qt.PointingHandCursor)
 
+        self.btn_bookmarks = QToolButton()
+        self.btn_bookmarks.setText("🔖")
+        self.btn_bookmarks.setToolTip("Bookmarks")
+        self.btn_bookmarks.setCursor(Qt.PointingHandCursor)
+        self.btn_bookmarks.setAutoRaise(True)
+        self.btn_bookmarks.setFixedSize(34, 34)
+        self.btn_bookmarks.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_bookmarks.setProperty("bookmarkButton", True)
+
         controls.addWidget(self.btn_select_book)
         controls.addWidget(QLabel(self._strings.select_voice))
         controls.addWidget(self.voice_combo)
@@ -93,6 +107,7 @@ class MainWindow(QMainWindow):
         controls.addWidget(self.btn_play)
         controls.addWidget(self.btn_pause)
         controls.addWidget(self.btn_stop)
+        controls.addWidget(self.btn_bookmarks)
         left_panel.addLayout(controls)
 
         # Status/progress row (kept on the left)
@@ -210,7 +225,7 @@ class MainWindow(QMainWindow):
         self.log = None
 
         self.setCentralWidget(central)
-        self._apply_theme()
+        apply_main_window_theme(self)
         self._connect_signals()
 
     def _connect_signals(self) -> None:
@@ -218,193 +233,34 @@ class MainWindow(QMainWindow):
         self.btn_play.clicked.connect(self.play_clicked.emit)
         self.btn_pause.clicked.connect(self.pause_clicked.emit)
         self.btn_stop.clicked.connect(self.stop_clicked.emit)
+        self.btn_bookmarks.clicked.connect(self.bookmarks_clicked.emit)
         self.speed_combo.currentTextChanged.connect(self.speed_changed.emit)
 
-    def _apply_theme(self) -> None:
-        # Dark theme with purple accents.
-        purple = "#8b5cf6"
-        bg = "#0b0f17"
-        panel = "#121826"
-        text = "#e5e7eb"
-
-        # Locked dropdown accent: amber (readable on dark UI, clearly different
-        # from normal focus/hover purple).
-        locked_bg = "#172033"
-        locked_border = "#f59e0b"
-        self.setStyleSheet(f"""
-            QMainWindow {{ background: {bg}; }}
-            QWidget {{ color: {text}; font-family: Segoe UI; }}
-            QTextEdit, QPlainTextEdit {{
-                background: {panel};
-                border: 1px solid #1f2937;
-            }}
-            QComboBox {{
-                background: {panel};
-                border: 1px solid #1f2937;
-                padding: 4px 8px;
-            }}
-
-            /* Clearly indicate "locked while playing" dropdowns. */
-            QComboBox[locked="true"] {{
-                background: {locked_bg};
-                border: 1px solid {locked_border};
-                color: {text};
-            }}
-            QComboBox[locked="true"]::drop-down {{
-                border-left: 1px solid {locked_border};
-            }}
-            QComboBox[locked="true"]:disabled {{
-                /* Keep text readable even when disabled. */
-                color: #cbd5e1;
-            }}
-
-            QLabel#cover {{
-                background: {panel};
-                border: 1px solid #1f2937;
-            }}
-            QPushButton {{
-                background: {panel};
-                border: 1px solid #1f2937;
-                padding: 6px 10px;
-                border-radius: 6px;
-            }}
-            QPushButton:hover {{ border-color: {purple}; }}
-            QPushButton:pressed {{ background: #111827; }}
-
-            QToolButton[topIconButton="true"] {{
-                background: transparent;
-                border: 2px solid transparent;
-                border-radius: 17px;
-                padding: 0px;
-                color: {text};
-            }}
-            QToolButton[topIconButton="true"]:hover {{
-                border-color: #ffffff;
-            }}
-            QToolButton[topIconButton="true"]:pressed {{
-                background: rgba(255, 255, 255, 0.08);
-            }}
-            QToolButton#helpButton {{
-                color: #3b82f6;
-            }}
-
-            QProgressBar {{
-                background: {panel};
-                border: 1px solid #1f2937;
-                height: 18px;
-            }}
-            QProgressBar::chunk {{ background: {purple}; }}
-            """)
+    def show_about_dialog(self) -> None:
+        # Non-blocking.
+        build_about_dialog(parent=self).open()
 
     def build_about_dialog(self) -> QMessageBox:
-        box = QMessageBox(self)
-        box.setWindowTitle(f"About {APP_NAME}")
-        box.setTextFormat(Qt.RichText)
+        """Backwards-compatible wrapper for older callers/tests."""
 
-        # Prefer the runtime-set window icon (which should be narratex.ico).
-        icon = self.windowIcon()
-        if not icon.isNull():
-            try:
-                box.setIconPixmap(icon.pixmap(64, 64))
-            except Exception:
-                # Not fatal.
-                pass
-
-        thanks = "<br>".join(
-            [
-                "PySide6 (Qt for Python) developers",
-                "The Python development team",
-                "Kokoro TTS library",
-                "EbookLib",
-                "PyMuPDF",
-                "sounddevice",
-            ]
-        )
-
-        box.setText(
-            """
-            <div>
-              <div style="font-size: 16px;">
-                <b>{app}</b>
-                <span style="font-size: 12px;">v{ver}</span>
-              </div>
-              <div style="margin-top: 6px;">{copyright}</div>
-              <div style="margin-top: 10px;"><b>Author</b>: {author}</div>
-              <div style="margin-top: 10px;"><b>Thanks</b>:</div>
-              <div style="margin-top: 4px;">{thanks}</div>
-            </div>
-            """.format(
-                app=APP_NAME,
-                ver=__version__,
-                author=APP_AUTHOR,
-                copyright=APP_COPYRIGHT,
-                thanks=thanks,
-            )
-        )
-
-        box.setStandardButtons(QMessageBox.Ok)
-        return box
-
-    def show_about_dialog(self) -> None:
-        self.build_about_dialog().exec()
+        return build_about_dialog(parent=self)
 
     def _show_ui_licence_dialog(self) -> None:
-        self._open_licence_dialog(
+        open_licence_dialog(
+            owner=self,
             attr_name="_ui_licence_dialog",
             title="UI licence",
             filename="LGPL3-LICENSE",
         )
 
     def _show_backend_licence_dialog(self) -> None:
-        self._open_licence_dialog(
+        open_licence_dialog(
+            owner=self,
             attr_name="_backend_licence_dialog",
             title="Backend licence",
             filename="LICENSE",
             initial_width=475,
         )
-
-    def _open_licence_dialog(
-        self,
-        *,
-        attr_name: str,
-        title: str,
-        filename: str,
-        initial_width: int = 760,
-        initial_height: int = 560,
-    ) -> None:
-        existing = getattr(self, attr_name, None)
-        if isinstance(existing, QDialog):
-            try:
-                existing.raise_()
-                existing.activateWindow()
-                return
-            except Exception:
-                pass
-
-        text = read_licence_text(filename)
-        dlg = PlainTextLicenceDialog(
-            parent=self,
-            title=title,
-            text=text,
-            initial_width=initial_width,
-            initial_height=initial_height,
-        )
-        setattr(self, attr_name, dlg)
-
-        def _clear_ref() -> None:
-            try:
-                if getattr(self, attr_name, None) is dlg:
-                    setattr(self, attr_name, None)
-            except Exception:
-                pass
-
-        try:
-            dlg.finished.connect(_clear_ref)
-        except Exception:
-            pass
-
-        # Non-blocking but modal.
-        dlg.open()
 
     def set_reader_text(self, text: str) -> None:
         self.reader.setPlainText(text)

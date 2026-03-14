@@ -83,6 +83,7 @@ def test_main_preflight_failure_returns_2_and_writes_startup_err(
         return types.ModuleType(name)
 
     monkeypatch.setattr(app.importlib, "import_module", fake_import_module)
+
     # Also fail a dist lookup so the DIST-exception formatting branch is covered.
     def fake_version(dist: str) -> str:
         if dist == "regex":
@@ -108,7 +109,9 @@ def test_startup_log_write_failure_is_swallowed(
     monkeypatch.setenv("NARRATEX_PREFLIGHT", "1")
 
     monkeypatch.setattr(app, "configure_packaged_runtime", lambda: None)
-    monkeypatch.setattr(app.importlib, "import_module", lambda name: types.ModuleType(name))
+    monkeypatch.setattr(
+        app.importlib, "import_module", lambda name: types.ModuleType(name)
+    )
     monkeypatch.setattr(app.importlib.metadata, "version", lambda _: "0.0")
 
     real_open = builtins.open
@@ -174,7 +177,9 @@ def test_program_base_dir_falls_back_to_cwd_when_sys_argv_is_invalid_type(
 
     monkeypatch.setenv("NARRATEX_PREFLIGHT", "1")
     monkeypatch.setattr(app, "configure_packaged_runtime", lambda: None)
-    monkeypatch.setattr(app.importlib, "import_module", lambda name: types.ModuleType(name))
+    monkeypatch.setattr(
+        app.importlib, "import_module", lambda name: types.ModuleType(name)
+    )
     monkeypatch.setattr(app.importlib.metadata, "version", lambda _: "0.0")
 
     rc = app.main()
@@ -199,7 +204,9 @@ def test_ensure_stdio_open_failures_are_swallowed_but_print_failure_is_logged(
 
     def selective_open(file, *args, **kwargs):
         s = str(file)
-        if s.endswith("NarrateX.runtime.out.txt") or s.endswith("NarrateX.runtime.err.txt"):
+        if s.endswith("NarrateX.runtime.out.txt") or s.endswith(
+            "NarrateX.runtime.err.txt"
+        ):
             raise OSError("cannot open")
         return real_open(file, *args, **kwargs)
 
@@ -209,4 +216,3 @@ def test_ensure_stdio_open_failures_are_swallowed_but_print_failure_is_logged(
         app.main()
 
     assert (tmp_path / "NarrateX.startup.err.txt").exists()
-

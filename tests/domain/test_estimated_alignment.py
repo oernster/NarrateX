@@ -34,4 +34,3 @@ def test_estimated_aligner_handles_empty_input() -> None:
         duration_ms=0,
     )
     assert out.spans == []
-

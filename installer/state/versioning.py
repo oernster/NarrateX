@@ -38,4 +38,3 @@ def compare_versions(installer_version: str, installed_version: str) -> int:
     if a > b:
         return 1
     return 0
-

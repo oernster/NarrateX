@@ -46,4 +46,3 @@ def test_installer_licence_button_opens_dialog(qapp, monkeypatch) -> None:
 
     dlg.close()
     qapp.processEvents()
-

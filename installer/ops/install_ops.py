@@ -24,7 +24,6 @@ from installer.state.registry import write_uninstall_entry
 from voice_reader.shared.resources import find_app_icon_path
 from voice_reader.version import APP_NAME, APP_AUTHOR, __version__
 
-
 logger = logging.getLogger("installer.install")
 
 
@@ -52,7 +51,9 @@ def _installer_staging_root() -> Path:
     return Path(local) / "NarrateXInstaller" / "staging"
 
 
-def _extract_payload_to(staging_dir: Path, *, progress=None, cancel_event=None) -> None:  # noqa: ANN001
+def _extract_payload_to(
+    staging_dir: Path, *, progress=None, cancel_event=None
+) -> None:  # noqa: ANN001
     staging_dir.mkdir(parents=True, exist_ok=True)
     _check_cancel(cancel_event)
     _progress(progress, pct=10, message="Extracting payload...")
@@ -81,11 +82,15 @@ def _swap_in_bundle(staging_dir: Path, target_dir: Path) -> None:
 
     backup_dir: Path | None = None
     if target_dir.exists():
-        backup_dir = target_dir.with_name(target_dir.name + f".old.{uuid.uuid4().hex[:8]}")
+        backup_dir = target_dir.with_name(
+            target_dir.name + f".old.{uuid.uuid4().hex[:8]}"
+        )
         try:
             target_dir.rename(backup_dir)
         except Exception as exc:
-            raise InstallerOperationError(f"Unable to replace existing install at {target_dir}") from exc
+            raise InstallerOperationError(
+                f"Unable to replace existing install at {target_dir}"
+            ) from exc
 
     try:
         try:
@@ -263,7 +268,9 @@ def upgrade_or_reinstall(
     if exe.exists() and is_app_running(exe):
         raise AppRunningError("NarrateX is currently running")
 
-    logger.info("Upgrade/reinstall: current=%s target=%s", current_install_dir, target_dir)
+    logger.info(
+        "Upgrade/reinstall: current=%s target=%s", current_install_dir, target_dir
+    )
 
     staging_dir = target_dir.parent / f".narratex_staging.upgrade.{uuid.uuid4().hex}"
     if staging_dir.exists():
@@ -312,7 +319,9 @@ def upgrade_or_reinstall(
             shutil.rmtree(staging_dir, ignore_errors=True)
 
 
-def _apply_shortcuts(identity: InstallerIdentity, install_dir: Path, opts: InstallOptions) -> None:
+def _apply_shortcuts(
+    identity: InstallerIdentity, install_dir: Path, opts: InstallOptions
+) -> None:
     exe = install_dir / "NarrateX.exe"
     sp = get_shortcut_paths(identity)
 
@@ -332,4 +341,3 @@ def _apply_shortcuts(identity: InstallerIdentity, install_dir: Path, opts: Insta
             sp.start_menu_lnk.unlink(missing_ok=True)
         except Exception:
             pass
-

@@ -11,7 +11,9 @@ from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.infrastructure.tts.kokoro_engine import KokoroEngine
 
 
-def _install_fake_kokoro(monkeypatch, *, expected_lang_code: str, yielded_audio) -> dict:
+def _install_fake_kokoro(
+    monkeypatch, *, expected_lang_code: str, yielded_audio
+) -> dict:
     """Install a fake `kokoro` module exposing `KPipeline`.
 
     Returns a dict capturing constructor args and pipeline call args.
@@ -49,7 +51,9 @@ def test_engine_name_property_returns_kokoro() -> None:
     assert KokoroEngine().engine_name == "kokoro"
 
 
-def test_synthesize_to_file_writes_wav_and_creates_output_dir(monkeypatch, tmp_path: Path) -> None:
+def test_synthesize_to_file_writes_wav_and_creates_output_dir(
+    monkeypatch, tmp_path: Path
+) -> None:
     out_dir = tmp_path / "nested" / "dir"
     out = out_dir / "out.wav"
 
@@ -137,7 +141,9 @@ def test_empty_audio_generator_raises_error(monkeypatch, tmp_path: Path) -> None
         )
 
 
-def test_synthesize_to_file_concatenates_segments_correctly(monkeypatch, tmp_path: Path) -> None:
+def test_synthesize_to_file_concatenates_segments_correctly(
+    monkeypatch, tmp_path: Path
+) -> None:
     out = tmp_path / "out.wav"
     seg1 = np.array([0.0, 0.5], dtype=np.float32)
     seg2 = np.array([1.0], dtype=np.float32)
@@ -185,4 +191,3 @@ def test_stream_synthesis_yields_audio_chunks(monkeypatch) -> None:
     assert len(chunks) == 2
     assert np.array_equal(chunks[0], seg1)
     assert np.array_equal(chunks[1], seg2)
-

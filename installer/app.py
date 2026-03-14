@@ -12,7 +12,10 @@ from PySide6.QtWidgets import QApplication
 
 from installer.cli import parse_args, wants_remove_user_data
 from installer.shared.logging_setup import setup_installer_logging
-from installer.ui.icons import build_installer_window_icon, set_windows_app_user_model_id
+from installer.ui.icons import (
+    build_installer_window_icon,
+    set_windows_app_user_model_id,
+)
 from installer.ui.main_window import InstallerMainWindow
 from voice_reader.shared.resources import find_qt_window_icon_path
 from voice_reader.version import APP_NAME, __version__
@@ -53,13 +56,17 @@ def main(argv: list[str] | None = None) -> int:
     try:
         from PySide6.QtGui import QIcon
 
-        icon = build_installer_window_icon(project_root=Path(__file__).resolve().parents[2])
+        icon = build_installer_window_icon(
+            project_root=Path(__file__).resolve().parents[2]
+        )
         if not icon.isNull():
             app.setWindowIcon(icon)
             logger.info("Installer window icon applied (QApplication).")
         else:
             # Final fallback to file-based icon.
-            icon_path = find_qt_window_icon_path(project_root=Path(__file__).resolve().parents[2])
+            icon_path = find_qt_window_icon_path(
+                project_root=Path(__file__).resolve().parents[2]
+            )
             logger.info("Resolved installer Qt icon path: %s", icon_path)
 
             if icon_path is not None:
@@ -74,4 +81,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

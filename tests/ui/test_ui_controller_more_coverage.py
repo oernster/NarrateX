@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
+from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.ui.main_window import MainWindow
@@ -39,6 +40,38 @@ class _FakeNarration:
     def set_playback_rate(self, rate) -> None:
         # Accept a PlaybackRate-ish object (value object in real code).
         self.last_rate = float(getattr(rate, "multiplier", rate))
+
+    def loaded_book_id(self):
+        return "b1"
+
+    def current_position(self):
+        return 0, 0
+
+    def _maybe_save_resume_position(self):
+        return
+
+
+@dataclass
+class _FakeBookmarks:
+    def list_bookmarks(self, *, book_id: str):
+        del book_id
+        return []
+
+    def add_bookmark(self, *, book_id: str, char_offset: int, chunk_index: int):
+        del book_id, char_offset, chunk_index
+        return None
+
+    def delete_bookmark(self, *, book_id: str, bookmark_id: int) -> None:
+        del book_id, bookmark_id
+
+    def save_resume_position(
+        self, *, book_id: str, char_offset: int, chunk_index: int
+    ) -> None:
+        del book_id, char_offset, chunk_index
+
+    def load_resume_position(self, *, book_id: str):
+        del book_id
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -82,6 +115,7 @@ def test_refresh_voices_filters_system_and_sorts(qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -108,6 +142,7 @@ def test_select_book_cancel_noop(monkeypatch, qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -143,6 +178,7 @@ def test_select_book_cover_extractor_failure_is_ignored(
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -163,9 +199,7 @@ def test_select_book_cover_extractor_failure_is_ignored(
         c,
         "_cover_extractor",
         SimpleNamespace(
-            extract_cover_bytes=lambda path: (
-                _ for _ in ()
-            ).throw(RuntimeError("x"))
+            extract_cover_bytes=lambda path: (_ for _ in ()).throw(RuntimeError("x"))
         ),
     )
     c.select_book()
@@ -187,6 +221,7 @@ def test_on_state_ignores_runtime_error_on_emit(monkeypatch, qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -218,6 +253,7 @@ def test_apply_state_ignores_non_state(monkeypatch, qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -241,6 +277,7 @@ def test_speed_changed_calls_service(qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",

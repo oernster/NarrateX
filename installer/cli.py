@@ -33,4 +33,3 @@ def wants_remove_user_data(args: argparse.Namespace) -> bool:
         return True
     # Default to True for this project (per requirement).
     return True
-

@@ -15,7 +15,9 @@ def test_render_emoji_icon_is_not_null(qapp) -> None:
     assert not pm.isNull()
 
 
-def test_build_installer_window_icon_prefers_brand_for_large_sizes(qapp, tmp_path) -> None:
+def test_build_installer_window_icon_prefers_brand_for_large_sizes(
+    qapp, tmp_path
+) -> None:
     # Ensure Qt app exists.
     del qapp
 
@@ -33,4 +35,3 @@ def test_build_installer_window_icon_prefers_brand_for_large_sizes(qapp, tmp_pat
     icon = build_installer_window_icon(project_root=tmp_path)
     assert not icon.isNull()
     assert not icon.pixmap(64, 64).isNull()
-

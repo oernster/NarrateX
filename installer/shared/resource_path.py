@@ -25,4 +25,3 @@ def resource_path(relative_path: str) -> Path:
     """Resolve a resource path relative to the bundle data root."""
 
     return bundled_data_root() / relative_path
-

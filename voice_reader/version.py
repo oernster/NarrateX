@@ -17,4 +17,3 @@ APP_COPYRIGHT: str = "© 2026 Oliver Ernster"
 APP_APPUSERMODELID: str = "com.oliverernster.narratex"
 
 __version__: str = "1.2.0"
-

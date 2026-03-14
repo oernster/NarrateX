@@ -94,4 +94,3 @@ class SanitizedTextMapper:
             o = found + 1
 
         return SanitizedTextMapping(speak_text=speak, speak_to_original=mapping)
-

@@ -39,7 +39,9 @@ def uninstall(identity, opts: UninstallOptions) -> None:  # noqa: ANN001 (identi
         install_dir = try_read_install_location(identity.uninstall_key)
 
     if install_dir is None:
-        raise InstallerOperationError("NarrateX is not detected as installed for this user")
+        raise InstallerOperationError(
+            "NarrateX is not detected as installed for this user"
+        )
 
     install_dir = install_dir.resolve()
     exe = install_dir / "NarrateX.exe"
@@ -124,4 +126,3 @@ def _schedule_delete_after_exit(install_dir: Path) -> None:
         stderr=subprocess.DEVNULL,
         creationflags=create_no_window | subprocess.DETACHED_PROCESS,
     )
-

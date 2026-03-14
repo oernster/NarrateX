@@ -183,4 +183,3 @@ def set_windows_app_user_model_id(app_id: str) -> None:
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
     except Exception:
         return
-

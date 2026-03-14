@@ -187,7 +187,11 @@ class CoverExtractor:
             import time
 
             dump_dir_raw = os.getenv("NARRATEX_COVER_DUMP_DIR", "").strip()
-            dump_dir = Path(dump_dir_raw) if dump_dir_raw else Path(tempfile.gettempdir()) / "narratex-cover-dumps"
+            dump_dir = (
+                Path(dump_dir_raw)
+                if dump_dir_raw
+                else Path(tempfile.gettempdir()) / "narratex-cover-dumps"
+            )
             dump_dir.mkdir(parents=True, exist_ok=True)
 
             ts = int(time.time() * 1000)
@@ -243,7 +247,9 @@ class CoverExtractor:
         return None
 
     @staticmethod
-    def _safe_read_image_bytes(p: Path, *, max_bytes: int | None = _MAX_SIDECAR_BYTES) -> bytes | None:
+    def _safe_read_image_bytes(
+        p: Path, *, max_bytes: int | None = _MAX_SIDECAR_BYTES
+    ) -> bytes | None:
         try:
             if not p.exists() or not p.is_file():
                 return None
@@ -408,15 +414,17 @@ class CoverExtractor:
 
                     def _is_image_target(s: str) -> bool:
                         s_l = s.lower().split("?", 1)[0].split("#", 1)[0]
-                        return s_l.endswith((
-                            ".png",
-                            ".jpg",
-                            ".jpeg",
-                            ".gif",
-                            ".webp",
-                            ".bmp",
-                            ".svg",
-                        ))
+                        return s_l.endswith(
+                            (
+                                ".png",
+                                ".jpg",
+                                ".jpeg",
+                                ".gif",
+                                ".webp",
+                                ".bmp",
+                                ".svg",
+                            )
+                        )
 
                     # Prefer explicit image refs, else fall back to first match.
                     href = None
@@ -505,4 +513,3 @@ class CoverExtractor:
             return pix.tobytes("png")
         except Exception:
             return None
-

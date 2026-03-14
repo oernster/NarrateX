@@ -23,4 +23,3 @@ def test_chunking_hard_wrap_prefers_commas_then_spaces() -> None:
     svc = ChunkingService(min_chars=1, max_chars=20)
     assert svc._best_split("a,b,c, d e f") > 0  # pylint: disable=protected-access
     assert svc._best_split("a b c d") > 0  # pylint: disable=protected-access
-

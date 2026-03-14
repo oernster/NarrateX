@@ -37,6 +37,8 @@ from voice_reader.domain.services.spoken_text_sanitizer import SpokenTextSanitiz
 
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 
+from voice_reader.application.services.bookmark_service import BookmarkService
+
 _StateListener = Callable[[NarrationState], None]
 
 
@@ -56,6 +58,9 @@ class NarrationService:
     playback_synchronizer: PlaybackSynchronizer = PlaybackSynchronizer()
     alignment_io: AlignmentIO = AlignmentIO()
     estimated_aligner: EstimatedAligner = EstimatedAligner()
+
+    # Optional: resume persistence (manual bookmarks are handled by UI/BookmarkService).
+    bookmark_service: BookmarkService | None = None
 
     def __post_init__(self) -> None:
         self._log = logging.getLogger(self.__class__.__name__)
@@ -107,6 +112,8 @@ class NarrationService:
         self._listeners.append(listener)
 
     def load_book(self, source_path: Path) -> Book:
+        # Book switch: persist resume for the previous book (best-effort).
+        self._maybe_save_resume_position()
         self._set_state(
             NarrationState(
                 status=NarrationStatus.LOADING,
@@ -135,6 +142,61 @@ class NarrationService:
         )
         return book
 
+    def loaded_book_id(self) -> str | None:
+        """Return the current domain book id for bookmark storage."""
+
+        return None if self._book is None else self._book.id
+
+    def current_position(self) -> tuple[int | None, int | None]:
+        """Return (chunk_index, char_offset) for the current playback position.
+
+        chunk_index is the *absolute playback index* into the candidate list used by
+        [`prepare()`](voice_reader/application/services/narration_service.py:138).
+        """
+
+        st = self._state
+
+        rel_idx = st.playback_chunk_id
+        if rel_idx is None:
+            rel_idx = st.current_chunk_id
+
+        if rel_idx is None:
+            return None, None
+
+        chunk_index = int(self._start_playback_index) + int(rel_idx)
+
+        char_offset = st.audible_start
+        if char_offset is None:
+            char_offset = st.highlight_start
+
+        if char_offset is None:
+            # Last resort: map to a chunk start. This may be approximate because the
+            # playback candidate list can skip empty spoken chunks.
+            try:
+                char_offset = int(self._chunks[int(chunk_index)].start_char)
+            except Exception:
+                char_offset = None
+
+        return chunk_index, char_offset
+
+    def _maybe_save_resume_position(self) -> None:
+        if self.bookmark_service is None:
+            return
+        if self._book is None:
+            return
+        chunk_index, char_offset = self.current_position()
+        if chunk_index is None or char_offset is None:
+            return
+        try:
+            self.bookmark_service.save_resume_position(
+                book_id=self._book.id,
+                char_offset=int(char_offset),
+                chunk_index=int(chunk_index),
+            )
+        except Exception:
+            # Resume persistence must never break playback.
+            self._log.exception("Failed saving resume position")
+
     def prepare(
         self, *, voice: VoiceProfile, start_playback_index: int | None = None
     ) -> List[TextChunk]:
@@ -143,7 +205,19 @@ class NarrationService:
         self._voice = voice
 
         if start_playback_index is None:
-            self._start_playback_index = 0
+            # Auto-resume behavior: when a resume position exists, Play starts from
+            # that chunk index without additional UI.
+            resume_idx: int | None = None
+            if self.bookmark_service is not None:
+                try:
+                    rp = self.bookmark_service.load_resume_position(
+                        book_id=self._book.id
+                    )
+                except Exception:
+                    rp = None
+                if rp is not None:
+                    resume_idx = int(rp.chunk_index)
+            self._start_playback_index = max(0, int(resume_idx or 0))
         else:
             self._start_playback_index = max(0, int(start_playback_index))
 
@@ -255,6 +329,9 @@ class NarrationService:
             )
         )
 
+        # Persist resume after state has been updated.
+        self._maybe_save_resume_position()
+
     def resume(self) -> None:
         # Resume means: restart the current chunk from the beginning.
         # The AudioStreamer implementation handles the chunk replay semantics.
@@ -277,6 +354,8 @@ class NarrationService:
         )
 
     def stop(self) -> None:
+        # Capture resume before we clear state/highlighting.
+        self._maybe_save_resume_position()
         self._stop_event.set()
         self._pause_event.clear()
         self.audio_streamer.stop()
@@ -300,6 +379,14 @@ class NarrationService:
                 highlight_end=None,
             )
         )
+
+    def on_app_exit(self) -> None:
+        """Persist resume position on application exit.
+
+        This should be called from the Qt `aboutToQuit` hook.
+        """
+
+        self._maybe_save_resume_position()
 
     def book_id(self) -> str:
         if self._book is None:
@@ -439,7 +526,9 @@ class NarrationService:
                         except Exception:
                             self._log.exception("Warmup synthesis failed")
 
-                    for idx, (chunk, speak_text, speak_to_orig, path) in enumerate(candidates):
+                    for idx, (chunk, speak_text, speak_to_orig, path) in enumerate(
+                        candidates
+                    ):
                         if self._stop_event.is_set():
                             return
 
@@ -453,7 +542,9 @@ class NarrationService:
 
                         # When paused, allow 0-ahead: only synthesize up to the
                         # currently playing chunk.
-                        allowed_ahead = 0 if self._pause_event.is_set() else max(0, max_ahead)
+                        allowed_ahead = (
+                            0 if self._pause_event.is_set() else max(0, max_ahead)
+                        )
 
                         # Gate using a dynamically-read playback index so we
                         # don't deadlock when playback advances while we're
@@ -566,7 +657,11 @@ class NarrationService:
                     is_kokoro_native = True
                 else:
                     native = getattr(tts_engine, "native_engine", None)
-                    if native is not None and getattr(native, "engine_name", "").strip().lower() == "kokoro":
+                    if (
+                        native is not None
+                        and getattr(native, "engine_name", "").strip().lower()
+                        == "kokoro"
+                    ):
                         is_kokoro_native = True
             except Exception:
                 is_kokoro_native = False
@@ -583,7 +678,9 @@ class NarrationService:
                 synth_errors = []
 
                 # Work queue carries (idx, chunk, text, path).
-                work_q: "queue.Queue[tuple[int, TextChunk, str, Path] | None]" = queue.Queue()
+                work_q: "queue.Queue[tuple[int, TextChunk, str, Path] | None]" = (
+                    queue.Queue()
+                )
                 for i, (c, t, _m, p) in enumerate(candidates):
                     work_q.put((i, c, t, p))
                 for _ in range(int(kokoro_workers)):
@@ -602,10 +699,14 @@ class NarrationService:
 
                             # Respect max-ahead and pause semantics.
                             try:
-                                max_ahead = int(os.getenv("NARRATEX_MAX_AHEAD_CHUNKS", "6"))
+                                max_ahead = int(
+                                    os.getenv("NARRATEX_MAX_AHEAD_CHUNKS", "6")
+                                )
                             except Exception:
                                 max_ahead = 6
-                            allowed_ahead = 0 if self._pause_event.is_set() else max(0, max_ahead)
+                            allowed_ahead = (
+                                0 if self._pause_event.is_set() else max(0, max_ahead)
+                            )
                             while not self._stop_event.is_set():
                                 base_play = self._current_play_index
                                 if base_play < 0:
@@ -654,7 +755,9 @@ class NarrationService:
                 def _publisher() -> None:
                     try:
                         next_idx = 0
-                        while not self._stop_event.is_set() and next_idx < len(candidates):
+                        while not self._stop_event.is_set() and next_idx < len(
+                            candidates
+                        ):
                             with results_lock:
                                 path = results.get(next_idx)
                             if path is None:
@@ -791,10 +894,14 @@ class NarrationService:
                         import soundfile as sf
 
                         wav_path = self.cache_repo.audio_path(
-                            book_id=book_id, voice_name=voice.name, chunk_id=int(c.chunk_id)
+                            book_id=book_id,
+                            voice_name=voice.name,
+                            chunk_id=int(c.chunk_id),
                         )
                         with sf.SoundFile(str(wav_path)) as f:
-                            duration_ms = int(round((len(f) / float(f.samplerate)) * 1000.0))
+                            duration_ms = int(
+                                round((len(f) / float(f.samplerate)) * 1000.0)
+                            )
                     except Exception:
                         duration_ms = max(ms, 1)
 
@@ -819,13 +926,17 @@ class NarrationService:
                             )
                         )
                     align = ChunkAlignment(
-                        chunk_id=int(c.chunk_id), duration_ms=est.duration_ms, spans=spans
+                        chunk_id=int(c.chunk_id),
+                        duration_ms=est.duration_ms,
+                        spans=spans,
                     )
 
                     # Best-effort persist alignment alongside wav cache.
                     try:
                         ap = self.cache_repo.alignment_path(
-                            book_id=book_id, voice_name=voice.name, chunk_id=int(c.chunk_id)
+                            book_id=book_id,
+                            voice_name=voice.name,
+                            chunk_id=int(c.chunk_id),
                         )
                         self.alignment_io.save(path=ap, alignment=align)
                     except Exception:

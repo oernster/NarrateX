@@ -31,4 +31,3 @@ def test_plain_text_licence_dialog_constructs(qapp) -> None:
     del qapp
     dlg = PlainTextLicenceDialog(title="T", text="abc")
     assert dlg.windowTitle() == "T"
-

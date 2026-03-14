@@ -8,7 +8,9 @@ from voice_reader.infrastructure.books.converter import CalibreConverter
 from voice_reader.shared.errors import BookConversionError
 
 
-def test_converter_raises_when_ebook_convert_missing(monkeypatch, tmp_path: Path) -> None:
+def test_converter_raises_when_ebook_convert_missing(
+    monkeypatch, tmp_path: Path
+) -> None:
     src = tmp_path / "a.mobi"
     src.write_text("x", encoding="utf-8")
 
@@ -49,4 +51,3 @@ def test_converter_raises_when_output_missing(monkeypatch, tmp_path: Path) -> No
     c = CalibreConverter(temp_books_dir=tmp_path)
     with pytest.raises(BookConversionError):
         c.convert_to_epub_if_needed(src)
-

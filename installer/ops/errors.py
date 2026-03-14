@@ -9,4 +9,3 @@ class InstallerOperationError(RuntimeError):
 
 class AppRunningError(InstallerOperationError):
     """Raised when NarrateX is running and the operation requires it to be closed."""
-

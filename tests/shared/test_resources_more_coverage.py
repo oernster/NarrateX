@@ -25,7 +25,9 @@ def test_find_app_icon_path_meipass(monkeypatch, tmp_path: Path) -> None:
     assert out == meipass / "narratex.ico"
 
 
-def test_iter_qt_window_icon_candidates_dedups_roots(monkeypatch, tmp_path: Path) -> None:
+def test_iter_qt_window_icon_candidates_dedups_roots(
+    monkeypatch, tmp_path: Path
+) -> None:
     # Force CWD and project_root to be the same path so de-dup is exercised.
     monkeypatch.setattr(Path, "cwd", staticmethod(lambda: tmp_path))
 
@@ -39,4 +41,3 @@ def test_find_qt_window_icon_path_picks_existing(tmp_path: Path) -> None:
     (tmp_path / "narratex_256.png").write_bytes(b"x")
     out = resources.find_qt_window_icon_path(project_root=tmp_path)
     assert out == tmp_path / "narratex_256.png"
-

@@ -12,10 +12,12 @@ from PySide6.QtWidgets import QFileDialog
 from voice_reader.application.dto.narration_state import NarrationState
 from voice_reader.application.dto.narration_state import NarrationStatus
 from voice_reader.application.services.narration_service import NarrationService
+from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
+from voice_reader.ui.bookmarks_dialog import BookmarksDialog, BookmarksDialogActions
 from voice_reader.ui.main_window import MainWindow
 
 
@@ -33,6 +35,7 @@ class UiController(QObject):
         *,
         window: MainWindow,
         narration_service: NarrationService,
+        bookmark_service: BookmarkService,
         voice_service: VoiceProfileService,
         device: str,
         engine_name: str,
@@ -41,6 +44,7 @@ class UiController(QObject):
         self._log = logging.getLogger(self.__class__.__name__)
         self.window = window
         self.narration_service = narration_service
+        self.bookmark_service = bookmark_service
         self.voice_service = voice_service
         self.device = device
         self.engine_name = engine_name
@@ -55,6 +59,11 @@ class UiController(QObject):
         self.window.play_clicked.connect(self.play)
         self.window.pause_clicked.connect(self.pause)
         self.window.stop_clicked.connect(self.stop)
+        if hasattr(self.window, "bookmarks_clicked"):
+            try:
+                self.window.bookmarks_clicked.connect(self.open_bookmarks_dialog)
+            except Exception:
+                pass
         if hasattr(self.window, "speed_changed"):
             try:
                 self.window.speed_changed.connect(self.set_speed)
@@ -64,6 +73,8 @@ class UiController(QObject):
         self.state_received.connect(self._apply_state)
         self.narration_service.add_listener(self.on_state)
         self.refresh_voices()
+
+        self._bookmarks_dialog: BookmarksDialog | None = None
 
         # Initialize playback speed once (session-only).
         try:
@@ -145,6 +156,8 @@ class UiController(QObject):
             # If the window implementation changes, don't fail book loading.
             self._log.exception("Failed to set cover image")
         self._log.info("Selected book: %s", book.title)
+
+        # After loading a book, next Play should auto-resume (handled by NarrationService.prepare).
 
     def _selected_voice(self) -> VoiceProfile | None:
         if not self._voices:
@@ -229,6 +242,89 @@ class UiController(QObject):
     def stop(self) -> None:
         self.narration_service.stop()
 
+    def open_bookmarks_dialog(self) -> None:
+        book_id = self.narration_service.loaded_book_id()
+        if not book_id:
+            return
+
+        def _list() -> list:
+            return self.bookmark_service.list_bookmarks(book_id=book_id)
+
+        def _add() -> None:
+            chunk_index, char_offset = self.narration_service.current_position()
+            if chunk_index is None or char_offset is None:
+                return
+
+            # Prevent duplicate bookmarks at the same *jump target*.
+            # Note: Go To currently jumps by chunk_index (chunk-level). That means
+            # bookmarks with different char_offsets but the same chunk_index are
+            # effectively identical for navigation, so we dedupe on chunk_index.
+            # This is intentionally a UX-layer rule: persistence remains a dumb store.
+            try:
+                existing = self.bookmark_service.list_bookmarks(book_id=book_id)
+            except Exception:
+                existing = []
+            for bm in existing:
+                if int(getattr(bm, "chunk_index", -1)) == int(chunk_index):
+                    return
+            self.bookmark_service.add_bookmark(
+                book_id=book_id,
+                char_offset=int(char_offset),
+                chunk_index=int(chunk_index),
+            )
+
+        def _goto(bm) -> None:
+            voice = self._selected_voice()
+            if voice is None:
+                return
+            # Stop any current playback before jumping.
+            try:
+                self.narration_service.stop()
+            except Exception:
+                pass
+            self._last_prepared_voice_id = voice.name
+            self.narration_service.prepare(
+                voice=voice,
+                start_playback_index=int(getattr(bm, "chunk_index")),
+            )
+            self.narration_service.start()
+
+            # Requirement: close the bookmarks dialog after a successful Go To.
+            try:
+                if self._bookmarks_dialog is not None:
+                    self._bookmarks_dialog.close()
+            except Exception:
+                pass
+
+        def _delete(bm) -> None:
+            self.bookmark_service.delete_bookmark(
+                book_id=book_id,
+                bookmark_id=int(getattr(bm, "bookmark_id")),
+            )
+
+        actions = BookmarksDialogActions(
+            list_bookmarks=_list,
+            add_bookmark=_add,
+            go_to_bookmark=_goto,
+            delete_bookmark=_delete,
+        )
+
+        if self._bookmarks_dialog is None:
+            self._bookmarks_dialog = BookmarksDialog(
+                parent=self.window, actions=actions
+            )
+        else:
+            # Update actions/book_id on reuse by reconstructing.
+            try:
+                self._bookmarks_dialog.close()
+            except Exception:
+                pass
+            self._bookmarks_dialog = BookmarksDialog(
+                parent=self.window, actions=actions
+            )
+
+        self._bookmarks_dialog.open()
+
     def on_state(self, state: NarrationState) -> None:
         # Called from background thread.
         try:
@@ -276,7 +372,10 @@ class UiController(QObject):
                 NarrationStatus.ERROR,
             }
             locked = state.status not in editable_statuses
-            for combo in (getattr(self.window, "voice_combo", None), getattr(self.window, "speed_combo", None)):
+            for combo in (
+                getattr(self.window, "voice_combo", None),
+                getattr(self.window, "speed_combo", None),
+            ):
                 if combo is None:
                     continue
                 combo.setEnabled(not locked)
