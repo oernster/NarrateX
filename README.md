@@ -10,7 +10,7 @@ For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITEC
 
 # Screenshot
 
-<img width="640" height="480" src="images/narratex.png" />  
+<img width="800" height="560" src="images/narratex.png" />  
 
 ## Supported book formats
 
