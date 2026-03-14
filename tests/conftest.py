@@ -1,8 +1,19 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
+
+
+# Ensure the project root is importable during pytest collection.
+#
+# Without this, imports like `import voice_reader` / `import installer.ops...` can
+# resolve to unrelated site-packages (e.g. the PyPI `installer` package) when
+# pytest's working directory / sys.path differs from a regular `python -c` run.
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 
 def project_root() -> Path:

@@ -22,7 +22,6 @@ class _FakeQApplication:
     def __init__(self, argv) -> None:
         del argv
         self.aboutToQuit = _FakeSignal()
-        self.window_icons: list[object] = []
 
     def setApplicationName(self, _):
         return
@@ -30,10 +29,10 @@ class _FakeQApplication:
     def setApplicationDisplayName(self, _):
         return
 
-    def setWindowIcon(self, icon) -> None:
-        self.window_icons.append(icon)
-
     def setDesktopFileName(self, _):
+        return
+
+    def setWindowIcon(self, _):
         return
 
     def exec(self) -> int:
@@ -41,18 +40,29 @@ class _FakeQApplication:
         return 0
 
 
-class _FakeQIcon:
-    """A fake QIcon that fails for .ico but succeeds for .png."""
+class _FakeShell32:
+    def __init__(self) -> None:
+        self.calls: list[str] = []
 
-    def __init__(self, path: str | None = None) -> None:
-        self._path = path or ""
-
-    def isNull(self) -> bool:
-        return self._path.lower().endswith(".ico") or not self._path
+    def SetCurrentProcessExplicitAppUserModelID(self, app_id: str) -> None:  # noqa: N802
+        self.calls.append(app_id)
 
 
-def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(monkeypatch, tmp_path: Path) -> None:
+def test_main_sets_windows_appusermodelid_via_ctypes_early(monkeypatch, tmp_path: Path) -> None:
+    """Ensure the entrypoint sets the explicit AppUserModelID (best-effort).
+
+    We patch `os.name` to force the Windows code path and inject a fake `ctypes`
+    module to verify the call without requiring Windows.
+    """
+
     monkeypatch.setattr(app, "__file__", str(tmp_path / "app.py"))
+
+    # Force Windows path.
+    monkeypatch.setattr(app.os, "name", "nt")
+
+    fake_shell32 = _FakeShell32()
+    fake_ctypes = SimpleNamespace(windll=SimpleNamespace(shell32=fake_shell32))
+    monkeypatch.setitem(__import__("sys").modules, "ctypes", fake_ctypes)
 
     class _FakeConfig:
         def __init__(self) -> None:
@@ -67,11 +77,7 @@ def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(monkeypatch, tmp_pa
             self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(app.Config, "from_project_root", lambda project_root: _FakeConfig())
-
-    # Minimal wiring.
-    fake_qapp = _FakeQApplication([])
-    monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
-    monkeypatch.setattr(app, "QIcon", _FakeQIcon)
+    monkeypatch.setattr(app, "QApplication", _FakeQApplication)
     monkeypatch.setattr(app, "MainWindow", lambda: SimpleNamespace(setWindowIcon=lambda *_: None, show=lambda: None))
     monkeypatch.setattr(app, "UiController", lambda **kwargs: SimpleNamespace(**kwargs))
 
@@ -83,20 +89,16 @@ def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(monkeypatch, tmp_pa
     monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(app, "TTSEngineFactory", lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="fake")))
+
+    monkeypatch.setattr(
+        app,
+        "TTSEngineFactory",
+        lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="fake")),
+    )
     monkeypatch.setattr(app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=lambda: None))
-
-    # The runtime icon must be a PNG (Qt may not decode ICO in frozen builds).
-    (tmp_path / "narratex_256.png").write_bytes(b"fake-png")
-
-    # Ensure app.py finds our fake icon.
-    monkeypatch.chdir(tmp_path)
 
     rc = app.main()
     assert rc == 0
-    assert fake_qapp.window_icons, "Expected QApplication.setWindowIcon to be called"
-
-    chosen = fake_qapp.window_icons[-1]
-    assert isinstance(chosen, _FakeQIcon)
-    assert chosen._path.lower().endswith(".png"), "Expected fallback to a PNG-based icon"
+    assert fake_shell32.calls, "Expected SetCurrentProcessExplicitAppUserModelID to be called"
+    assert fake_shell32.calls[-1] == app.APP_APPUSERMODELID
 
