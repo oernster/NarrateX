@@ -14,8 +14,12 @@ from voice_reader.application.dto.narration_state import NarrationStatus
 from voice_reader.application.services.narration_service import NarrationService
 from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
+from voice_reader.application.services.chapter_index_service import ChapterIndexService
+from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
+from voice_reader.domain.entities.chapter import Chapter
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
+from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
 from voice_reader.ui.bookmarks_dialog import BookmarksDialog, BookmarksDialogActions
 from voice_reader.ui.main_window import MainWindow
@@ -52,6 +56,38 @@ class UiController(QObject):
         self._last_prepared_voice_id: str | None = None
         self._cover_extractor = CoverExtractor()
 
+        self._chapter_index_service = ChapterIndexService()
+
+        # Keep controller usable with existing UI tests that pass a minimal
+        # narration stub. Fall back to default domain services if missing.
+        try:
+            detector = self.narration_service.reading_start_detector
+        except Exception:
+            detector = ReadingStartService()
+        try:
+            chunker = self.narration_service.chunking_service
+        except Exception:
+            chunker = None
+
+        if chunker is None:
+            # Avoid importing ChunkingService here to keep UI layer light; if the
+            # narration stub doesn't provide a chunker, chapter indexing on book
+            # load is simply disabled.
+            self._navigation_chunk_service = None
+        else:
+            self._navigation_chunk_service = NavigationChunkService(
+                reading_start_detector=detector,
+                chunking_service=chunker,
+            )
+        self._chapters: list[Chapter] = []
+        self._current_chapter: Chapter | None = None
+
+        # Ensure chapter controls are inert until a book provides chapters.
+        try:
+            self.window.set_chapter_controls_enabled(previous=False, next_=False)
+        except Exception:
+            pass
+
         self.window.lbl_device.setText(f"Device: {self.device}")
         self.window.lbl_engine.setText(f"Engine: {self.engine_name}")
 
@@ -59,6 +95,17 @@ class UiController(QObject):
         self.window.play_clicked.connect(self.play)
         self.window.pause_clicked.connect(self.pause)
         self.window.stop_clicked.connect(self.stop)
+
+        if hasattr(self.window, "previous_chapter_clicked"):
+            try:
+                self.window.previous_chapter_clicked.connect(self.previous_chapter)
+            except Exception:
+                pass
+        if hasattr(self.window, "next_chapter_clicked"):
+            try:
+                self.window.next_chapter_clicked.connect(self.next_chapter)
+            except Exception:
+                pass
         if hasattr(self.window, "bookmarks_clicked"):
             try:
                 self.window.bookmarks_clicked.connect(self.open_bookmarks_dialog)
@@ -138,6 +185,33 @@ class UiController(QObject):
         )
         book = self.narration_service.load_book(path)
         self.window.set_reader_text(book.normalized_text)
+
+        # Build navigation chunks and chapter index (session-only, no persistence).
+        start_char_for_ui = 0
+        try:
+            if self._navigation_chunk_service is not None:
+                chunks, start = self._navigation_chunk_service.build_chunks(
+                    book_text=book.normalized_text
+                )
+                start_char_for_ui = int(start.start_char)
+                self._chapters = self._chapter_index_service.build_index(
+                    book.normalized_text,
+                    chunks=chunks,
+                    min_char_offset=int(start.start_char),
+                )
+            else:
+                self._chapters = []
+        except Exception:
+            self._log.exception("Chapter index build failed")
+            self._chapters = []
+
+        try:
+            if hasattr(self.window, "chapter_spine"):
+                self.window.chapter_spine.set_chapters(self._chapters)
+                self.window.chapter_spine.set_current_chapter(None)
+        except Exception:
+            pass
+        self._apply_chapter_controls(current_char_offset=int(start_char_for_ui))
 
         # Best-effort cover extraction (EPUB/PDF). Non-blocking would be nicer,
         # but extraction is fast and failure is silent.
@@ -393,3 +467,90 @@ class UiController(QObject):
             start = state.highlight_start
             end = state.highlight_end
         self.window.highlight_range(start, end)
+
+        # Update chapter UI from the authoritative playback char offset.
+        if start is not None:
+            try:
+                self._apply_chapter_controls(current_char_offset=int(start))
+            except Exception:
+                pass
+
+    def _apply_chapter_controls(self, *, current_char_offset: int) -> None:
+        if not self._chapters:
+            self._current_chapter = None
+            try:
+                self.window.set_chapter_controls_enabled(previous=False, next_=False)
+            except Exception:
+                pass
+            try:
+                if hasattr(self.window, "chapter_spine"):
+                    self.window.chapter_spine.set_current_chapter(None)
+            except Exception:
+                pass
+            return
+
+        cur = self._chapter_index_service.get_current_chapter(
+            self._chapters, current_char_offset=int(current_char_offset)
+        )
+        self._current_chapter = cur
+        prev = self._chapter_index_service.get_previous_chapter(
+            self._chapters, current_char_offset=int(current_char_offset)
+        )
+        nxt = self._chapter_index_service.get_next_chapter(
+            self._chapters, current_char_offset=int(current_char_offset)
+        )
+        try:
+            self.window.set_chapter_controls_enabled(
+                previous=prev is not None,
+                next_=nxt is not None,
+            )
+        except Exception:
+            pass
+        try:
+            if hasattr(self.window, "chapter_spine"):
+                self.window.chapter_spine.set_current_chapter(cur)
+        except Exception:
+            pass
+
+    def previous_chapter(self) -> None:
+        self._jump_to_chapter(direction="previous")
+
+    def next_chapter(self) -> None:
+        self._jump_to_chapter(direction="next")
+
+    def _jump_to_chapter(self, *, direction: str) -> None:
+        if not self._chapters:
+            return
+        _chunk, char_offset = self.narration_service.current_position()
+        if char_offset is None:
+            return
+        if direction == "previous":
+            target = self._chapter_index_service.get_previous_chapter(
+                self._chapters, current_char_offset=int(char_offset)
+            )
+        else:
+            target = self._chapter_index_service.get_next_chapter(
+                self._chapters, current_char_offset=int(char_offset)
+            )
+        if target is None:
+            return
+
+        voice = self._selected_voice()
+        if voice is None:
+            return
+        try:
+            self.narration_service.stop()
+        except Exception:
+            pass
+        self._last_prepared_voice_id = voice.name
+        self.narration_service.prepare(
+            voice=voice,
+            start_playback_index=int(target.chunk_index),
+        )
+        self.narration_service.start()
+
+        # Immediate UI refresh after jump.
+        try:
+            self._apply_chapter_controls(current_char_offset=int(target.char_offset))
+        except Exception:
+            pass

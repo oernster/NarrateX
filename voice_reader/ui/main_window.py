@@ -49,6 +49,9 @@ class MainWindow(QMainWindow):
     bookmarks_clicked = Signal()
     speed_changed = Signal(str)
 
+    previous_chapter_clicked = Signal()
+    next_chapter_clicked = Signal()
+
     def __init__(self, strings: UiStrings | None = None) -> None:
         super().__init__()
         self._strings = strings or UiStrings()
@@ -104,11 +107,29 @@ class MainWindow(QMainWindow):
         controls.addWidget(QLabel("Speed"))
         controls.addWidget(self.speed_combo)
         controls.addStretch(1)
+
         controls.addWidget(self.btn_play)
         controls.addWidget(self.btn_pause)
         controls.addWidget(self.btn_stop)
         controls.addWidget(self.btn_bookmarks)
         left_panel.addLayout(controls)
+
+        # Chapter navigation row (larger buttons for visibility).
+        chapter_nav = QHBoxLayout()
+        chapter_nav.setSpacing(8)
+
+        self.btn_prev_chapter = QPushButton("⏮ Previous Chapter")
+        self.btn_next_chapter = QPushButton("Next Chapter ⏭")
+        for b in (self.btn_prev_chapter, self.btn_next_chapter):
+            b.setCursor(Qt.PointingHandCursor)
+            b.setMinimumHeight(42)
+            b.setMinimumWidth(190)
+            b.setFont(QFont("Segoe UI", 12))
+
+        chapter_nav.addWidget(self.btn_prev_chapter)
+        chapter_nav.addWidget(self.btn_next_chapter)
+        chapter_nav.addStretch(1)
+        left_panel.addLayout(chapter_nav)
 
         # Status/progress row (kept on the left)
         status = QHBoxLayout()
@@ -200,6 +221,11 @@ class MainWindow(QMainWindow):
         reader_row = QHBoxLayout()
         reader_row.setSpacing(12)
 
+        from voice_reader.ui.chapter_spine_widget import ChapterSpineWidget
+
+        self.chapter_spine = ChapterSpineWidget()
+        reader_row.addWidget(self.chapter_spine, stretch=0)
+
         self.reader = QTextEdit()
         self.reader.setReadOnly(True)
         self.reader.setFont(QFont("Segoe UI", 11))
@@ -228,6 +254,12 @@ class MainWindow(QMainWindow):
         apply_main_window_theme(self)
         self._connect_signals()
 
+        # Default: disabled until a chapter index is loaded.
+        try:
+            self.set_chapter_controls_enabled(previous=False, next_=False)
+        except Exception:
+            pass
+
     def _connect_signals(self) -> None:
         self.btn_select_book.clicked.connect(self.select_book_clicked.emit)
         self.btn_play.clicked.connect(self.play_clicked.emit)
@@ -235,6 +267,12 @@ class MainWindow(QMainWindow):
         self.btn_stop.clicked.connect(self.stop_clicked.emit)
         self.btn_bookmarks.clicked.connect(self.bookmarks_clicked.emit)
         self.speed_combo.currentTextChanged.connect(self.speed_changed.emit)
+        self.btn_prev_chapter.clicked.connect(self.previous_chapter_clicked.emit)
+        self.btn_next_chapter.clicked.connect(self.next_chapter_clicked.emit)
+
+    def set_chapter_controls_enabled(self, *, previous: bool, next_: bool) -> None:
+        self.btn_prev_chapter.setEnabled(bool(previous))
+        self.btn_next_chapter.setEnabled(bool(next_))
 
     def show_about_dialog(self) -> None:
         # Non-blocking.
