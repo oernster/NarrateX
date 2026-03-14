@@ -22,9 +22,9 @@ This document describes the current structure of the `voice_reader` codebase and
   - DTOs: [`NarrationState`](voice_reader/application/dto/narration_state.py:20), [`NarrationStatus`](voice_reader/application/dto/narration_state.py:9)
   - Services:
     - [`NarrationService`](voice_reader/application/services/narration_service.py:36): core orchestration
-    - [`TTSEngineFactory`](voice_reader/application/services/tts_engine_factory.py:19): picks the best available engine via [`TTSEngineFactory.create()`](voice_reader/application/services/tts_engine_factory.py:22)
+    - [`TTSEngineFactory`](voice_reader/application/services/tts_engine_factory.py:19): engine selection (being simplified to Kokoro-only)
     - [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15): lists voices via repo
-    - [`DeviceDetectionService`](voice_reader/application/services/device_detection_service.py:6): returns cpu/cuda via [`DeviceDetectionService.detect()`](voice_reader/application/services/device_detection_service.py:7)
+    - (planned removal) [`DeviceDetectionService`](voice_reader/application/services/device_detection_service.py:6): only relevant for torch-based engines
 
 - Domain layer: [`voice_reader/domain`](voice_reader/domain:1)
   - Entities: [`Book`](voice_reader/domain/entities/book.py:1), [`TextChunk`](voice_reader/domain/entities/text_chunk.py:1), [`VoiceProfile`](voice_reader/domain/entities/voice_profile.py:1)
@@ -49,10 +49,9 @@ This document describes the current structure of the `voice_reader` codebase and
     - [`FilesystemCacheRepository`](voice_reader/infrastructure/cache/filesystem_cache.py:12) via [`FilesystemCacheRepository.audio_path()`](voice_reader/infrastructure/cache/filesystem_cache.py:15)
   - TTS engines:
     - [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30) via [`KokoroEngine.synthesize_to_file()`](voice_reader/infrastructure/tts/kokoro_engine.py:71)
-    - [`XTTSCoquiEngine`](voice_reader/infrastructure/tts/xtts_engine.py:21) via [`XTTSCoquiEngine.synthesize_to_file()`](voice_reader/infrastructure/tts/xtts_engine.py:42)
-    - [`Pyttsx3Engine`](voice_reader/infrastructure/tts/pyttsx3_engine.py:19) via [`Pyttsx3Engine.synthesize_to_file()`](voice_reader/infrastructure/tts/pyttsx3_engine.py:30)
-    - [`HybridTTSEngine`](voice_reader/infrastructure/tts/hybrid_engine.py:26) routes by profile type via [`HybridTTSEngine.synthesize_to_file()`](voice_reader/infrastructure/tts/hybrid_engine.py:36)
-    - Voice profiles from disk + built-in Kokoro IDs: [`FilesystemVoiceProfileRepository.list_profiles()`](voice_reader/infrastructure/tts/voice_profile_repository.py:25)
+    - (planned removal) [`XTTSCoquiEngine`](voice_reader/infrastructure/tts/xtts_engine.py:21) and [`HybridTTSEngine`](voice_reader/infrastructure/tts/hybrid_engine.py:26): Coqui XTTS voice cloning is being removed
+    - (planned removal) [`Pyttsx3Engine`](voice_reader/infrastructure/tts/pyttsx3_engine.py:19): system TTS fallback is being removed
+    - Voice profiles: built-in Kokoro voice IDs (filesystem voice cloning profiles are being removed)
   - Audio playback:
     - [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72) via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/audio_streamer.py:111)
 
@@ -90,15 +89,14 @@ Startup is in [`main()`](app.py:33):
 
 1. Load config + ensure directories via [`Config.from_project_root()`](voice_reader/shared/config.py:27) and [`Config.ensure_directories()`](voice_reader/shared/config.py:37)
 2. Cache policy: clear `cache/` on launch unless `NARRATEX_PRESERVE_CACHE=1` (see [`main()`](app.py:33))
-3. Detect device via [`DeviceDetectionService.detect()`](voice_reader/application/services/device_detection_service.py:7)
-4. Instantiate infrastructure adapters:
+3. Instantiate infrastructure adapters:
    - books: [`CalibreConverter`](voice_reader/infrastructure/books/converter.py:18), [`BookParser`](voice_reader/infrastructure/books/parser.py:20), [`LocalBookRepository`](voice_reader/infrastructure/books/repository.py:16)
    - cache: [`FilesystemCacheRepository`](voice_reader/infrastructure/cache/filesystem_cache.py:12)
-   - voices: [`FilesystemVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:22)
-   - tts: [`TTSEngineFactory.create()`](voice_reader/application/services/tts_engine_factory.py:22)
+   - voices: Kokoro built-in voice IDs via [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15)
+   - tts: Kokoro engine (via [`TTSEngineFactory`](voice_reader/application/services/tts_engine_factory.py:19), being simplified to Kokoro-only)
    - audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72)
-5. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py:36)
-6. Create UI: [`MainWindow`](voice_reader/ui/main_window.py:34) + [`UiController`](voice_reader/ui/ui_controller.py:21)
+4. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py:36)
+5. Create UI: [`MainWindow`](voice_reader/ui/main_window.py:34) + [`UiController`](voice_reader/ui/ui_controller.py:21)
 
 ### 2) Book selection and cover handling
 
@@ -170,18 +168,14 @@ Notable performance and UX choices:
 
 ## TTS engine selection and voice profiles
 
-Engine choice is centralized in [`TTSEngineFactory.create()`](voice_reader/application/services/tts_engine_factory.py:22):
+Target behavior (refactor in progress): **Kokoro-only voices**.
 
-- If `kokoro` is importable: Kokoro native voices are available via [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30).
-- If `TTS` is importable: Coqui XTTS voice cloning is available via [`XTTSCoquiEngine`](voice_reader/infrastructure/tts/xtts_engine.py:21).
-- If both are available: [`HybridTTSEngine`](voice_reader/infrastructure/tts/hybrid_engine.py:26) routes each request based on the profile.
-- Otherwise: fall back to [`Pyttsx3Engine`](voice_reader/infrastructure/tts/pyttsx3_engine.py:19).
-
-Voice profiles come from [`FilesystemVoiceProfileRepository.list_profiles()`](voice_reader/infrastructure/tts/voice_profile_repository.py:25):
-
-- A default `system` profile is always provided.
-- If Kokoro is installed, built-in Kokoro voice IDs are exposed as selectable profiles.
-- Voice-cloning profiles are discovered from `voices/<voice_name>/*.wav`.
+- Engine selection will be simplified so the runtime uses [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30) only.
+- The application will no longer expose:
+  - voice cloning (Coqui XTTS / `TTS`, [`XTTSCoquiEngine`](voice_reader/infrastructure/tts/xtts_engine.py:21))
+  - system fallback voices (pyttsx3, [`Pyttsx3Engine`](voice_reader/infrastructure/tts/pyttsx3_engine.py:19))
+  - filesystem reference-audio profiles under `voices/`
+- Voice profiles will be **only** Kokoro voice IDs (e.g. `bf_emma`, `am_michael`).
 
 ## Concurrency model
 
@@ -189,6 +183,16 @@ Voice profiles come from [`FilesystemVoiceProfileRepository.list_profiles()`](vo
 - Narration runs on a background thread started by [`NarrationService.start()`](voice_reader/application/services/narration_service.py:156).
 - Audio playback (`sounddevice` + `soundfile`) uses internal producer/player threads inside [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72).
 - In Kokoro-native mode, TTS synthesis can be parallelized by multiple worker threads and a publisher thread (see [`NarrationService._run()`](voice_reader/application/services/narration_service.py:293)).
+
+## Packaging note (Windows)
+
+With the Kokoro-only refactor, the Windows build goal is a Windows GUI executable built with PyInstaller that bundles:
+
+- Python runtime + dependencies
+- PySide6 Qt plugins required for the UI
+- the application icon ([`narratex.ico`](narratex.ico:1))
+
+Kokoro’s model weights are expected to be resolved at runtime by Kokoro itself (typically via its upstream model repo); this keeps the `.exe` size reasonable.
 
 ## Tests: mapping to layers
 

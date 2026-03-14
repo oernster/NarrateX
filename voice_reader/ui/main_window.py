@@ -86,11 +86,17 @@ class MainWindow(QMainWindow):
         # Status/progress row (kept on the left)
         status = QHBoxLayout()
         status.setSpacing(12)
+
+        self.lbl_status = QLabel("Idle")
+        self.lbl_status.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.lbl_status.setMinimumWidth(260)
+
         self.lbl_progress = QLabel("0/0")
         self.lbl_progress.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
+        status.addWidget(self.lbl_status)
         status.addStretch(1)
         status.addWidget(self.lbl_progress)
         status.addWidget(self.progress)
@@ -244,9 +250,7 @@ class MainWindow(QMainWindow):
             [
                 "PySide6 (Qt for Python) developers",
                 "The Python development team",
-                "The Nuitka team",
                 "Kokoro TTS library",
-                "Coqui TTS (TTS)",
                 "EbookLib",
                 "PyMuPDF",
                 "sounddevice",

@@ -15,27 +15,14 @@ def test_factory_prefers_kokoro_when_available(monkeypatch) -> None:
         return None
 
     monkeypatch.setattr(importlib.util, "find_spec", fake_find_spec)
-    engine = TTSEngineFactory(model_name="x").create()
+    engine = TTSEngineFactory().create()
     assert engine.engine_name == "kokoro"
 
 
-def test_factory_uses_xtts_hybrid_when_tts_available_and_kokoro_missing(monkeypatch) -> None:
-    """If XTTS is available but Kokoro isn't, keep the old behavior."""
-
-    def fake_find_spec(name: str):
-        if name == "TTS":
-            return object()
-        return None
-
-    monkeypatch.setattr(importlib.util, "find_spec", fake_find_spec)
-    engine = TTSEngineFactory(model_name="model").create()
-    assert "xtts" in engine.engine_name.lower()
-
-
-def test_factory_falls_back_to_pyttsx3_when_no_engines_available(monkeypatch) -> None:
-    def fake_find_spec(name: str):
-        return None
-
-    monkeypatch.setattr(importlib.util, "find_spec", fake_find_spec)
-    engine = TTSEngineFactory(model_name="x").create()
-    assert engine.engine_name.lower().startswith("pyttsx3")
+def test_factory_raises_when_kokoro_missing(monkeypatch) -> None:
+    monkeypatch.setattr(importlib.util, "find_spec", lambda name: None)
+    try:
+        TTSEngineFactory().create()
+        assert False, "Expected RuntimeError when Kokoro is missing"
+    except RuntimeError as exc:
+        assert "Kokoro" in str(exc)

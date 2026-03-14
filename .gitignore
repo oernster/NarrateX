@@ -206,9 +206,16 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
+# builds
+dist-pyinstaller/
+share/
+
 # Rubbish
 generate_scripts.py
 ALL_SOURCES.txt
 1
 cache/
 temp_books/
+lightmodeinstaller.jpg
+darkmodeinstaller.jpg
+Scripts/
