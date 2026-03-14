@@ -45,15 +45,12 @@ def test_main_sets_application_display_name_when_supported(monkeypatch, tmp_path
         def __init__(self) -> None:
             self.paths = SimpleNamespace(
                 cache_dir=tmp_path / "cache",
-                voices_dir=tmp_path / "voices",
                 temp_books_dir=tmp_path / "temp_books",
             )
-            self.tts_model_name = "m"
             self.default_language = "en"
 
         def ensure_directories(self) -> None:
             self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.voices_dir.mkdir(parents=True, exist_ok=True)
             self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(app.Config, "from_project_root", lambda project_root: _FakeConfig())
@@ -65,13 +62,12 @@ def test_main_sets_application_display_name_when_supported(monkeypatch, tmp_path
     monkeypatch.setattr(app, "BookParser", lambda: SimpleNamespace())
     monkeypatch.setattr(app, "LocalBookRepository", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(app, "FilesystemCacheRepository", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(app, "FilesystemVoiceProfileRepository", lambda **kwargs: SimpleNamespace(**kwargs))
+    monkeypatch.setattr(app, "KokoroVoiceProfileRepository", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace(**kwargs))
 
-    monkeypatch.setattr(app, "DeviceDetectionService", lambda: SimpleNamespace(detect=lambda: "cpu"))
-    monkeypatch.setattr(app, "TTSEngineFactory", lambda model_name: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="fake")))
+    monkeypatch.setattr(app, "TTSEngineFactory", lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="fake")))
     monkeypatch.setattr(app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=lambda: None))
 
     monkeypatch.setattr(app, "find_app_icon_path", lambda **kwargs: None)

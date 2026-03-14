@@ -1,52 +1,50 @@
-"""Factory for choosing an available TTS engine.
+"""Factory for creating the TTS engine.
 
-Keeps app wiring simple while supporting optional heavy dependencies.
+This project is intentionally **Kokoro-only**.
+
+Important packaging note:
+Kokoro imports a dependency chain (e.g. misaki, spaCy and a spaCy model) that
+may not be detected by static analysis when packaged.
+
+If anything in that import chain is missing at runtime (e.g. ``spacy`` or
+``en_core_web_sm``), we fail fast with an actionable message.
 """
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 from dataclasses import dataclass
 
 from voice_reader.domain.interfaces.tts_engine import TTSEngine
-from voice_reader.infrastructure.tts.hybrid_engine import HybridTTSEngine
 from voice_reader.infrastructure.tts.kokoro_engine import KokoroEngine
-from voice_reader.infrastructure.tts.pyttsx3_engine import Pyttsx3Engine
-from voice_reader.infrastructure.tts.xtts_engine import XTTSCoquiEngine
 
 
 @dataclass(frozen=True, slots=True)
 class TTSEngineFactory:
-    model_name: str
+    """Create a Kokoro engine instance."""
 
     def create(self) -> TTSEngine:
-        """Create best available engine.
+        # find_spec() is not sufficient here: it can succeed even when importing
+        # `kokoro` fails later due to missing transitive dependencies.
+        try:
+            if importlib.util.find_spec("kokoro") is None:
+                raise ModuleNotFoundError("kokoro")
+            importlib.import_module("kokoro")
+        except ModuleNotFoundError as exc:
+            missing = exc.name or "<unknown>"
+            raise RuntimeError(
+                "Kokoro is not available (import failed). "
+                f"Missing dependency: {missing!r}. "
+                "This app supports Kokoro voices only. Ensure Kokoro and its dependencies "
+                "are installed, e.g. `pip install kokoro soundfile spacy` and install the "
+                "spaCy model `en_core_web_sm`."
+            ) from exc
+        except Exception as exc:
+            raise RuntimeError(
+                "Kokoro is not available (import failed). "
+                f"Reason: {exc!r}"
+            ) from exc
 
-        Preference order:
-        1) Kokoro native voices when `kokoro` is importable.
-        2) Coqui XTTS (voice cloning) when `TTS` is importable.
-        3) pyttsx3 fallback.
-        """
+        return KokoroEngine()
 
-        def _has_module(name: str) -> bool:
-            try:
-                return importlib.util.find_spec(name) is not None
-            except Exception:
-                return False
-
-        has_kokoro = _has_module("kokoro")
-        has_tts = _has_module("TTS")
-
-        if has_kokoro and has_tts:
-            return HybridTTSEngine(
-                cloning_engine=XTTSCoquiEngine(model_name=self.model_name),
-                native_engine=KokoroEngine(),
-            )
-        if has_kokoro:
-            return KokoroEngine()
-        if has_tts:
-            return HybridTTSEngine(
-                cloning_engine=XTTSCoquiEngine(model_name=self.model_name),
-                native_engine=Pyttsx3Engine(),
-            )
-        return Pyttsx3Engine()

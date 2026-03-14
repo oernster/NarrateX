@@ -52,10 +52,32 @@ python app.py
 
 ## Windows EXE builds
 
-This repository does not include any maintained Windows `.exe` build or launcher scripts.
-The reason for this is because the binaries required for packaging are ginormous and no matter how well optimised the build scripts are, 
-the build takes simply too much time for a normal human to endure even on amn incredibly high performance computer.
-Run from source using `python app.py`.
+This repository uses **PyInstaller** for Windows EXE builds.
+
+### Notes (Kokoro-only)
+
+The app has been refactored to be **Kokoro-only**:
+
+- No system fallback voice
+- No XTTS/Coqui voice cloning
+
+This significantly reduces dependency creep and makes packaging more predictable.
+
+### Build (PowerShell)
+
+```powershell
+venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python buildpyinstaller.py
+```
+
+Output:
+
+- `dist-pyinstaller/NarrateX/NarrateX.exe`
+
+### Troubleshooting
+
+- If the EXE opens then immediately exits, check the crash logs written by [`app.main()`](app.py:51) near the executable.
 
 ## Tests
 

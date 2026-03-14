@@ -220,5 +220,14 @@ class UiController(QObject):
             self.window.lbl_progress.setText(
                 f"{(state.current_chunk_id or 0) + 1}/{state.total_chunks}"
             )
+
+        # Show a user-visible status line so packaging/runtime failures (e.g.
+        # audio device problems) are easier to diagnose without a console.
+        try:
+            if hasattr(self.window, "lbl_status"):
+                self.window.lbl_status.setText(state.message or state.status.value)
+        except Exception:
+            pass
+
         self.window.progress.setValue(int(state.progress * 100))
         self.window.highlight_range(state.highlight_start, state.highlight_end)

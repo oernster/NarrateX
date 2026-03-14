@@ -27,7 +27,6 @@ class AppPaths:
 class Config:
     paths: AppPaths
     default_language: str = "en"
-    tts_model_name: str = "tts_models/multilingual/multi-dataset/xtts_v2"
 
     @staticmethod
     def from_project_root(project_root: Path) -> "Config":

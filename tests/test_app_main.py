@@ -73,15 +73,12 @@ def test_main_preserve_cache_skips_rmtree(monkeypatch, tmp_path: Path) -> None:
         def __init__(self) -> None:
             self.paths = SimpleNamespace(
                 cache_dir=tmp_path / "cache",
-                voices_dir=tmp_path / "voices",
                 temp_books_dir=tmp_path / "temp_books",
             )
-            self.tts_model_name = "m"
             self.default_language = "en"
 
         def ensure_directories(self) -> None:
             self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.voices_dir.mkdir(parents=True, exist_ok=True)
             self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(app.Config, "from_project_root", lambda project_root: _FakeConfig())
@@ -95,21 +92,12 @@ def test_main_preserve_cache_skips_rmtree(monkeypatch, tmp_path: Path) -> None:
         lambda **kwargs: SimpleNamespace(load=lambda p: SimpleNamespace(title="t", normalized_text="x")),
     )
     monkeypatch.setattr(app, "FilesystemCacheRepository", lambda **kwargs: SimpleNamespace())
-    monkeypatch.setattr(app, "FilesystemVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(app, "KokoroVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace())
 
-    class _FakeDDS:
-        def detect(self) -> str:
-            return "cpu"
-
-    monkeypatch.setattr(app, "DeviceDetectionService", _FakeDDS)
-
     class _FakeFactory:
-        def __init__(self, model_name: str) -> None:
-            self.model_name = model_name
-
         def create(self):
             return SimpleNamespace(engine_name="fake")
 
@@ -143,15 +131,12 @@ def test_main_clears_cache_and_registers_quit_handler(monkeypatch, tmp_path: Pat
         def __init__(self) -> None:
             self.paths = SimpleNamespace(
                 cache_dir=tmp_path / "cache",
-                voices_dir=tmp_path / "voices",
                 temp_books_dir=tmp_path / "temp_books",
             )
-            self.tts_model_name = "m"
             self.default_language = "en"
 
         def ensure_directories(self) -> None:
             self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.voices_dir.mkdir(parents=True, exist_ok=True)
             self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(app.Config, "from_project_root", lambda project_root: _FakeConfig())
@@ -164,7 +149,7 @@ def test_main_clears_cache_and_registers_quit_handler(monkeypatch, tmp_path: Pat
         lambda **kwargs: SimpleNamespace(load=lambda p: SimpleNamespace(title="t", normalized_text="x")),
     )
     monkeypatch.setattr(app, "FilesystemCacheRepository", lambda **kwargs: SimpleNamespace())
-    monkeypatch.setattr(app, "FilesystemVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(app, "KokoroVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace())
@@ -185,16 +170,7 @@ def test_main_clears_cache_and_registers_quit_handler(monkeypatch, tmp_path: Pat
     monkeypatch.setattr(app, "MainWindow", _FakeWindow)
     monkeypatch.setattr(app, "UiController", _FakeUiController)
 
-    class _FakeDDS:
-        def detect(self) -> str:
-            return "cpu"
-
-    monkeypatch.setattr(app, "DeviceDetectionService", _FakeDDS)
-
     class _FakeFactory:
-        def __init__(self, model_name: str) -> None:
-            self.model_name = model_name
-
         def create(self):
             return SimpleNamespace(engine_name="fake")
 
@@ -248,15 +224,12 @@ def test_main_cache_clear_failure_is_logged_and_continues(monkeypatch, tmp_path:
         def __init__(self) -> None:
             self.paths = SimpleNamespace(
                 cache_dir=tmp_path / "cache",
-                voices_dir=tmp_path / "voices",
                 temp_books_dir=tmp_path / "temp_books",
             )
-            self.tts_model_name = "m"
             self.default_language = "en"
 
         def ensure_directories(self) -> None:
             self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.voices_dir.mkdir(parents=True, exist_ok=True)
             self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(app.Config, "from_project_root", lambda project_root: _FakeConfig())
@@ -278,7 +251,7 @@ def test_main_cache_clear_failure_is_logged_and_continues(monkeypatch, tmp_path:
     monkeypatch.setattr(app, "BookParser", lambda: SimpleNamespace())
     monkeypatch.setattr(app, "LocalBookRepository", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "FilesystemCacheRepository", lambda **kwargs: SimpleNamespace())
-    monkeypatch.setattr(app, "FilesystemVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(app, "KokoroVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace())
@@ -287,8 +260,7 @@ def test_main_cache_clear_failure_is_logged_and_continues(monkeypatch, tmp_path:
         def detect(self) -> str:
             return "cpu"
 
-    monkeypatch.setattr(app, "DeviceDetectionService", _FakeDDS)
-    monkeypatch.setattr(app, "TTSEngineFactory", lambda model_name: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e")))
+    monkeypatch.setattr(app, "TTSEngineFactory", lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e")))
     monkeypatch.setattr(app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=lambda: None))
 
     rc = app.main()
@@ -328,7 +300,6 @@ def test_main_about_to_quit_connect_failure_is_logged(monkeypatch, tmp_path: Pat
                 voices_dir=tmp_path / "voices",
                 temp_books_dir=tmp_path / "temp_books",
             )
-            self.tts_model_name = "m"
             self.default_language = "en"
 
         def ensure_directories(self) -> None:
@@ -360,17 +331,12 @@ def test_main_about_to_quit_connect_failure_is_logged(monkeypatch, tmp_path: Pat
     monkeypatch.setattr(app, "BookParser", lambda: SimpleNamespace())
     monkeypatch.setattr(app, "LocalBookRepository", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "FilesystemCacheRepository", lambda **kwargs: SimpleNamespace())
-    monkeypatch.setattr(app, "FilesystemVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(app, "KokoroVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace())
 
-    class _FakeDDS:
-        def detect(self) -> str:
-            return "cpu"
-
-    monkeypatch.setattr(app, "DeviceDetectionService", _FakeDDS)
-    monkeypatch.setattr(app, "TTSEngineFactory", lambda model_name: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e")))
+    monkeypatch.setattr(app, "TTSEngineFactory", lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e")))
     monkeypatch.setattr(app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=lambda: None))
 
     assert app.main() == 0
@@ -409,7 +375,6 @@ def test_main_on_quit_stop_failure_is_logged(monkeypatch, tmp_path: Path) -> Non
                 voices_dir=tmp_path / "voices",
                 temp_books_dir=tmp_path / "temp_books",
             )
-            self.tts_model_name = "m"
             self.default_language = "en"
 
         def ensure_directories(self) -> None:
@@ -427,17 +392,12 @@ def test_main_on_quit_stop_failure_is_logged(monkeypatch, tmp_path: Path) -> Non
     monkeypatch.setattr(app, "BookParser", lambda: SimpleNamespace())
     monkeypatch.setattr(app, "LocalBookRepository", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "FilesystemCacheRepository", lambda **kwargs: SimpleNamespace())
-    monkeypatch.setattr(app, "FilesystemVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(app, "KokoroVoiceProfileRepository", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace())
     monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace())
 
-    class _FakeDDS:
-        def detect(self) -> str:
-            return "cpu"
-
-    monkeypatch.setattr(app, "DeviceDetectionService", _FakeDDS)
-    monkeypatch.setattr(app, "TTSEngineFactory", lambda model_name: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e")))
+    monkeypatch.setattr(app, "TTSEngineFactory", lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e")))
 
     def _stop_boom():
         raise RuntimeError("boom")
@@ -492,14 +452,12 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
         monkeypatch.setitem(sys.modules, path, m)
         return m
 
-    _m("voice_reader.application.services.device_detection_service").DeviceDetectionService = (
-        lambda: SimpleNamespace(detect=lambda: "cpu")
-    )
+    # Device detection was only needed for torch-based engines; app is Kokoro-only now.
     _m("voice_reader.application.services.narration_service").NarrationService = (
         lambda **kwargs: SimpleNamespace(stop=lambda: None)
     )
     _m("voice_reader.application.services.tts_engine_factory").TTSEngineFactory = (
-        lambda model_name: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e"))
+        lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e"))
     )
     _m("voice_reader.application.services.voice_profile_service").VoiceProfileService = (
         lambda **kwargs: SimpleNamespace()
@@ -520,7 +478,7 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
     _m("voice_reader.infrastructure.cache.filesystem_cache").FilesystemCacheRepository = (
         lambda **kwargs: SimpleNamespace()
     )
-    _m("voice_reader.infrastructure.tts.voice_profile_repository").FilesystemVoiceProfileRepository = (
+    _m("voice_reader.infrastructure.tts.voice_profile_repository").KokoroVoiceProfileRepository = (
         lambda **kwargs: SimpleNamespace()
     )
 
@@ -531,7 +489,6 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
                 voices_dir=tmp_path / "voices",
                 temp_books_dir=tmp_path / "temp_books",
             )
-            self.tts_model_name = "m"
             self.default_language = "en"
 
         @staticmethod
