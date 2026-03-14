@@ -4,5 +4,4 @@ target-version = ["py311"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
-
+addopts = "-q --cov=voice_reader --cov=app --cov-report=term-missing --cov-fail-under=100 --cov-config=.coveragerc"

@@ -45,7 +45,9 @@ class ChunkingService:
         for para in paragraphs:
             para = para.strip()
             start_in_norm = normalized.find(para, cursor)
-            if start_in_norm == -1:
+            # Defensive fallback: `para` comes from splitting `normalized`, so
+            # this should not happen. Keep this guard anyway for resilience.
+            if start_in_norm == -1:  # pragma: no cover
                 start_in_norm = cursor
 
             for part, rel_start, rel_end in self._chunk_paragraph(para):

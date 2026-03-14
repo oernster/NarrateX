@@ -50,6 +50,17 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
+## Tests / Coverage
+
+This repo enforces **100% test coverage** for the configured runtime scope.
+
+- Canonical command: `pytest`
+- Coverage config: [`.coveragerc`](.coveragerc:1) and [`pyproject.toml`](pyproject.toml:1)
+
+Fast local iteration without coverage:
+
+- `pytest --no-cov`
+
 ## Windows EXE builds
 
 This repository uses **PyInstaller** for Windows EXE builds.
