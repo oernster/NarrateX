@@ -35,6 +35,8 @@ from voice_reader.domain.services.reading_start_service import ReadingStartServi
 from voice_reader.domain.services.sanitized_text_mapper import SanitizedTextMapper
 from voice_reader.domain.services.spoken_text_sanitizer import SpokenTextSanitizer
 
+from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
+
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 
 from voice_reader.application.services.bookmark_service import BookmarkService
@@ -54,6 +56,8 @@ class NarrationService:
     reading_start_detector: ReadingStartDetector = ReadingStartService()
     spoken_text_sanitizer: SpokenTextSanitizer = SpokenTextSanitizer()
     sanitized_text_mapper: SanitizedTextMapper = SanitizedTextMapper()
+
+    navigation_chunk_service: NavigationChunkService | None = None
 
     playback_synchronizer: PlaybackSynchronizer = PlaybackSynchronizer()
     alignment_io: AlignmentIO = AlignmentIO()
@@ -88,6 +92,12 @@ class NarrationService:
         # Allows restarting narration from a given playback index.
         self._start_playback_index: int = 0
         self._playback_rate: PlaybackRate = PlaybackRate.default()
+
+        if self.navigation_chunk_service is None:
+            self.navigation_chunk_service = NavigationChunkService(
+                reading_start_detector=self.reading_start_detector,
+                chunking_service=self.chunking_service,
+            )
 
         # Ensure the playback layer is initialized with our default rate.
         # This is a playback concern only; it must not affect cache/TTS.
@@ -224,9 +234,12 @@ class NarrationService:
         # Reset play position tracking for the next run.
         self._current_play_index = -1
 
-        start = self.reading_start_detector.detect_start(self._book.normalized_text)
+        assert self.navigation_chunk_service is not None
+        chunks, start = self.navigation_chunk_service.build_chunks(
+            book_text=self._book.normalized_text
+        )
+        self._start_char = int(start.start_char)
         self._log.debug("Narration start: %s at %s", start.reason, start.start_char)
-        self._start_char = start.start_char
         self._cache_book_id = None
 
         self._set_state(
@@ -241,18 +254,7 @@ class NarrationService:
             )
         )
 
-        slice_text = self._book.normalized_text[start.start_char :]
-        sliced_chunks = self.chunking_service.chunk_text(slice_text)
-        # Re-base chunk coordinates to full-book coordinates.
-        self._chunks = [
-            TextChunk(
-                chunk_id=c.chunk_id,
-                text=c.text,
-                start_char=c.start_char + start.start_char,
-                end_char=c.end_char + start.start_char,
-            )
-            for c in sliced_chunks
-        ]
+        self._chunks = list(chunks)
         self._set_state(
             NarrationState(
                 status=NarrationStatus.IDLE,
