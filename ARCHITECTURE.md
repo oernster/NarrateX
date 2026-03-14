@@ -2,10 +2,12 @@
 
 This document describes the current structure of the `voice_reader` codebase and how the application runs end-to-end.
 
+Status note: the codebase is now **Kokoro-only** (no Coqui XTTS, no pyttsx3 fallback, no voice cloning).
+
 ## High-level overview
 
-- Entry point + wiring happens in [`app.py`](app.py:1), specifically [`main()`](app.py:33).
-- UI is a PySide6 desktop app: [`MainWindow`](voice_reader/ui/main_window.py:34) is the widget tree; [`UiController`](voice_reader/ui/ui_controller.py:21) bridges UI events to application services.
+- Entry point + wiring happens in [`app.py`](app.py:1), specifically [`main()`](app.py:55).
+- UI is a PySide6 desktop app: [`MainWindow`](voice_reader/ui/main_window.py:38) is the widget tree; [`UiController`](voice_reader/ui/ui_controller.py:21) bridges UI events to application services.
 - The primary orchestration service is [`NarrationService`](voice_reader/application/services/narration_service.py:36).
 - Domain logic lives under [`voice_reader/domain`](voice_reader/domain:1) and is expressed as:
   - pure services (chunking, reading-start detection, spoken-text sanitization)
@@ -15,16 +17,15 @@ This document describes the current structure of the `voice_reader` codebase and
 ## Module layout (by layer)
 
 - UI layer: [`voice_reader/ui`](voice_reader/ui:1)
-  - [`MainWindow`](voice_reader/ui/main_window.py:34): widgets, theming, highlighting, cover display
+  - [`MainWindow`](voice_reader/ui/main_window.py:38): widgets, theming, highlighting, cover display
   - [`UiController`](voice_reader/ui/ui_controller.py:21): file picker, wiring signals, applying narration state to UI
 
 - Application layer: [`voice_reader/application`](voice_reader/application:1)
-  - DTOs: [`NarrationState`](voice_reader/application/dto/narration_state.py:20), [`NarrationStatus`](voice_reader/application/dto/narration_state.py:9)
+  - DTOs: [`NarrationState`](voice_reader/application/dto/narration_state.py:21), [`NarrationStatus`](voice_reader/application/dto/narration_state.py:9)
   - Services:
     - [`NarrationService`](voice_reader/application/services/narration_service.py:36): core orchestration
-    - [`TTSEngineFactory`](voice_reader/application/services/tts_engine_factory.py:19): engine selection (being simplified to Kokoro-only)
+    - [`TTSEngineFactory`](voice_reader/application/services/tts_engine_factory.py:24): Kokoro engine creation + fail-fast import checks for packaged builds
     - [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15): lists voices via repo
-    - (planned removal) [`DeviceDetectionService`](voice_reader/application/services/device_detection_service.py:6): only relevant for torch-based engines
 
 - Domain layer: [`voice_reader/domain`](voice_reader/domain:1)
   - Entities: [`Book`](voice_reader/domain/entities/book.py:1), [`TextChunk`](voice_reader/domain/entities/text_chunk.py:1), [`VoiceProfile`](voice_reader/domain/entities/voice_profile.py:1)
@@ -49,9 +50,7 @@ This document describes the current structure of the `voice_reader` codebase and
     - [`FilesystemCacheRepository`](voice_reader/infrastructure/cache/filesystem_cache.py:12) via [`FilesystemCacheRepository.audio_path()`](voice_reader/infrastructure/cache/filesystem_cache.py:15)
   - TTS engines:
     - [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30) via [`KokoroEngine.synthesize_to_file()`](voice_reader/infrastructure/tts/kokoro_engine.py:71)
-    - (planned removal) [`XTTSCoquiEngine`](voice_reader/infrastructure/tts/xtts_engine.py:21) and [`HybridTTSEngine`](voice_reader/infrastructure/tts/hybrid_engine.py:26): Coqui XTTS voice cloning is being removed
-    - (planned removal) [`Pyttsx3Engine`](voice_reader/infrastructure/tts/pyttsx3_engine.py:19): system TTS fallback is being removed
-    - Voice profiles: built-in Kokoro voice IDs (filesystem voice cloning profiles are being removed)
+    - Voice profiles: built-in Kokoro voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19)
   - Audio playback:
     - [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72) via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/audio_streamer.py:111)
 
@@ -59,6 +58,7 @@ This document describes the current structure of the `voice_reader` codebase and
   - Paths + defaults: [`Config`](voice_reader/shared/config.py:21) via [`Config.from_project_root()`](voice_reader/shared/config.py:27) and [`Config.ensure_directories()`](voice_reader/shared/config.py:37)
   - Errors: [`voice_reader/shared/errors.py`](voice_reader/shared/errors.py:1)
   - Logging setup: [`voice_reader/shared/logging_utils.py`](voice_reader/shared/logging_utils.py:1)
+  - Packaged runtime helpers (optional): [`configure_packaged_runtime()`](voice_reader/shared/external_runtime.py:109) adds sibling `ext/` and configures `hf-cache/`
 
 ## Dependency direction
 
@@ -85,18 +85,21 @@ The runtime is driven by UI events handled by [`UiController`](voice_reader/ui/u
 
 ### 1) App startup and wiring
 
-Startup is in [`main()`](app.py:33):
+Startup is in [`main()`](app.py:55):
 
 1. Load config + ensure directories via [`Config.from_project_root()`](voice_reader/shared/config.py:27) and [`Config.ensure_directories()`](voice_reader/shared/config.py:37)
-2. Cache policy: clear `cache/` on launch unless `NARRATEX_PRESERVE_CACHE=1` (see [`main()`](app.py:33))
+2. Cache policy: clear `cache/` on launch unless `NARRATEX_PRESERVE_CACHE=1` (see [`main()`](app.py:55))
+2.5. Packaged runtime support: before importing heavy deps, call [`configure_packaged_runtime()`](voice_reader/shared/external_runtime.py:109) to:
+   - add a sibling `ext/` folder to `sys.path` (optional distribution strategy)
+   - point HuggingFace/Transformers caches at a sibling `hf-cache/` (optional)
 3. Instantiate infrastructure adapters:
    - books: [`CalibreConverter`](voice_reader/infrastructure/books/converter.py:18), [`BookParser`](voice_reader/infrastructure/books/parser.py:20), [`LocalBookRepository`](voice_reader/infrastructure/books/repository.py:16)
    - cache: [`FilesystemCacheRepository`](voice_reader/infrastructure/cache/filesystem_cache.py:12)
-   - voices: Kokoro built-in voice IDs via [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15)
-   - tts: Kokoro engine (via [`TTSEngineFactory`](voice_reader/application/services/tts_engine_factory.py:19), being simplified to Kokoro-only)
+   - voices: Kokoro built-in voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19) + [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15)
+   - tts: Kokoro engine via [`TTSEngineFactory.create()`](voice_reader/application/services/tts_engine_factory.py:27)
    - audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72)
 4. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py:36)
-5. Create UI: [`MainWindow`](voice_reader/ui/main_window.py:34) + [`UiController`](voice_reader/ui/ui_controller.py:21)
+5. Create UI: [`MainWindow`](voice_reader/ui/main_window.py:38) + [`UiController`](voice_reader/ui/ui_controller.py:21)
 
 ### 2) Book selection and cover handling
 
@@ -107,12 +110,12 @@ When the user selects a book:
   - which delegates to [`LocalBookRepository.load()`](voice_reader/infrastructure/books/repository.py:20)
     - which may convert via [`CalibreConverter.convert_to_epub_if_needed()`](voice_reader/infrastructure/books/converter.py:22)
     - then parses via [`BookParser.parse()`](voice_reader/infrastructure/books/parser.py:21)
-- The UI text view is updated immediately (`setPlainText`) via [`MainWindow.set_reader_text()`](voice_reader/ui/main_window.py:191)
+- The UI text view is updated immediately (`setPlainText`) via [`MainWindow.set_reader_text()`](voice_reader/ui/main_window.py:284)
 
 Cover extraction is best-effort and UI-facing:
 
 - [`UiController.select_book()`](voice_reader/ui/ui_controller.py:77) calls [`CoverExtractor.extract_cover_bytes()`](voice_reader/infrastructure/books/cover_extractor.py:26)
-- [`MainWindow.set_cover_image()`](voice_reader/ui/main_window.py:214) decodes the returned bytes into a `QImage` and renders a scaled `QPixmap`
+- [`MainWindow.set_cover_image()`](voice_reader/ui/main_window.py:307) decodes the returned bytes into a `QImage` and renders a scaled `QPixmap`
 
 Cover extraction strategy (ordered):
 
@@ -161,21 +164,18 @@ Notable performance and UX choices:
 
 ### 5) UI state updates and highlighting
 
-`NarrationService` publishes state changes as [`NarrationState`](voice_reader/application/dto/narration_state.py:20) to registered listeners.
+`NarrationService` publishes state changes as [`NarrationState`](voice_reader/application/dto/narration_state.py:21) to registered listeners.
 
 - [`UiController`](voice_reader/ui/ui_controller.py:21) registers a listener and applies updates on the Qt thread.
-- Highlighting uses `highlight_start`/`highlight_end` and is rendered via [`MainWindow.highlight_range()`](voice_reader/ui/main_window.py:194).
+- Highlighting uses `highlight_start`/`highlight_end` and is rendered via [`MainWindow.highlight_range()`](voice_reader/ui/main_window.py:287).
 
 ## TTS engine selection and voice profiles
 
-Target behavior (refactor in progress): **Kokoro-only voices**.
+The app is **Kokoro-only**.
 
-- Engine selection will be simplified so the runtime uses [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30) only.
-- The application will no longer expose:
-  - voice cloning (Coqui XTTS / `TTS`, [`XTTSCoquiEngine`](voice_reader/infrastructure/tts/xtts_engine.py:21))
-  - system fallback voices (pyttsx3, [`Pyttsx3Engine`](voice_reader/infrastructure/tts/pyttsx3_engine.py:19))
-  - filesystem reference-audio profiles under `voices/`
-- Voice profiles will be **only** Kokoro voice IDs (e.g. `bf_emma`, `am_michael`).
+- The runtime always uses [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30), created by [`TTSEngineFactory.create()`](voice_reader/application/services/tts_engine_factory.py:27).
+- Voice choices come from [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19) and are shown with friendly labels by [`UiController._voice_label()`](voice_reader/ui/ui_controller.py:135).
+- Voice profiles are Kokoro voice IDs (e.g. `bf_emma`, `am_michael`) and do not require reference audio.
 
 ## Concurrency model
 
@@ -186,13 +186,25 @@ Target behavior (refactor in progress): **Kokoro-only voices**.
 
 ## Packaging note (Windows)
 
-With the Kokoro-only refactor, the Windows build goal is a Windows GUI executable built with PyInstaller that bundles:
+The Windows build goal is a Windows GUI executable built with PyInstaller via [`buildpyinstaller.py`](buildpyinstaller.py:1).
+
+The current approach is a **onedir** build (fast + predictable):
+
+- `dist-pyinstaller/NarrateX/NarrateX.exe`
+- `dist-pyinstaller/NarrateX/_internal/…` (PyInstaller runtime + bundled packages)
+
+Optional distribution layout supported at runtime (not required in dev mode):
+
+- `dist-pyinstaller/NarrateX/ext/` for heavy wheels placed beside the exe (see [`add_external_site_packages()`](voice_reader/shared/external_runtime.py:49))
+- `dist-pyinstaller/NarrateX/hf-cache/` for pre-downloaded HuggingFace assets (see [`configure_huggingface_cache()`](voice_reader/shared/external_runtime.py:86))
+
+The build bundles:
 
 - Python runtime + dependencies
 - PySide6 Qt plugins required for the UI
 - the application icon ([`narratex.ico`](narratex.ico:1))
 
-Kokoro’s model weights are expected to be resolved at runtime by Kokoro itself (typically via its upstream model repo); this keeps the `.exe` size reasonable.
+Kokoro model weights are resolved at runtime by Kokoro/HuggingFace unless you pre-populate `hf-cache/`.
 
 ## Tests: mapping to layers
 

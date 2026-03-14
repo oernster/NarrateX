@@ -66,7 +66,7 @@ This significantly reduces dependency creep and makes packaging more predictable
 ### Build (PowerShell)
 
 ```powershell
-venv\Scripts\Activate.ps1
+ .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python buildpyinstaller.py
 ```
@@ -75,9 +75,12 @@ Output:
 
 - `dist-pyinstaller/NarrateX/NarrateX.exe`
 
+This uses a **onedir** build (recommended). The output folder will also contain
+`_internal/` with the PyInstaller runtime and bundled dependencies.
+
 ### Troubleshooting
 
-- If the EXE opens then immediately exits, check the crash logs written by [`app.main()`](app.py:51) near the executable.
+- If the EXE opens then immediately exits, check the crash logs written by [`app.main()`](app.py:55) near the executable.
 
 ## Tests
 
