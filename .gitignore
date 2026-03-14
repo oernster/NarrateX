@@ -216,6 +216,9 @@ ALL_SOURCES.txt
 1
 cache/
 temp_books/
-lightmodeinstaller.jpg
-darkmodeinstaller.jpg
 Scripts/
+
+# Installer build artifacts
+dist-installer/
+installer/payload/payload.zip
+installer/payload/manifest.json
