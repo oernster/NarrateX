@@ -9,7 +9,7 @@ startup crash log near the executable.
 """
 
 from __future__ import annotations
-
+import ctypes
 import logging
 import os
 import shutil
@@ -57,6 +57,9 @@ KokoroVoiceProfileRepository = None
 
 
 def main() -> int:
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+        "NarrateX"
+    )
     # Best-effort startup log: in GUI mode, fatal errors may otherwise vanish.
     # This is separate from the normal logging configuration.
     def _program_base_dir() -> Path:
