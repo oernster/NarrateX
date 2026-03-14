@@ -2,7 +2,7 @@
 
 Workflow:
 
-1) Build app bundle:     python buildpyinstaller.py
+1) Build app bundle:     python buildexe.py
 2) Build payload+setup:  python buildinstaller.py
 """
 
@@ -91,8 +91,17 @@ def main() -> int:
     add_data = [
         f"{payload_zip};installer/payload",
         f"{manifest_json};installer/payload",
+        # Ship icon assets so the installer can set its own window icon and so
+        # it can deploy them next to NarrateX.exe (for taskbar + shortcut icon
+        # consistency).
         f"{icon};.",
+        f"{PROJECT_ROOT / 'narratex_16.png'};.",
+        f"{PROJECT_ROOT / 'narratex_32.png'};.",
+        f"{PROJECT_ROOT / 'narratex_48.png'};.",
+        f"{PROJECT_ROOT / 'narratex_64.png'};.",
+        f"{PROJECT_ROOT / 'narratex_128.png'};.",
         f"{PROJECT_ROOT / 'narratex_256.png'};.",
+        f"{PROJECT_ROOT / 'narratex_512.png'};.",
     ]
 
     cmd = [
