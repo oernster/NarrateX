@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from installer.constants import InstallerIdentity
+from installer.ops.errors import InstallerOperationError
 from voice_reader.version import APP_APPUSERMODELID
 
 
@@ -60,54 +61,61 @@ def create_shortcut(target_exe: Path, shortcut_path: Path, *, working_dir: Path 
     _require_windows()
     shortcut_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Use WScript.Shell COM automation.
-    import win32com.client  # type: ignore  # noqa: WPS433
-
-    shell = win32com.client.Dispatch("WScript.Shell")
-    shortcut = shell.CreateShortcut(str(shortcut_path))
-    shortcut.TargetPath = str(target_exe)
-    if working_dir is not None:
-        shortcut.WorkingDirectory = str(working_dir)
-
-    # Use a branded ICO file if available.
-    shortcut.IconLocation = _default_icon_location_for(target_exe)
-
-    # Ensure the shortcut has the same AppUserModelID as the running process.
-    # This avoids Windows falling back to generic icons/grouping for the running
-    # taskbar button when launched from this shortcut.
-    _try_set_shortcut_app_user_model_id(shortcut, APP_APPUSERMODELID)
-
-    shortcut.Save()
-
-
-def _try_set_shortcut_app_user_model_id(shortcut, app_id: str) -> None:  # noqa: ANN001
-    """Best-effort: stamp System.AppUserModel.ID onto a .lnk shortcut.
-
-    Uses IShellLink + IPropertyStore via pywin32. If this fails, we still keep
-    the shortcut functional.
-    """
-
-    if not app_id:
-        return
-
+    # Create the shortcut directly via the Shell Link COM API.
+    #
+    # Important: do NOT create the shortcut via WScript.Shell and then attempt to
+    # stamp System.AppUserModel.ID afterwards via wrapper conversion.
+    #
+    # Taskbar identity must be deterministic for installed launches.
+    pythoncom = None
+    com_initialized = False
     try:
-        import pythoncom  # type: ignore  # noqa: WPS433
+        import pythoncom as _pythoncom  # type: ignore  # noqa: WPS433
         from win32com.propsys import propsys  # type: ignore  # noqa: WPS433
         from win32com.shell import shell  # type: ignore  # noqa: WPS433
-    except Exception:
-        return
 
-    try:
-        # Convert the WScript.Shell shortcut COM object to IShellLink.
-        link = shortcut.QueryInterface(shell.IID_IShellLink)
+        pythoncom = _pythoncom
+
+        pythoncom.CoInitialize()
+        com_initialized = True
+
+        link = pythoncom.CoCreateInstance(
+            shell.CLSID_ShellLink,
+            None,
+            pythoncom.CLSCTX_INPROC_SERVER,
+            shell.IID_IShellLink,
+        )
+
+        link.SetPath(str(target_exe))
+        if working_dir is not None:
+            link.SetWorkingDirectory(str(working_dir))
+
+        link.SetIconLocation(_default_icon_location_for(target_exe), 0)
+
+        if not APP_APPUSERMODELID:
+            raise InstallerOperationError("APP_APPUSERMODELID is empty")
+
         store = link.QueryInterface(propsys.IID_IPropertyStore)
-
         key = propsys.PSGetPropertyKeyFromName("System.AppUserModel.ID")
-        pv = propsys.PROPVARIANTType(app_id)
+        pv = propsys.PROPVARIANTType(APP_APPUSERMODELID)
         store.SetValue(key, pv)
         store.Commit()
-    except Exception:
-        return
+
+        persist = link.QueryInterface(pythoncom.IID_IPersistFile)
+        persist.Save(str(shortcut_path), 0)
+    except InstallerOperationError:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        raise InstallerOperationError(
+            f"Failed to create shortcut '{shortcut_path}' -> '{target_exe}': {exc!r}"
+        ) from exc
+    finally:
+        try:
+            if pythoncom is not None and com_initialized:
+                pythoncom.CoUninitialize()
+        except Exception:
+            # Nothing sensible to do here; shortcut creation already failed/succeeded.
+            pass
 
 
 def remove_shortcut(shortcut_path: Path) -> None:

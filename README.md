@@ -109,6 +109,25 @@ Output:
 
 - If the EXE opens then immediately exits, check the crash logs written by [`app.main()`](app.py:55) near the executable.
 
+#### Windows taskbar icon shows the Python icon
+
+If Windows shows the Python icon for the *running* taskbar button (even though the
+Explorer/Start Menu icon is correct), it usually means the shell is not grouping
+the running process with the packaged EXE identity.
+
+NarrateX enforces a stable identity early in startup by setting:
+
+- Windows AppUserModelID: [`APP_APPUSERMODELID`](voice_reader/version.py:17)
+- Qt desktop identity: `QApplication.setDesktopFileName(APP_APPUSERMODELID)` in [`app.main()`](app.py:52)
+
+After rebuilding the EXE once, you may need to refresh the Windows icon cache:
+
+```powershell
+ie4uinit.exe -ClearIconCache
+taskkill /IM explorer.exe /F
+start explorer.exe
+```
+
 ## Tests
 
 ```powershell
