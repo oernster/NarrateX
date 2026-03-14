@@ -54,4 +54,3 @@ class ChunkAlignment:
             duration_ms=int(d.get("duration_ms", 0)),
             spans=spans,
         )
-

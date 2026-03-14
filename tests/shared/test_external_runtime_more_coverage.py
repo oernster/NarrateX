@@ -8,12 +8,16 @@ import pytest
 from voice_reader.shared import external_runtime
 
 
-def test_exe_dir_prefers_argv0_exe_when_it_exists(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_exe_dir_prefers_argv0_exe_when_it_exists(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     exe = tmp_path / "NarrateX.exe"
     exe.write_text("", encoding="utf-8")
 
     monkeypatch.setattr(external_runtime.sys, "argv", [str(exe)])
-    monkeypatch.setattr(external_runtime.sys, "executable", str(tmp_path / "python.exe"))
+    monkeypatch.setattr(
+        external_runtime.sys, "executable", str(tmp_path / "python.exe")
+    )
 
     assert external_runtime._exe_dir() == tmp_path
 
@@ -22,7 +26,9 @@ def test_exe_dir_falls_back_to_sys_executable_when_argv0_is_bad(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(external_runtime.sys, "argv", [None])
-    monkeypatch.setattr(external_runtime.sys, "executable", str(tmp_path / "python.exe"))
+    monkeypatch.setattr(
+        external_runtime.sys, "executable", str(tmp_path / "python.exe")
+    )
 
     assert external_runtime._exe_dir() == tmp_path
 
@@ -38,7 +44,9 @@ def test_exe_dir_falls_back_to_cwd_when_sys_executable_is_invalid(
     assert external_runtime._exe_dir() == tmp_path.parent
 
 
-def test_add_external_site_packages_returns_none_when_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_add_external_site_packages_returns_none_when_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(external_runtime, "_exe_dir", lambda: tmp_path)
     assert external_runtime.add_external_site_packages(ext_dir_name="ext") is None
 
@@ -96,7 +104,9 @@ def test_configure_huggingface_cache_returns_none_when_missing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     monkeypatch.setattr(external_runtime, "_exe_dir", lambda: tmp_path)
-    assert external_runtime.configure_huggingface_cache(cache_dir_name="hf-cache") is None
+    assert (
+        external_runtime.configure_huggingface_cache(cache_dir_name="hf-cache") is None
+    )
 
 
 def test_configure_huggingface_cache_sets_env_when_present(
@@ -117,4 +127,3 @@ def test_configure_huggingface_cache_sets_env_when_present(
     assert os.environ["HF_HOME"] == str(cache_dir)
     assert os.environ["HF_HUB_CACHE"] == str(cache_dir)
     assert os.environ["TRANSFORMERS_CACHE"] == str(cache_dir)
-

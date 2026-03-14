@@ -24,7 +24,6 @@ from pathlib import Path
 
 from voice_reader.version import __version__
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_BUNDLE_DIR = PROJECT_ROOT / "dist-pyinstaller" / "NarrateX"
 PAYLOAD_DIR = PROJECT_ROOT / "installer" / "payload"
@@ -95,4 +94,3 @@ def build_payload() -> None:
 
 if __name__ == "__main__":
     build_payload()
-

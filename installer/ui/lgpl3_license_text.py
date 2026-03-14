@@ -50,10 +50,9 @@ def _read_lgpl3_text() -> str:
             continue
 
     raise FileNotFoundError(
-        "Unable to locate LGPL3-LICENSE. Tried: " + ", ".join(str(p) for p in candidates)
+        "Unable to locate LGPL3-LICENSE. Tried: "
+        + ", ".join(str(p) for p in candidates)
     )
 
 
 LGPL_V3_TEXT = _read_lgpl3_text()
-
-

@@ -22,4 +22,3 @@ def is_app_running(exe_path: Path) -> bool:
             # Best-effort; treat as not running if we cannot inspect.
             continue
     return False
-

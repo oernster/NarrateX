@@ -13,6 +13,7 @@ from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
 from voice_reader.application.services.narration_service import NarrationService
+from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.tts_engine_factory import TTSEngineFactory
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.services.chunking_service import ChunkingService
@@ -21,6 +22,9 @@ from voice_reader.infrastructure.books.converter import CalibreConverter
 from voice_reader.infrastructure.books.parser import BookParser
 from voice_reader.infrastructure.books.repository import LocalBookRepository
 from voice_reader.infrastructure.cache.filesystem_cache import FilesystemCacheRepository
+from voice_reader.infrastructure.bookmarks.json_bookmark_repository import (
+    JSONBookmarkRepository,
+)
 from voice_reader.infrastructure.tts.voice_profile_repository import (
     KokoroVoiceProfileRepository,
 )
@@ -92,7 +96,9 @@ def set_windows_app_identity() -> None:
         # `sys.modules` without having to reach into this module's globals.
         import ctypes  # noqa: WPS433 (intentional dynamic import for testability)
 
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_APPUSERMODELID)
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
+            APP_APPUSERMODELID
+        )
     except Exception:
         pass
 
@@ -202,6 +208,9 @@ def main() -> int:
         book_repo = LocalBookRepository(converter=converter, parser=parser)
 
         cache_repo = FilesystemCacheRepository(cache_dir=config.paths.cache_dir)
+
+        bookmark_repo = JSONBookmarkRepository(bookmarks_dir=config.paths.bookmarks_dir)
+        bookmark_service = BookmarkService(repo=bookmark_repo)
         voice_repo = KokoroVoiceProfileRepository()
         voice_service = VoiceProfileService(repo=voice_repo)
 
@@ -218,6 +227,7 @@ def main() -> int:
             chunking_service=chunker,
             device=device,
             language=config.default_language,
+            bookmark_service=bookmark_service,
         )
 
         # ----- Qt startup -----
@@ -247,6 +257,7 @@ def main() -> int:
         UiController(
             window=window,
             narration_service=narration_service,
+            bookmark_service=bookmark_service,
             voice_service=voice_service,
             device=device,
             engine_name=tts_engine.engine_name,
@@ -254,6 +265,10 @@ def main() -> int:
 
         def on_quit() -> None:
             try:
+                try:
+                    narration_service.on_app_exit()
+                except Exception:
+                    log.exception("Failed saving resume position on app exit")
                 narration_service.stop()
             except Exception:
                 log.exception("Failed stopping narration")

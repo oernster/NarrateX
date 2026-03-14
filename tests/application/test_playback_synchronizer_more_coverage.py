@@ -51,4 +51,3 @@ def test_resolve_span_beyond_last_snaps_to_last() -> None:
         ],
     )
     assert s.resolve_span(alignment=alignment, chunk_local_ms=9999) == (1, 2)
-

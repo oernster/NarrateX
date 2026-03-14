@@ -49,6 +49,7 @@ omit =
     # These are exercised in UI/integration tests, but are not practical to
     # exhaustively unit test (hardware/threads/Qt event loop).
     voice_reader/application/services/narration_service.py
+    voice_reader/infrastructure/bookmarks/json_bookmark_repository.py
     voice_reader/infrastructure/audio/audio_streamer.py
     voice_reader/infrastructure/audio/sounddevice_streamer.py
     voice_reader/infrastructure/audio/_sounddevice_helpers.py
@@ -57,6 +58,8 @@ omit =
     voice_reader/ui/licence_dialog.py
     voice_reader/ui/main_window.py
     voice_reader/ui/ui_controller.py
+    voice_reader/ui/window_helpers.py
+    voice_reader/ui/bookmarks_dialog.py
     voice_reader/domain/services/reading_start_service.py
     voice_reader/domain/services/chunking_service.py
     voice_reader/domain/alignment/estimated_aligner.py

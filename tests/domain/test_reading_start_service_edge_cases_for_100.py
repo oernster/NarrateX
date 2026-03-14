@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from voice_reader.domain.services.reading_start_service import ReadingStart, ReadingStartService
+from voice_reader.domain.services.reading_start_service import (
+    ReadingStart,
+    ReadingStartService,
+)
 
 
 def test_looks_like_prose_punctuation_short_is_false() -> None:
@@ -16,7 +19,9 @@ def test_line_at_bounds_and_start_after_heading_end_out_of_range() -> None:
     assert svc._line_at(text, 10_000) == "Body."  # pylint: disable=protected-access
 
     assert svc._start_after_heading(text, -1) >= 0  # pylint: disable=protected-access
-    assert svc._start_after_heading(text, 10_000) == len(text)  # pylint: disable=protected-access
+    assert svc._start_after_heading(text, 10_000) == len(
+        text
+    )  # pylint: disable=protected-access
 
 
 def test_detect_toc_end_returns_none_when_no_entries_after_heading() -> None:
@@ -35,4 +40,3 @@ def test_pick_best_prefers_chapter_over_prologue_over_numeric() -> None:
     picked = svc._pick_best(candidates)  # pylint: disable=protected-access
     assert picked is not None
     assert picked.reason == "Detected Chapter 1"
-

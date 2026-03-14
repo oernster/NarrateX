@@ -51,7 +51,9 @@ class _FakeQIcon:
         return self._path.lower().endswith(".ico") or not self._path
 
 
-def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(monkeypatch, tmp_path: Path) -> None:
+def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(
+    monkeypatch, tmp_path: Path
+) -> None:
     monkeypatch.setattr(app, "__file__", str(tmp_path / "app.py"))
 
     class _FakeConfig:
@@ -59,32 +61,60 @@ def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(monkeypatch, tmp_pa
             self.paths = SimpleNamespace(
                 cache_dir=tmp_path / "cache",
                 temp_books_dir=tmp_path / "temp_books",
+                bookmarks_dir=tmp_path / "bookmarks",
             )
             self.default_language = "en"
 
         def ensure_directories(self) -> None:
             self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
             self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
+            self.paths.bookmarks_dir.mkdir(parents=True, exist_ok=True)
 
-    monkeypatch.setattr(app.Config, "from_project_root", lambda project_root: _FakeConfig())
+    monkeypatch.setattr(
+        app.Config, "from_project_root", lambda project_root: _FakeConfig()
+    )
 
     # Minimal wiring.
     fake_qapp = _FakeQApplication([])
     monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
     monkeypatch.setattr(app, "QIcon", _FakeQIcon)
-    monkeypatch.setattr(app, "MainWindow", lambda: SimpleNamespace(setWindowIcon=lambda *_: None, show=lambda: None))
+    monkeypatch.setattr(
+        app,
+        "MainWindow",
+        lambda: SimpleNamespace(setWindowIcon=lambda *_: None, show=lambda: None),
+    )
     monkeypatch.setattr(app, "UiController", lambda **kwargs: SimpleNamespace(**kwargs))
 
-    monkeypatch.setattr(app, "CalibreConverter", lambda **kwargs: SimpleNamespace(**kwargs))
+    monkeypatch.setattr(
+        app, "CalibreConverter", lambda **kwargs: SimpleNamespace(**kwargs)
+    )
     monkeypatch.setattr(app, "BookParser", lambda: SimpleNamespace())
-    monkeypatch.setattr(app, "LocalBookRepository", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(app, "FilesystemCacheRepository", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(app, "KokoroVoiceProfileRepository", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace(**kwargs))
-    monkeypatch.setattr(app, "TTSEngineFactory", lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="fake")))
-    monkeypatch.setattr(app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=lambda: None))
+    monkeypatch.setattr(
+        app, "LocalBookRepository", lambda **kwargs: SimpleNamespace(**kwargs)
+    )
+    monkeypatch.setattr(
+        app, "FilesystemCacheRepository", lambda **kwargs: SimpleNamespace(**kwargs)
+    )
+    monkeypatch.setattr(
+        app, "KokoroVoiceProfileRepository", lambda **kwargs: SimpleNamespace(**kwargs)
+    )
+    monkeypatch.setattr(
+        app, "VoiceProfileService", lambda **kwargs: SimpleNamespace(**kwargs)
+    )
+    monkeypatch.setattr(
+        app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace(**kwargs)
+    )
+    monkeypatch.setattr(
+        app, "ChunkingService", lambda **kwargs: SimpleNamespace(**kwargs)
+    )
+    monkeypatch.setattr(
+        app,
+        "TTSEngineFactory",
+        lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="fake")),
+    )
+    monkeypatch.setattr(
+        app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=lambda: None)
+    )
 
     # The runtime icon must be a PNG (Qt may not decode ICO in frozen builds).
     (tmp_path / "narratex_256.png").write_bytes(b"fake-png")
@@ -98,5 +128,6 @@ def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(monkeypatch, tmp_pa
 
     chosen = fake_qapp.window_icons[-1]
     assert isinstance(chosen, _FakeQIcon)
-    assert chosen._path.lower().endswith(".png"), "Expected fallback to a PNG-based icon"
-
+    assert chosen._path.lower().endswith(
+        ".png"
+    ), "Expected fallback to a PNG-based icon"

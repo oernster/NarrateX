@@ -46,7 +46,9 @@ class FakeCache(CacheRepository):
 
     def alignment_exists(self, *, book_id: str, voice_name: str, chunk_id: int) -> bool:
         return (
-            self.alignment_path(book_id=book_id, voice_name=voice_name, chunk_id=chunk_id)
+            self.alignment_path(
+                book_id=book_id, voice_name=voice_name, chunk_id=chunk_id
+            )
             in self.existing
         )
 

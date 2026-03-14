@@ -2,4 +2,3 @@
 
 Files in this package are embedded into the installer executable.
 """
-

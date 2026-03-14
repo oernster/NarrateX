@@ -69,11 +69,15 @@ class InstallerMainWindow(QMainWindow):
         try:
             from PySide6.QtGui import QIcon
 
-            icon = build_installer_window_icon(project_root=Path(__file__).resolve().parents[2])
+            icon = build_installer_window_icon(
+                project_root=Path(__file__).resolve().parents[2]
+            )
             if not icon.isNull():
                 self.setWindowIcon(icon)
             else:
-                icon_path = find_qt_window_icon_path(project_root=Path(__file__).resolve().parents[2])
+                icon_path = find_qt_window_icon_path(
+                    project_root=Path(__file__).resolve().parents[2]
+                )
                 if icon_path is not None:
                     self.setWindowIcon(QIcon(str(icon_path)))
         except Exception:
@@ -175,11 +179,15 @@ class InstallerMainWindow(QMainWindow):
 
         self._btn_primary_left = QPushButton("Install")
         self._btn_primary_left.setObjectName("PrimaryAction")
-        self._btn_primary_left.clicked.connect(lambda: self._request_operation(Operation.INSTALL))
+        self._btn_primary_left.clicked.connect(
+            lambda: self._request_operation(Operation.INSTALL)
+        )
 
         self._btn_primary_right = QPushButton("Repair")
         self._btn_primary_right.setObjectName("PrimaryAction")
-        self._btn_primary_right.clicked.connect(lambda: self._request_operation(Operation.REPAIR))
+        self._btn_primary_right.clicked.connect(
+            lambda: self._request_operation(Operation.REPAIR)
+        )
 
         self._actions_row.addWidget(self._btn_primary_left)
         self._actions_row.addWidget(self._btn_primary_right)
@@ -188,7 +196,9 @@ class InstallerMainWindow(QMainWindow):
 
         self._btn_uninstall = QPushButton("Uninstall")
         self._btn_uninstall.setObjectName("DangerAction")
-        self._btn_uninstall.clicked.connect(lambda: self._request_operation(Operation.UNINSTALL))
+        self._btn_uninstall.clicked.connect(
+            lambda: self._request_operation(Operation.UNINSTALL)
+        )
         outer.addWidget(self._btn_uninstall, alignment=Qt.AlignHCenter)
 
         # Keep the bottom area visually balanced (avoid a huge empty gap).
@@ -249,8 +259,12 @@ class InstallerMainWindow(QMainWindow):
         return Path(local) / APP_NAME
 
     def _browse_install_dir(self) -> None:
-        current = Path(self._install_dir_edit.text().strip() or str(self._default_install_dir()))
-        chosen = QFileDialog.getExistingDirectory(self, "Select installation directory", str(current))
+        current = Path(
+            self._install_dir_edit.text().strip() or str(self._default_install_dir())
+        )
+        chosen = QFileDialog.getExistingDirectory(
+            self, "Select installation directory", str(current)
+        )
         if chosen:
             self._install_dir_edit.setText(chosen)
 
@@ -260,7 +274,9 @@ class InstallerMainWindow(QMainWindow):
         if entry and entry.install_location.exists():
             exe = entry.install_location / "NarrateX.exe"
             if exe.exists():
-                installed = InstalledInfo(version=entry.display_version, location=entry.install_location)
+                installed = InstalledInfo(
+                    version=entry.display_version, location=entry.install_location
+                )
 
         state = InstallerState(installer_version=__version__, installed=installed)
         self._state = state
@@ -280,14 +296,21 @@ class InstallerMainWindow(QMainWindow):
             # On upgrade/reinstall, default directory to current install dir.
             self._install_dir_edit.setText(str(entry.install_location))
 
-    def _set_buttons_for_allowed_ops(self, allowed: set[Operation] | frozenset[Operation]) -> None:
+    def _set_buttons_for_allowed_ops(
+        self, allowed: set[Operation] | frozenset[Operation]
+    ) -> None:
         # Primary buttons are shown in the center row. We use up to two.
         # Uninstall is shown separately in red.
         self._btn_uninstall.setVisible(Operation.UNINSTALL in allowed)
 
         primary_ops: list[Operation] = [
             op
-            for op in [Operation.INSTALL, Operation.UPGRADE, Operation.REINSTALL, Operation.REPAIR]
+            for op in [
+                Operation.INSTALL,
+                Operation.UPGRADE,
+                Operation.REINSTALL,
+                Operation.REPAIR,
+            ]
             if op in allowed
         ]
         left = primary_ops[0] if primary_ops else None
@@ -310,7 +333,9 @@ class InstallerMainWindow(QMainWindow):
                 self._btn_primary_left.clicked.disconnect()
             except Exception:
                 pass
-            self._btn_primary_left.clicked.connect(lambda: self._request_operation(left))
+            self._btn_primary_left.clicked.connect(
+                lambda: self._request_operation(left)
+            )
 
         if right is None:
             self._btn_primary_right.setVisible(False)
@@ -321,7 +346,9 @@ class InstallerMainWindow(QMainWindow):
                 self._btn_primary_right.clicked.disconnect()
             except Exception:
                 pass
-            self._btn_primary_right.clicked.connect(lambda: self._request_operation(right))
+            self._btn_primary_right.clicked.connect(
+                lambda: self._request_operation(right)
+            )
 
     def _validate_install_dir(self, path: Path) -> bool:
         # Best-effort check that the directory is user-writeable.
@@ -335,7 +362,9 @@ class InstallerMainWindow(QMainWindow):
             return False
 
     def _current_selections(self) -> UiSelections:
-        p = Path(self._install_dir_edit.text().strip() or str(self._default_install_dir()))
+        p = Path(
+            self._install_dir_edit.text().strip() or str(self._default_install_dir())
+        )
         return UiSelections(
             install_dir=p,
             shortcut_desktop=bool(self._desktop_cb.isChecked()),
@@ -546,4 +575,3 @@ class InstallerMainWindow(QMainWindow):
         box.exec()
         if box.clickedButton() == uninstall_btn:
             self._request_operation(Operation.UNINSTALL)
-

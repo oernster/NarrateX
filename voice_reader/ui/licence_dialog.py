@@ -111,5 +111,3 @@ class PlainTextLicenceDialog(QDialog):
         buttons = QDialogButtonBox(QDialogButtonBox.Close, parent=self)
         buttons.rejected.connect(self.close)
         layout.addWidget(buttons)
-
-

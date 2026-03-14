@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
+from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.ui.main_window import MainWindow
@@ -15,6 +16,35 @@ class FakeNarration:
 
     def add_listener(self, listener):
         self.listeners.append(listener)
+
+    def loaded_book_id(self):
+        return "b1"
+
+    def current_position(self):
+        return None, None
+
+
+@dataclass
+class FakeBookmarks:
+    def list_bookmarks(self, *, book_id: str):
+        del book_id
+        return []
+
+    def add_bookmark(self, *, book_id: str, char_offset: int, chunk_index: int):
+        del book_id, char_offset, chunk_index
+        return None
+
+    def delete_bookmark(self, *, book_id: str, bookmark_id: int) -> None:
+        del book_id, bookmark_id
+
+    def save_resume_position(
+        self, *, book_id: str, char_offset: int, chunk_index: int
+    ) -> None:
+        del book_id, char_offset, chunk_index
+
+    def load_resume_position(self, *, book_id: str):
+        del book_id
+        return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +61,7 @@ def test_ui_controller_apply_state_updates_widgets(qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",

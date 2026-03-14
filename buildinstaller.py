@@ -15,7 +15,6 @@ import sys
 import time
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 
@@ -157,4 +156,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

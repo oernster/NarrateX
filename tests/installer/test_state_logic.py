@@ -27,7 +27,9 @@ def test_installed_older_and_installer_newer() -> None:
         installer_version="1.0.1",
         installed=InstalledInfo(version="1.0.0", location=Path("C:/X")),
     )
-    assert st.allowed_operations() == frozenset({Operation.UPGRADE, Operation.UNINSTALL})
+    assert st.allowed_operations() == frozenset(
+        {Operation.UPGRADE, Operation.UNINSTALL}
+    )
 
 
 def test_installed_newer_no_downgrade() -> None:
@@ -36,4 +38,3 @@ def test_installed_newer_no_downgrade() -> None:
         installed=InstalledInfo(version="2.0.0", location=Path("C:/X")),
     )
     assert st.allowed_operations() == frozenset({Operation.REPAIR, Operation.UNINSTALL})
-

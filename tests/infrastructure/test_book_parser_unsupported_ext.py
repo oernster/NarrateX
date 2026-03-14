@@ -13,4 +13,3 @@ def test_parser_raises_on_unsupported_extension(tmp_path: Path) -> None:
     p.write_bytes(b"x")
     with pytest.raises(BookParseError):
         BookParser().parse(p)
-

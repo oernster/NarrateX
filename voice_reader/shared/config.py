@@ -21,6 +21,7 @@ class AppPaths:
     voices_dir: Path
     cache_dir: Path
     temp_books_dir: Path
+    bookmarks_dir: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,16 +50,19 @@ class Config:
             voices_dir = data_root / "voices"
             temp_books_dir = data_root / "temp_books"
             cache_dir = cache_root / "cache"
+            bookmarks_dir = data_root / "bookmarks"
         else:
             voices_dir = project_root / "voices"
             cache_dir = project_root / "cache"
             temp_books_dir = project_root / "temp_books"
+            bookmarks_dir = project_root / "bookmarks"
 
         paths = AppPaths(
             project_root=project_root,
             voices_dir=voices_dir,
             cache_dir=cache_dir,
             temp_books_dir=temp_books_dir,
+            bookmarks_dir=bookmarks_dir,
         )
         return Config(paths=paths)
 
@@ -66,3 +70,4 @@ class Config:
         self.paths.voices_dir.mkdir(parents=True, exist_ok=True)
         self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
         self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
+        self.paths.bookmarks_dir.mkdir(parents=True, exist_ok=True)

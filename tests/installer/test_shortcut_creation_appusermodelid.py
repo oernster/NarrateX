@@ -15,7 +15,9 @@ def _is_windows() -> bool:
     return os.name == "nt"
 
 
-def test_create_shortcut_uses_shell_link_com_and_stamps_appusermodelid(monkeypatch, tmp_path: Path) -> None:
+def test_create_shortcut_uses_shell_link_com_and_stamps_appusermodelid(
+    monkeypatch, tmp_path: Path
+) -> None:
     """Unit test: verify COM call-path without touching real COM.
 
     This runs cross-platform by mocking the COM modules used by
@@ -152,7 +154,9 @@ def test_create_shortcut_writes_appusermodelid_property(tmp_path: Path) -> None:
     propsys = pytest.importorskip("win32com.propsys.propsys")
     shell = pytest.importorskip("win32com.shell.shell")
 
-    target = Path(os.environ.get("SystemRoot", r"C:\\Windows")) / "System32" / "notepad.exe"
+    target = (
+        Path(os.environ.get("SystemRoot", r"C:\\Windows")) / "System32" / "notepad.exe"
+    )
     if not target.exists():
         pytest.skip("notepad.exe not found; cannot create representative shortcut")
 
@@ -179,4 +183,3 @@ def test_create_shortcut_writes_appusermodelid_property(tmp_path: Path) -> None:
         assert pv.GetValue() == APP_APPUSERMODELID
     finally:
         pythoncom.CoUninitialize()
-

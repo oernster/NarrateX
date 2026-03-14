@@ -40,4 +40,3 @@ def test_alignment_io_load_round_trip(tmp_path: Path) -> None:
     # Ensure file is valid JSON.
     raw = p.read_text(encoding="utf-8")
     json.loads(raw)
-

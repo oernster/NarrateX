@@ -20,4 +20,3 @@ def test_repo_has_no_reference_audio_paths(tmp_path: Path) -> None:
     profiles = list(repo.list_profiles())
     assert profiles
     assert all(not p.reference_audio_paths for p in profiles)
-

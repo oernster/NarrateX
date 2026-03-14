@@ -12,4 +12,3 @@ def test_sanitized_text_mapper_returns_mapping_with_same_length_as_speak_text() 
     if out.speak_text:
         assert min(out.speak_to_original) >= 0
         assert max(out.speak_to_original) < len(original)
-

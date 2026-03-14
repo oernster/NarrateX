@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 
-
 # Ensure the project root is importable during pytest collection.
 #
 # Without this, imports like `import voice_reader` / `import installer.ops...` can

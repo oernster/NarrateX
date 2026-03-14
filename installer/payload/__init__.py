@@ -7,4 +7,3 @@ The build step writes:
 
 These are embedded into the installer executable.
 """
-

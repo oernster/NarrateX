@@ -13,6 +13,7 @@ def test_config_creates_directories(tmp_path: Path) -> None:
     assert cfg.paths.voices_dir.exists()
     assert cfg.paths.cache_dir.exists()
     assert cfg.paths.temp_books_dir.exists()
+    assert cfg.paths.bookmarks_dir.exists()
 
 
 def test_configure_logging_does_not_crash() -> None:

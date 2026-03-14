@@ -18,7 +18,9 @@ from voice_reader.domain.interfaces.voice_profile_repository import (
 @dataclass(frozen=True, slots=True)
 class KokoroVoiceProfileRepository(VoiceProfileRepository):
     def list_profiles(self) -> Sequence[VoiceProfile]:
-        return [VoiceProfile(name=v, reference_audio_paths=[]) for v in self._voice_ids()]
+        return [
+            VoiceProfile(name=v, reference_audio_paths=[]) for v in self._voice_ids()
+        ]
 
     @staticmethod
     def _voice_ids() -> Sequence[str]:

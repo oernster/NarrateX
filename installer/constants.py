@@ -10,7 +10,6 @@ from pathlib import Path
 
 from voice_reader.version import APP_AUTHOR, APP_NAME
 
-
 UNINSTALL_REG_KEY = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\NarrateX"
 
 
@@ -33,4 +32,3 @@ class InstallerIdentity:
 
     def installer_exe_path(self, install_root: Path) -> Path:
         return install_root / self.installer_subdir / self.installer_exe_name
-

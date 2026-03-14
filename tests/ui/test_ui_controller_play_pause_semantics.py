@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
+from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.ui.main_window import MainWindow
@@ -40,6 +41,29 @@ class FakeNarration:
         return
 
 
+@dataclass
+class FakeBookmarks:
+    def list_bookmarks(self, *, book_id: str):
+        del book_id
+        return []
+
+    def add_bookmark(self, *, book_id: str, char_offset: int, chunk_index: int):
+        del book_id, char_offset, chunk_index
+        return None
+
+    def delete_bookmark(self, *, book_id: str, bookmark_id: int) -> None:
+        del book_id, bookmark_id
+
+    def save_resume_position(
+        self, *, book_id: str, char_offset: int, chunk_index: int
+    ) -> None:
+        del book_id, char_offset, chunk_index
+
+    def load_resume_position(self, *, book_id: str):
+        del book_id
+        return None
+
+
 @dataclass(frozen=True, slots=True)
 class FakeVoiceRepo:
     def list_profiles(self):
@@ -68,6 +92,7 @@ def test_play_when_paused_calls_resume(qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -97,6 +122,7 @@ def test_play_when_paused_and_voice_changed_restarts(qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -144,6 +170,7 @@ def test_voice_dropdown_sorted_alphabetically_with_system_first(qapp) -> None:
     UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -171,6 +198,7 @@ def test_play_when_idle_prepares_and_starts(qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",

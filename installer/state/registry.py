@@ -40,6 +40,7 @@ def read_uninstall_entry(uninstall_key: str) -> Optional[UninstallEntry]:
 
     try:
         with winreg.OpenKey(winreg.HKEY_CURRENT_USER, uninstall_key) as k:
+
             def _q(name: str) -> Optional[str]:
                 try:
                     return str(winreg.QueryValueEx(k, name)[0])
@@ -111,7 +112,9 @@ def write_uninstall_entry(
         winreg.SetValueEx(k, "NoRepair", 0, winreg.REG_DWORD, 1)
 
         if shortcut_desktop is not None:
-            winreg.SetValueEx(k, "ShortcutDesktop", 0, winreg.REG_SZ, "1" if shortcut_desktop else "0")
+            winreg.SetValueEx(
+                k, "ShortcutDesktop", 0, winreg.REG_SZ, "1" if shortcut_desktop else "0"
+            )
         if shortcut_start_menu is not None:
             winreg.SetValueEx(
                 k,
@@ -167,4 +170,3 @@ def _parse_bool(v: Optional[str]) -> Optional[bool]:
     if s in {"0", "false", "no", "off"}:
         return False
     return None
-

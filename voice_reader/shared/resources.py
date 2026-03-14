@@ -36,7 +36,9 @@ def find_app_icon_path(*, project_root: Path | None = None) -> Path | None:
     # In onedir PyInstaller builds, user-added data files can end up under
     # `_internal/` depending on how the `.spec` is generated.
     try:
-        candidates.append(Path(sys.executable).resolve().parent / "_internal" / "narratex.ico")
+        candidates.append(
+            Path(sys.executable).resolve().parent / "_internal" / "narratex.ico"
+        )
     except Exception:
         pass
 
@@ -220,4 +222,3 @@ def iter_qt_window_icon_candidates(*, project_root: Path | None = None) -> list[
         seen2.add(key)
         out2.append(p)
     return out2
-

@@ -32,4 +32,3 @@ class PlaybackSynchronizer:
         # If before start, snap to first.
         first = spans[0]
         return int(first.start_char), int(first.end_char)
-

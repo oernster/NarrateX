@@ -23,4 +23,3 @@ def test_level_from_env_accepts_name(monkeypatch) -> None:
 def test_level_from_env_invalid_name_falls_back(monkeypatch) -> None:
     monkeypatch.setenv("NARRATEX_LOG_LEVEL", "not-a-level")
     assert lu._level_from_env(logging.WARNING) == logging.WARNING
-

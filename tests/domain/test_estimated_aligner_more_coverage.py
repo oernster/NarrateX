@@ -57,4 +57,3 @@ def test_estimated_aligner_swaps_reversed_mapping_and_fixes_last_end_ms() -> Non
     assert out.spans[0].start_char <= out.spans[0].end_char
     # Last span should be pinned to duration.
     assert out.spans[-1].audio_end_ms == 1234
-

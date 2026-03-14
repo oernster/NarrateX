@@ -85,7 +85,9 @@ def test_cover_extractor_pdf_uses_fitz_stub(monkeypatch, tmp_path: Path) -> None
             assert idx == 0
             return _FakePage()
 
-    fake_fitz = SimpleNamespace(open=lambda path: _FakeDoc(), Matrix=lambda a, b: (a, b))
+    fake_fitz = SimpleNamespace(
+        open=lambda path: _FakeDoc(), Matrix=lambda a, b: (a, b)
+    )
     monkeypatch.setitem(__import__("sys").modules, "fitz", fake_fitz)
     assert CoverExtractor().extract_cover_bytes(pdf) == b"PNG"
 
@@ -94,7 +96,9 @@ def test_cover_extractor_pdf_failure_returns_none(monkeypatch, tmp_path: Path) -
     pdf = tmp_path / "b.pdf"
     pdf.write_bytes(b"%PDF")
 
-    fake_fitz = SimpleNamespace(open=lambda path: (_ for _ in ()).throw(RuntimeError("x")))
+    fake_fitz = SimpleNamespace(
+        open=lambda path: (_ for _ in ()).throw(RuntimeError("x"))
+    )
     monkeypatch.setitem(__import__("sys").modules, "fitz", fake_fitz)
     assert CoverExtractor().extract_cover_bytes(pdf) is None
 
@@ -107,7 +111,9 @@ def test_cover_extractor_prefers_calibre_sidecar_cover(tmp_path: Path) -> None:
     assert CoverExtractor().extract_cover_bytes(book) == b"JPG"
 
 
-def test_cover_extractor_calibrebooks_shape_uses_adjacent_cover_jpg(tmp_path: Path) -> None:
+def test_cover_extractor_calibrebooks_shape_uses_adjacent_cover_jpg(
+    tmp_path: Path,
+) -> None:
     # Real CalibreBooks shape:
     #   Author/Title (ID)/Title - Author.azw3
     #   Author/Title (ID)/cover.jpg
@@ -119,7 +125,9 @@ def test_cover_extractor_calibrebooks_shape_uses_adjacent_cover_jpg(tmp_path: Pa
     assert CoverExtractor().extract_cover_bytes(book) == b"REALCOVER"
 
 
-def test_cover_extractor_exact_cover_jpg_wins_over_heuristic_named_images(tmp_path: Path) -> None:
+def test_cover_extractor_exact_cover_jpg_wins_over_heuristic_named_images(
+    tmp_path: Path,
+) -> None:
     book = tmp_path / "Book.azw3"
     book.write_bytes(b"dummy")
     (tmp_path / "my_cover.png").write_bytes(b"PNG")
@@ -127,14 +135,18 @@ def test_cover_extractor_exact_cover_jpg_wins_over_heuristic_named_images(tmp_pa
     assert CoverExtractor().extract_cover_bytes(book) == b"JPG"
 
 
-def test_cover_extractor_no_cover_jpg_falls_back_to_other_sidecar(tmp_path: Path) -> None:
+def test_cover_extractor_no_cover_jpg_falls_back_to_other_sidecar(
+    tmp_path: Path,
+) -> None:
     book = tmp_path / "Book.azw3"
     book.write_bytes(b"dummy")
     (tmp_path / "my_cover.png").write_bytes(b"PNG")
     assert CoverExtractor().extract_cover_bytes(book) == b"PNG"
 
 
-def test_cover_extractor_exact_sidecar_prevents_kindle_conversion(monkeypatch, tmp_path: Path) -> None:
+def test_cover_extractor_exact_sidecar_prevents_kindle_conversion(
+    monkeypatch, tmp_path: Path
+) -> None:
     # If an exact sidecar cover exists, we must not invoke ebook-convert.
     book = tmp_path / "Book.azw3"
     book.write_bytes(b"dummy")
@@ -151,14 +163,18 @@ def test_cover_extractor_exact_sidecar_prevents_kindle_conversion(monkeypatch, t
     assert called["run"] == 0
 
 
-def test_cover_extractor_sidecar_heuristic_scan_finds_cover_named_file(tmp_path: Path) -> None:
+def test_cover_extractor_sidecar_heuristic_scan_finds_cover_named_file(
+    tmp_path: Path,
+) -> None:
     book = tmp_path / "Book.azw3"
     book.write_bytes(b"dummy")
     (tmp_path / "my_cover.png").write_bytes(b"PNG")
     assert CoverExtractor().extract_cover_bytes(book) == b"PNG"
 
 
-def test_cover_extractor_kindle_convert_to_epub_fallback(monkeypatch, tmp_path: Path) -> None:
+def test_cover_extractor_kindle_convert_to_epub_fallback(
+    monkeypatch, tmp_path: Path
+) -> None:
     # No sidecar. Ensure we fall back to ebook-convert and then parse the produced EPUB.
     book = tmp_path / "Book.azw3"
     book.write_bytes(b"dummy")
@@ -190,4 +206,3 @@ def test_cover_extractor_kindle_convert_missing_ebook_convert_returns_none(
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert CoverExtractor().extract_cover_bytes(book) is None
-

@@ -34,4 +34,3 @@ def setup_installer_logging() -> Path:
 
     logging.getLogger("installer").info("Installer logging initialized")
     return log_path
-

@@ -55,7 +55,9 @@ class KokoroEngine(TTSEngine):
     def engine_name(self) -> str:
         return "kokoro"
 
-    def stream_synthesis(self, text: str, voice_profile: VoiceProfile) -> Iterator[np.ndarray]:
+    def stream_synthesis(
+        self, text: str, voice_profile: VoiceProfile
+    ) -> Iterator[np.ndarray]:
         """Yield audio chunks from Kokoro as they are generated.
 
         This is an optional API (not part of the domain protocol) and is

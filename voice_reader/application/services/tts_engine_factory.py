@@ -42,9 +42,7 @@ class TTSEngineFactory:
             ) from exc
         except Exception as exc:
             raise RuntimeError(
-                "Kokoro is not available (import failed). "
-                f"Reason: {exc!r}"
+                "Kokoro is not available (import failed). " f"Reason: {exc!r}"
             ) from exc
 
         return KokoroEngine()
-

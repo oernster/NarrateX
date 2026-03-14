@@ -18,7 +18,6 @@ from dataclasses import dataclass
 
 from voice_reader.domain.alignment.model import ChunkAlignment, TimedTextSpan
 
-
 _TOKEN_RE = re.compile(r"\S+")
 
 
@@ -41,12 +40,16 @@ class EstimatedAligner:
         duration_ms = max(0, int(duration_ms))
 
         if not speak_text or duration_ms <= 0:
-            return ChunkAlignment(chunk_id=int(chunk_id), duration_ms=duration_ms, spans=[])
+            return ChunkAlignment(
+                chunk_id=int(chunk_id), duration_ms=duration_ms, spans=[]
+            )
 
         # Tokenize as non-whitespace runs.
         matches = list(_TOKEN_RE.finditer(speak_text))
         if not matches:
-            return ChunkAlignment(chunk_id=int(chunk_id), duration_ms=duration_ms, spans=[])
+            return ChunkAlignment(
+                chunk_id=int(chunk_id), duration_ms=duration_ms, spans=[]
+            )
 
         # Compute token weights.
         weights: list[float] = []
@@ -118,5 +121,6 @@ class EstimatedAligner:
                     confidence=last.confidence,
                 )
 
-        return ChunkAlignment(chunk_id=int(chunk_id), duration_ms=duration_ms, spans=spans)
-
+        return ChunkAlignment(
+            chunk_id=int(chunk_id), duration_ms=duration_ms, spans=spans
+        )

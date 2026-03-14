@@ -15,7 +15,6 @@ from installer.ops.errors import AppRunningError, InstallerOperationError
 
 import logging
 
-
 ProgressCb = Callable[[str], None]
 
 
@@ -58,7 +57,9 @@ class OperationWorker(QObject):
             pythoncom = None
 
         try:
-            logger.info("Operation start: %s", getattr(self._fn, "__name__", str(self._fn)))
+            logger.info(
+                "Operation start: %s", getattr(self._fn, "__name__", str(self._fn))
+            )
             self._kwargs.setdefault("cancel_event", self._cancel_event)
             self._kwargs.setdefault("progress", self._emit_progress)
             self._fn(**self._kwargs)
@@ -133,7 +134,9 @@ class _GuiRelay(QObject):
     def notify_finished(self) -> None:
         result = self._result
         if result is None:
-            result = OperationResult(ok=False, message="Operation did not return a result")
+            result = OperationResult(
+                ok=False, message="Operation did not return a result"
+            )
         self._on_finished(result)
         self.deleteLater()
 
@@ -197,7 +200,11 @@ class OperationController:
         worker = OperationWorker(fn, kwargs=kwargs, cancel_event=self._cancel_event)
         worker.moveToThread(thread)
 
-        relay = _GuiRelay(on_progress=on_progress, on_finished=on_finished, on_app_running=on_app_running)
+        relay = _GuiRelay(
+            on_progress=on_progress,
+            on_finished=on_finished,
+            on_app_running=on_app_running,
+        )
         # Keep relay alive until we explicitly drop our reference on thread finish.
         self._relay = relay
 
@@ -237,4 +244,3 @@ class OperationController:
         self._thread = thread
         self._worker = worker
         thread.start()
-

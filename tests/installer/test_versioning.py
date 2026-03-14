@@ -21,4 +21,3 @@ def test_parse_version_invalid_falls_back_to_zero() -> None:
 )
 def test_compare_versions(installer: str, installed: str, expected: int) -> None:
     assert compare_versions(installer, installed) == expected
-

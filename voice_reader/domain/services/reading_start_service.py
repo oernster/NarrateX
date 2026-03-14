@@ -171,7 +171,12 @@ class ReadingStartService:
                 )
             )
 
-            if ends_like_sentence and has_lowercase and looks_sentence_like and len(words) >= 3:
+            if (
+                ends_like_sentence
+                and has_lowercase
+                and looks_sentence_like
+                and len(words) >= 3
+            ):
                 return True
 
             # Otherwise, require enough words/length to avoid classifying headings
