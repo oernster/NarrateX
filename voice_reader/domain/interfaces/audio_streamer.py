@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable, Iterable, Protocol
 
 OnChunkCallback = Callable[[int], None]
+OnPlaybackProgressCallback = Callable[[int, int], None]
 
 
 class AudioStreamer(Protocol):
@@ -18,6 +19,7 @@ class AudioStreamer(Protocol):
         chunk_audio_paths: Iterable[Path],
         on_chunk_start: OnChunkCallback | None = None,
         on_chunk_end: OnChunkCallback | None = None,
+        on_playback_progress: OnPlaybackProgressCallback | None = None,
     ) -> None: ...
 
     def pause(self) -> None: ...

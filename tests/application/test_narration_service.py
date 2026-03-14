@@ -40,6 +40,15 @@ class FakeCache(CacheRepository):
     def ensure_parent_dir(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
 
+    def alignment_path(self, *, book_id: str, voice_name: str, chunk_id: int) -> Path:
+        return self.base / book_id / voice_name / f"{chunk_id}.align.json"
+
+    def alignment_exists(self, *, book_id: str, voice_name: str, chunk_id: int) -> bool:
+        return (
+            self.alignment_path(book_id=book_id, voice_name=voice_name, chunk_id=chunk_id)
+            in self.existing
+        )
+
 
 @dataclass
 class FakeTTSEngine(TTSEngine):
@@ -85,6 +94,7 @@ class FakeStreamer(AudioStreamer):
         chunk_audio_paths: Iterable[Path],
         on_chunk_start=None,
         on_chunk_end=None,
+        on_playback_progress=None,
     ) -> None:
         it = iter(chunk_audio_paths)
         i = 0
@@ -101,6 +111,10 @@ class FakeStreamer(AudioStreamer):
             if on_chunk_start is not None:
                 on_chunk_start(i)
             self.played.append(p)
+            if on_playback_progress is not None:
+                # Simulate a couple progress ticks within the chunk.
+                on_playback_progress(i, 0)
+                on_playback_progress(i, 120)
             if self.pause_after_chunks is not None and i + 1 >= self.pause_after_chunks:
                 self.pause()
             if on_chunk_end is not None:
@@ -261,6 +275,10 @@ def test_pause_stops_prefetch_beyond_current_chunk(tmp_path: Path) -> None:
 
     assert streamer.pause_calls >= 1
     assert calls_after == calls_at_pause
+
+    # Highlight must not jump ahead to a future chunk during synthesis prefetch.
+    # `current_chunk_id` is reserved for playback chunk index.
+    assert svc.state.current_chunk_id in {0, None}
 
     # Stop so the narration thread terminates.
     svc.stop()

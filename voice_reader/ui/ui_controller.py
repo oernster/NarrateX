@@ -230,4 +230,12 @@ class UiController(QObject):
             pass
 
         self.window.progress.setValue(int(state.progress * 100))
-        self.window.highlight_range(state.highlight_start, state.highlight_end)
+        # Visible highlighting must reflect *audible* playback only.
+        # Prefer the new audible range fields; fall back to legacy highlight_* for
+        # compatibility with older state producers.
+        start = state.audible_start
+        end = state.audible_end
+        if start is None or end is None:
+            start = state.highlight_start
+            end = state.highlight_end
+        self.window.highlight_range(start, end)
