@@ -9,6 +9,8 @@ import numpy as np
 from voice_reader.infrastructure.audio.audio_streamer import (
     SoundDeviceAudioStreamer,
     _trim_silence,
+    _safe_output_device,
+    _sd_play,
 )
 
 
@@ -49,7 +51,7 @@ def test_sd_play_fallback_device_errors(monkeypatch) -> None:
             if device is not None:
                 raise RuntimeError("Querying device")
 
-    SoundDeviceAudioStreamer._sd_play(_SD(), data=[0], sr=1, blocking=False, device=3)
+    _sd_play(_SD(), data=[0], sr=1, blocking=False, device=3)
     assert calls == [(False, 3), (False, None)]
 
 
@@ -58,7 +60,7 @@ def test_safe_output_device_handles_default_minus_one(monkeypatch) -> None:
         device = -1
 
     sd = SimpleNamespace(default=_Default(), query_devices=lambda idx: None)
-    assert SoundDeviceAudioStreamer._safe_output_device(sd) is None
+    assert _safe_output_device(sd) is None
 
 
 def test_stop_playback_device_ignores_missing_sounddevice(monkeypatch) -> None:

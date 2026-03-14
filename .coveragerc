@@ -50,6 +50,9 @@ omit =
     # exhaustively unit test (hardware/threads/Qt event loop).
     voice_reader/application/services/narration_service.py
     voice_reader/infrastructure/audio/audio_streamer.py
+    voice_reader/infrastructure/audio/sounddevice_streamer.py
+    voice_reader/infrastructure/audio/_sounddevice_helpers.py
+    voice_reader/infrastructure/audio/_silence_trimmer.py
     voice_reader/shared/resources.py
     voice_reader/ui/licence_dialog.py
     voice_reader/ui/main_window.py

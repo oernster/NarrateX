@@ -8,6 +8,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable, Iterable, Protocol
 
+from voice_reader.domain.value_objects.playback_rate import PlaybackRate
+
 OnChunkCallback = Callable[[int], None]
 OnPlaybackProgressCallback = Callable[[int, int], None]
 
@@ -21,6 +23,8 @@ class AudioStreamer(Protocol):
         on_chunk_end: OnChunkCallback | None = None,
         on_playback_progress: OnPlaybackProgressCallback | None = None,
     ) -> None: ...
+
+    def set_playback_rate(self, rate: PlaybackRate) -> None: ...
 
     def pause(self) -> None: ...
 

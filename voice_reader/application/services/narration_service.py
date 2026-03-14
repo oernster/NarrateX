@@ -35,6 +35,8 @@ from voice_reader.domain.services.reading_start_service import ReadingStartServi
 from voice_reader.domain.services.sanitized_text_mapper import SanitizedTextMapper
 from voice_reader.domain.services.spoken_text_sanitizer import SpokenTextSanitizer
 
+from voice_reader.domain.value_objects.playback_rate import PlaybackRate
+
 _StateListener = Callable[[NarrationState], None]
 
 
@@ -80,6 +82,22 @@ class NarrationService:
         self._current_play_index: int = -1
         # Allows restarting narration from a given playback index.
         self._start_playback_index: int = 0
+        self._playback_rate: PlaybackRate = PlaybackRate.default()
+
+        # Ensure the playback layer is initialized with our default rate.
+        # This is a playback concern only; it must not affect cache/TTS.
+        try:
+            self.audio_streamer.set_playback_rate(self._playback_rate)
+        except Exception:
+            # Audio streamer may be a stub in tests.
+            pass
+
+    def set_playback_rate(self, rate: PlaybackRate) -> None:
+        self._playback_rate = rate
+        self.audio_streamer.set_playback_rate(rate)
+
+    def playback_rate(self) -> PlaybackRate:
+        return self._playback_rate
 
     @property
     def state(self) -> NarrationState:
