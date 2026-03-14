@@ -35,6 +35,7 @@ class ReadingStartService:
         # 0) Introduction is preferred over Chapter 1 / Prologue when present.
         for m in re.finditer(r"(?im)^\s*introduction\s*$", scan):
             line = self._line_at(scan, m.start())
+            # `_line_at` returns a stripped line; treat it as already normalized.
             if self._looks_like_toc_entry(line):
                 continue
             candidates.append(
