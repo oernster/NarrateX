@@ -143,6 +143,9 @@ def main() -> int:
     # Note: `--icon` only affects the *embedded* exe icon (Explorer/Start Menu).
     # The running taskbar button typically uses the Qt window icon.
     add_data = [
+        # Licences (shown in-app via top-right licence buttons).
+        f"{PROJECT_ROOT / 'LICENSE'};.",
+        f"{PROJECT_ROOT / 'LGPL3-LICENSE'};.",
         f"{PROJECT_ROOT / 'narratex.ico'};.",
         f"{PROJECT_ROOT / 'narratex_16.png'};.",
         f"{PROJECT_ROOT / 'narratex_32.png'};.",

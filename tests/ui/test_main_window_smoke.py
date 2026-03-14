@@ -30,3 +30,60 @@ def test_main_window_help_and_about_smoke(qapp) -> None:
 
     about = w.build_about_dialog()
     assert APP_NAME in about.windowTitle()
+
+
+def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
+    """Smoke test for the two top-right licence buttons."""
+
+    from PySide6.QtWidgets import QApplication, QDialog, QPlainTextEdit, QToolButton
+
+    w = MainWindow()
+    w.show()
+    qapp.processEvents()
+
+    btn_ui = w.findChild(QToolButton, "uiLicenceButton")
+    assert btn_ui is not None
+    assert btn_ui.toolTip() == "UI licence"
+
+    btn_backend = w.findChild(QToolButton, "backendLicenceButton")
+    assert btn_backend is not None
+    assert btn_backend.toolTip() == "Backend licence"
+
+    btn_ui.click()
+    qapp.processEvents()
+
+    ui_dialogs = [
+        dlg
+        for dlg in QApplication.topLevelWidgets()
+        if isinstance(dlg, QDialog) and dlg.windowTitle() == "UI licence"
+    ]
+    assert ui_dialogs, "Expected a UI licence dialog to be open"
+    ui_dlg = ui_dialogs[-1]
+
+    ui_editor = ui_dlg.findChild(QPlainTextEdit, "LicenceText")
+    assert ui_editor is not None
+    assert "GNU LESSER GENERAL PUBLIC LICENSE" in ui_editor.toPlainText()
+
+    ui_dlg.close()
+    qapp.processEvents()
+
+    btn_backend.click()
+    qapp.processEvents()
+
+    backend_dialogs = [
+        dlg
+        for dlg in QApplication.topLevelWidgets()
+        if isinstance(dlg, QDialog) and dlg.windowTitle() == "Backend licence"
+    ]
+    assert backend_dialogs, "Expected a Backend licence dialog to be open"
+    backend_dlg = backend_dialogs[-1]
+
+    # Backend licence dialog should be narrower than the UI LGPL dialog.
+    assert backend_dlg.width() <= 520
+
+    backend_editor = backend_dlg.findChild(QPlainTextEdit, "LicenceText")
+    assert backend_editor is not None
+    assert "GNU GENERAL PUBLIC LICENSE" in backend_editor.toPlainText()
+
+    backend_dlg.close()
+    qapp.processEvents()

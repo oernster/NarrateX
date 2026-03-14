@@ -29,6 +29,18 @@ class _FakeQApplication:
         self.aboutToQuit = _FakeSignal()
         self._exec_called = False
 
+    def setApplicationName(self, _):
+        return
+
+    def setApplicationDisplayName(self, _):
+        return
+
+    def setDesktopFileName(self, _):
+        return
+
+    def setWindowIcon(self, _):
+        return
+
     def exec(self) -> int:
         self._exec_called = True
         # Simulate the app quitting immediately.
@@ -39,6 +51,9 @@ class _FakeQApplication:
 class _FakeWindow:
     def __init__(self) -> None:
         self.shown = False
+
+    def setWindowIcon(self, _):
+        return
 
     def show(self) -> None:
         self.shown = True
@@ -417,6 +432,9 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
         def __init__(self, argv) -> None:
             del argv
             self.aboutToQuit = _FakeSignal()
+
+        def setWindowIcon(self, _):
+            return
 
         def exec(self) -> int:
             return 0

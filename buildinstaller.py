@@ -91,6 +91,9 @@ def main() -> int:
     add_data = [
         f"{payload_zip};installer/payload",
         f"{manifest_json};installer/payload",
+        # Licences (shown in installer UI and shipped for runtime UI dialogs).
+        f"{PROJECT_ROOT / 'LICENSE'};.",
+        f"{PROJECT_ROOT / 'LGPL3-LICENSE'};.",
         # Ship icon assets so the installer can set its own window icon and so
         # it can deploy them next to NarrateX.exe (for taskbar + shortcut icon
         # consistency).
