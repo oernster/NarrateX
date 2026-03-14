@@ -13,6 +13,11 @@ from typing import Callable, List, Optional
 
 import os
 
+from voice_reader.application.services.playback_synchronizer import PlaybackSynchronizer
+from voice_reader.domain.alignment.alignment_io import AlignmentIO
+from voice_reader.domain.alignment.estimated_aligner import EstimatedAligner
+from voice_reader.domain.alignment.model import ChunkAlignment
+
 from voice_reader.application.dto.narration_state import (
     NarrationState,
     NarrationStatus,
@@ -27,6 +32,7 @@ from voice_reader.domain.interfaces.tts_engine import TTSEngine
 from voice_reader.domain.interfaces.reading_start_detector import ReadingStartDetector
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.domain.services.reading_start_service import ReadingStartService
+from voice_reader.domain.services.sanitized_text_mapper import SanitizedTextMapper
 from voice_reader.domain.services.spoken_text_sanitizer import SpokenTextSanitizer
 
 _StateListener = Callable[[NarrationState], None]
@@ -43,6 +49,11 @@ class NarrationService:
     language: str
     reading_start_detector: ReadingStartDetector = ReadingStartService()
     spoken_text_sanitizer: SpokenTextSanitizer = SpokenTextSanitizer()
+    sanitized_text_mapper: SanitizedTextMapper = SanitizedTextMapper()
+
+    playback_synchronizer: PlaybackSynchronizer = PlaybackSynchronizer()
+    alignment_io: AlignmentIO = AlignmentIO()
+    estimated_aligner: EstimatedAligner = EstimatedAligner()
 
     def __post_init__(self) -> None:
         self._log = logging.getLogger(self.__class__.__name__)
@@ -53,6 +64,8 @@ class NarrationService:
         self._state = NarrationState(
             status=NarrationStatus.IDLE,
             current_chunk_id=None,
+            playback_chunk_id=None,
+            prefetch_chunk_id=None,
             total_chunks=None,
             progress=0.0,
         )
@@ -80,6 +93,8 @@ class NarrationService:
             NarrationState(
                 status=NarrationStatus.LOADING,
                 current_chunk_id=None,
+                playback_chunk_id=None,
+                prefetch_chunk_id=None,
                 total_chunks=None,
                 progress=0.0,
                 message=f"Loading {source_path.name}...",
@@ -93,6 +108,8 @@ class NarrationService:
             NarrationState(
                 status=NarrationStatus.IDLE,
                 current_chunk_id=None,
+                playback_chunk_id=None,
+                prefetch_chunk_id=None,
                 total_chunks=None,
                 progress=0.0,
                 message=f"Loaded '{book.title}'",
@@ -124,6 +141,8 @@ class NarrationService:
             NarrationState(
                 status=NarrationStatus.CHUNKING,
                 current_chunk_id=None,
+                playback_chunk_id=None,
+                prefetch_chunk_id=None,
                 total_chunks=None,
                 progress=0.0,
                 message=f"Chunking text ({start.reason})...",
@@ -146,6 +165,8 @@ class NarrationService:
             NarrationState(
                 status=NarrationStatus.IDLE,
                 current_chunk_id=None,
+                playback_chunk_id=None,
+                prefetch_chunk_id=None,
                 total_chunks=len(self._chunks),
                 progress=0.0,
                 message=f"Prepared {len(self._chunks)} chunks",
@@ -204,9 +225,13 @@ class NarrationService:
             NarrationState(
                 status=NarrationStatus.PAUSED,
                 current_chunk_id=paused_chunk_id,
+                playback_chunk_id=paused_chunk_id,
+                prefetch_chunk_id=self._state.prefetch_chunk_id,
                 total_chunks=self._state.total_chunks,
                 progress=self._state.progress,
                 message="Paused",
+                audible_start=self._state.audible_start,
+                audible_end=self._state.audible_end,
                 highlight_start=self._state.highlight_start,
                 highlight_end=self._state.highlight_end,
             )
@@ -221,9 +246,13 @@ class NarrationService:
             NarrationState(
                 status=NarrationStatus.PLAYING,
                 current_chunk_id=self._state.current_chunk_id,
+                playback_chunk_id=self._state.current_chunk_id,
+                prefetch_chunk_id=self._state.prefetch_chunk_id,
                 total_chunks=self._state.total_chunks,
                 progress=self._state.progress,
                 message="Playing",
+                audible_start=self._state.audible_start,
+                audible_end=self._state.audible_end,
                 highlight_start=self._state.highlight_start,
                 highlight_end=self._state.highlight_end,
             )
@@ -242,9 +271,13 @@ class NarrationService:
             NarrationState(
                 status=NarrationStatus.STOPPED,
                 current_chunk_id=None,
+                playback_chunk_id=None,
+                prefetch_chunk_id=None,
                 total_chunks=self._state.total_chunks,
                 progress=0.0,
                 message="Stopped",
+                audible_start=None,
+                audible_end=None,
                 highlight_start=None,
                 highlight_end=None,
             )
@@ -299,14 +332,24 @@ class NarrationService:
         tts_engine = self.tts_engine
         book_id = self.book_id()
         playback_chunks: List[TextChunk] = []
+        # Per playback index, store (speak_text, speak_to_original mapping).
+        playback_text_maps: list[tuple[str, list[int]]] = []
         try:
             # Pre-compute playback candidates to:
             # - keep UI totals stable
             # - stream audio as soon as each chunk is ready (no waiting for full
             #   book synthesis)
-            candidates: list[tuple[TextChunk, str, Path]] = []
+            # candidates carries:
+            # - chunk: original chunk with absolute book offsets
+            # - speak_text: sanitized text for TTS
+            # - speak_to_orig: per-character map speak_text index -> chunk-local index
+            # - path: cached wav path
+            candidates: list[tuple[TextChunk, str, list[int], Path]] = []
             for chunk in self._chunks:
-                speak_text = self.spoken_text_sanitizer.sanitize(chunk.text)
+                mapped = self.sanitized_text_mapper.sanitize_with_mapping(
+                    original_text=chunk.text
+                )
+                speak_text = mapped.speak_text
                 if not speak_text:
                     continue
                 path = self.cache_repo.audio_path(
@@ -314,7 +357,7 @@ class NarrationService:
                     voice_name=voice.name,
                     chunk_id=chunk.chunk_id,
                 )
-                candidates.append((chunk, speak_text, path))
+                candidates.append((chunk, speak_text, mapped.speak_to_original, path))
 
             # Support restarting from a given playback index (e.g. voice change
             # while paused). This is *playback index* into the candidate list.
@@ -378,7 +421,7 @@ class NarrationService:
                         except Exception:
                             self._log.exception("Warmup synthesis failed")
 
-                    for idx, (chunk, speak_text, path) in enumerate(candidates):
+                    for idx, (chunk, speak_text, speak_to_orig, path) in enumerate(candidates):
                         if self._stop_event.is_set():
                             return
 
@@ -413,12 +456,13 @@ class NarrationService:
                         self._set_state(
                             NarrationState(
                                 status=NarrationStatus.SYNTHESIZING,
-                                current_chunk_id=idx,
+                                # Do not advance playback chunk id while prefetching.
+                                current_chunk_id=self._state.current_chunk_id,
+                                prefetch_chunk_id=idx,
+                                playback_chunk_id=self._state.current_chunk_id,
                                 total_chunks=playback_total,
                                 progress=idx / max(playback_total, 1),
                                 message=f"Preparing chunk {idx + 1}/{playback_total}",
-                                highlight_start=chunk.start_char,
-                                highlight_end=chunk.end_char,
                             )
                         )
 
@@ -466,6 +510,7 @@ class NarrationService:
 
                         # Append BEFORE publishing path so on_start can map.
                         playback_chunks.append(chunk)
+                        playback_text_maps.append((speak_text, speak_to_orig))
                         self._log.debug(
                             "Publishing audio path idx=%s out=%s",
                             idx,
@@ -521,7 +566,7 @@ class NarrationService:
 
                 # Work queue carries (idx, chunk, text, path).
                 work_q: "queue.Queue[tuple[int, TextChunk, str, Path] | None]" = queue.Queue()
-                for i, (c, t, p) in enumerate(candidates):
+                for i, (c, t, _m, p) in enumerate(candidates):
                     work_q.put((i, c, t, p))
                 for _ in range(int(kokoro_workers)):
                     work_q.put(None)
@@ -598,6 +643,9 @@ class NarrationService:
                                 time.sleep(0.01)
                                 continue
                             playback_chunks.append(candidates[next_idx][0])
+                            playback_text_maps.append(
+                                (candidates[next_idx][1], candidates[next_idx][2])
+                            )
                             path_q.put(path)
                             next_idx += 1
                     finally:
@@ -654,15 +702,146 @@ class NarrationService:
                 if play_index < 0 or play_index >= playback_total:
                     return
                 c = playback_chunks[play_index]
+                # Reset per-chunk progress clock.
+                try:
+                    # Used by on_progress fallback throttling.
+                    on_progress._last_emit_ms = -1  # type: ignore[attr-defined]
+                except Exception:
+                    pass
                 self._set_state(
                     NarrationState(
                         status=NarrationStatus.PLAYING,
                         current_chunk_id=play_index,
+                        playback_chunk_id=play_index,
+                        prefetch_chunk_id=self._state.prefetch_chunk_id,
                         total_chunks=playback_total,
                         progress=play_index / max(playback_total, 1),
                         message=f"Playing chunk {play_index + 1}/{playback_total}",
+                        # Audible highlight will be driven by playback progress.
+                        # Start with a safe chunk-level fallback.
+                        audible_start=c.start_char,
+                        audible_end=c.end_char,
                         highlight_start=c.start_char,
                         highlight_end=c.end_char,
+                    )
+                )
+
+            def on_progress(play_index: int, chunk_local_ms: int) -> None:
+                # Resolve audible highlight span from per-chunk alignment.
+                if play_index < 0 or play_index >= playback_total:
+                    return
+                c = playback_chunks[play_index]
+
+                # Throttle to ~30-50ms even if backend calls faster.
+                try:
+                    last = int(getattr(on_progress, "_last_emit_ms", -1))  # type: ignore[attr-defined]
+                except Exception:
+                    last = -1
+                ms = int(max(0, chunk_local_ms))
+                if last >= 0 and (ms - last) < 25:
+                    return
+                try:
+                    on_progress._last_emit_ms = ms  # type: ignore[attr-defined]
+                except Exception:
+                    pass
+
+                # If paused/stopped, freeze highlight updates.
+                if self._pause_event.is_set() or self._stop_event.is_set():
+                    return
+
+                # Load/generate alignment.
+                align = None
+                try:
+                    chunk_id = int(c.chunk_id)
+                    ap = self.cache_repo.alignment_path(
+                        book_id=book_id, voice_name=voice.name, chunk_id=chunk_id
+                    )
+                    align = self.alignment_io.load(ap) if ap.exists() else None
+                except Exception:
+                    align = None
+
+                if align is None:
+                    # Estimate from sanitized speak_text + mapping and audio duration.
+                    try:
+                        speak_text, speak_to_orig = playback_text_maps[play_index]
+                    except Exception:
+                        speak_text, speak_to_orig = "", []
+
+                    # Derive duration. Prefer WAV length; fall back to last known ms.
+                    duration_ms = 0
+                    try:
+                        import soundfile as sf
+
+                        wav_path = self.cache_repo.audio_path(
+                            book_id=book_id, voice_name=voice.name, chunk_id=int(c.chunk_id)
+                        )
+                        with sf.SoundFile(str(wav_path)) as f:
+                            duration_ms = int(round((len(f) / float(f.samplerate)) * 1000.0))
+                    except Exception:
+                        duration_ms = max(ms, 1)
+
+                    # Generate alignment in chunk-local coordinates, then shift to book offsets.
+                    est = self.estimated_aligner.estimate(
+                        chunk_id=int(c.chunk_id),
+                        speak_text=speak_text,
+                        speak_to_original=speak_to_orig,
+                        duration_ms=duration_ms,
+                    )
+                    from voice_reader.domain.alignment.model import TimedTextSpan
+
+                    spans: list[TimedTextSpan] = []
+                    for s in est.spans:
+                        spans.append(
+                            TimedTextSpan(
+                                start_char=int(c.start_char) + int(s.start_char),
+                                end_char=int(c.start_char) + int(s.end_char),
+                                audio_start_ms=int(s.audio_start_ms),
+                                audio_end_ms=int(s.audio_end_ms),
+                                confidence=float(s.confidence),
+                            )
+                        )
+                    align = ChunkAlignment(
+                        chunk_id=int(c.chunk_id), duration_ms=est.duration_ms, spans=spans
+                    )
+
+                    # Best-effort persist alignment alongside wav cache.
+                    try:
+                        ap = self.cache_repo.alignment_path(
+                            book_id=book_id, voice_name=voice.name, chunk_id=int(c.chunk_id)
+                        )
+                        self.alignment_io.save(path=ap, alignment=align)
+                    except Exception:
+                        pass
+
+                a_start, a_end = self.playback_synchronizer.resolve_span(
+                    alignment=align, chunk_local_ms=ms
+                )
+
+                # Final fallback: whole chunk.
+                if a_start is None or a_end is None:
+                    a_start, a_end = int(c.start_char), int(c.end_char)
+
+                # Avoid flooding listeners if nothing changes.
+                st = self._state
+                if (
+                    st.playback_chunk_id == play_index
+                    and st.audible_start == a_start
+                    and st.audible_end == a_end
+                ):
+                    return
+                self._set_state(
+                    NarrationState(
+                        status=st.status,
+                        current_chunk_id=play_index,
+                        playback_chunk_id=play_index,
+                        prefetch_chunk_id=st.prefetch_chunk_id,
+                        total_chunks=st.total_chunks,
+                        progress=st.progress,
+                        message=st.message,
+                        audible_start=a_start,
+                        audible_end=a_end,
+                        highlight_start=st.highlight_start,
+                        highlight_end=st.highlight_end,
                     )
                 )
 
@@ -670,6 +849,7 @@ class NarrationService:
                 chunk_audio_paths=audio_paths_iter(),
                 on_chunk_start=on_start,
                 on_chunk_end=None,
+                on_playback_progress=on_progress,
             )
 
             if synth_errors:
@@ -679,6 +859,8 @@ class NarrationService:
                 NarrationState(
                     status=NarrationStatus.IDLE,
                     current_chunk_id=None,
+                    playback_chunk_id=None,
+                    prefetch_chunk_id=self._state.prefetch_chunk_id,
                     total_chunks=playback_total,
                     progress=1.0,
                     message="Done",
@@ -690,6 +872,8 @@ class NarrationService:
                 NarrationState(
                     status=NarrationStatus.ERROR,
                     current_chunk_id=self._state.current_chunk_id,
+                    playback_chunk_id=self._state.playback_chunk_id,
+                    prefetch_chunk_id=self._state.prefetch_chunk_id,
                     total_chunks=self._state.total_chunks,
                     progress=self._state.progress,
                     message=str(exc),

@@ -114,6 +114,7 @@ class SoundDeviceAudioStreamer:
         chunk_audio_paths: Iterable[Path],
         on_chunk_start=None,
         on_chunk_end=None,
+        on_playback_progress=None,
     ) -> None:
         # Stop any previous playback, but preserve pause state: if the user hit
         # Pause while we were still synthesizing/caching, we must not clear it
@@ -135,7 +136,7 @@ class SoundDeviceAudioStreamer:
         )
         play = threading.Thread(
             target=self._player,
-            args=(on_chunk_start, on_chunk_end),
+            args=(on_chunk_start, on_chunk_end, on_playback_progress),
             name="audio-player",
             daemon=True,
         )
@@ -303,7 +304,7 @@ class SoundDeviceAudioStreamer:
 
         self._log.debug("Producer exhausted paths")
 
-    def _player(self, on_start, on_end) -> None:
+    def _player(self, on_start, on_end, on_progress) -> None:
         import sounddevice as sd
 
         self._log.debug("Player thread started")
@@ -383,6 +384,15 @@ class SoundDeviceAudioStreamer:
                 except Exception:
                     self._log.exception("on_chunk_start failed")
 
+            # Best-effort progress callback: emit 0ms at chunk start.
+            # IMPORTANT: this excludes any inserted pre-chunk silence; it tracks
+            # only WAV playback.
+            if on_progress is not None:
+                try:
+                    on_progress(idx, 0)
+                except Exception:
+                    self._log.exception("on_playback_progress failed")
+
             while self._pause.is_set() and not self._stop.is_set():
                 threading.Event().wait(0.05)
 
@@ -424,9 +434,17 @@ class SoundDeviceAudioStreamer:
                                 with self._sd_lock:
                                     self._out_stream.write(gap)
 
+                        # Emit progress at ~30-50ms cadence. We tie cadence to
+                        # the audio write loop so we don't need extra threads.
+                        progress_interval_ms = 40
+                        progress_every_frames = max(
+                            1, int((progress_interval_ms / 1000.0) * int(sr))
+                        )
+
                         block = 2048
                         total = int(arr.shape[0])
                         pos = 0
+                        last_progress_frames = 0
                         while pos < total:
                             if self._stop.is_set() or self._pause.is_set():
                                 return False
@@ -434,6 +452,18 @@ class SoundDeviceAudioStreamer:
                             with self._sd_lock:
                                 self._out_stream.write(arr[pos:end])
                             pos = end
+
+                            # Progress callback (exclude inserted silence).
+                            if (
+                                on_progress is not None
+                                and (pos - last_progress_frames) >= progress_every_frames
+                            ):
+                                last_progress_frames = pos
+                                try:
+                                    ms = int((pos / float(sr)) * 1000.0)
+                                    on_progress(idx, ms)
+                                except Exception:
+                                    self._log.exception("on_playback_progress failed")
                         return True
                 except Exception:
                     # Fall back to sd.play below.
@@ -491,6 +521,21 @@ class SoundDeviceAudioStreamer:
 
                     if not active:
                         return True
+
+                    # Progress callback at ~30-50ms cadence using sleep loop.
+                    if on_progress is not None:
+                        try:
+                            # We don't have sample-accurate position here; use
+                            # wall-clock since chunk start.
+                            # This path is a fallback; prefer OutputStream.
+                            now = time.perf_counter()
+                            # Lazily initialize per-chunk start time.
+                            if not hasattr(play_interruptible, "_t0"):
+                                play_interruptible._t0 = now  # type: ignore[attr-defined]
+                            ms = int((now - play_interruptible._t0) * 1000.0)  # type: ignore[attr-defined]
+                            on_progress(idx, ms)
+                        except Exception:
+                            self._log.exception("on_playback_progress failed")
 
                     # Prefer sd.sleep (avoids busy-wait) but fall back to time.
                     if hasattr(sd, "sleep"):

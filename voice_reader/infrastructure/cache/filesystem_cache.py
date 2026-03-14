@@ -15,8 +15,16 @@ class FilesystemCacheRepository(CacheRepository):
     def audio_path(self, *, book_id: str, voice_name: str, chunk_id: int) -> Path:
         return self.cache_dir / book_id / voice_name / f"{int(chunk_id):06d}.wav"
 
+    def alignment_path(self, *, book_id: str, voice_name: str, chunk_id: int) -> Path:
+        return self.cache_dir / book_id / voice_name / f"{int(chunk_id):06d}.align.json"
+
     def exists(self, *, book_id: str, voice_name: str, chunk_id: int) -> bool:
         return self.audio_path(
+            book_id=book_id, voice_name=voice_name, chunk_id=chunk_id
+        ).exists()
+
+    def alignment_exists(self, *, book_id: str, voice_name: str, chunk_id: int) -> bool:
+        return self.alignment_path(
             book_id=book_id, voice_name=voice_name, chunk_id=chunk_id
         ).exists()
 
