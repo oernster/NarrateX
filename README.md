@@ -1,4 +1,4 @@
-<img width="57" height="48" src="https://github.com/oernster/narratex/images/narratex-icon.png" /> 
+<img width="57" height="48" src="https://github.com/oernster/NarrateX/tree/main/images/narratex-icon.png" /> 
 
 # NarrateX (Voice Reader app)
 
@@ -10,7 +10,7 @@ For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITEC
 
 # Screenshot
 
-<img width="640" height="480" src="https://github.com/oernster/narratex/images/narratex.png" />  
+<img width="640" height="480" src="src="https://github.com/oernster/NarrateX/tree/main/images/narratex.png" />  
 
 ## Supported book formats
 
