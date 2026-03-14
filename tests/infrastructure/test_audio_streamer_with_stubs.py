@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 
 from voice_reader.infrastructure.audio.audio_streamer import SoundDeviceAudioStreamer
+from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 
 
 def test_audio_streamer_plays_all_chunks(monkeypatch, tmp_path: Path) -> None:
@@ -72,6 +73,7 @@ def test_audio_streamer_plays_all_chunks(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setitem(__import__("sys").modules, "sounddevice", fake_sd)
 
     streamer = SoundDeviceAudioStreamer(target_buffer_seconds=15.0)
+    streamer.set_playback_rate(PlaybackRate(1.25))
     streamer.start(chunk_audio_paths=[p1, p2])
     # With OutputStream available, the streamer should primarily use stream.write
     # rather than sd.play().

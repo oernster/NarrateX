@@ -14,6 +14,7 @@ from voice_reader.application.dto.narration_state import NarrationStatus
 from voice_reader.application.services.narration_service import NarrationService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
+from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
 from voice_reader.ui.main_window import MainWindow
 
@@ -54,10 +55,35 @@ class UiController(QObject):
         self.window.play_clicked.connect(self.play)
         self.window.pause_clicked.connect(self.pause)
         self.window.stop_clicked.connect(self.stop)
+        if hasattr(self.window, "speed_changed"):
+            try:
+                self.window.speed_changed.connect(self.set_speed)
+            except Exception:
+                pass
 
         self.state_received.connect(self._apply_state)
         self.narration_service.add_listener(self.on_state)
         self.refresh_voices()
+
+        # Initialize playback speed once (session-only).
+        try:
+            self.set_speed("1.00x")
+        except Exception:
+            pass
+
+    def set_speed(self, text: str) -> None:
+        try:
+            raw = str(text).strip().lower().replace("x", "")
+            value = float(raw)
+            rate = PlaybackRate(value)
+        except Exception:
+            self._log.debug("Ignoring invalid speed value: %r", text)
+            return
+
+        try:
+            self.narration_service.set_playback_rate(rate)
+        except Exception:
+            self._log.exception("Failed setting playback rate")
 
     def refresh_voices(self) -> None:
         voices = [v for v in self.voice_service.list_profiles() if v.name != "system"]
@@ -125,7 +151,10 @@ class UiController(QObject):
             return None
         # Prefer resolving by stored internal ID (combo item data). Fallback to
         # currentText for older/placeholder items.
-        name = self.window.voice_combo.currentData() or self.window.voice_combo.currentText()
+        name = (
+            self.window.voice_combo.currentData()
+            or self.window.voice_combo.currentText()
+        )
         for v in self._voices:
             if v.name == name:
                 return v
@@ -230,6 +259,32 @@ class UiController(QObject):
             pass
 
         self.window.progress.setValue(int(state.progress * 100))
+
+        # Lock voice + speed selection while playing.
+        # Disabling prevents mid-play changes; the locked styling provides a
+        # clear visual indicator even on a dark theme.
+        try:
+            # IMPORTANT:
+            # State updates can arrive from both playback and synthesis/prefetch.
+            # While playback is active, background synth updates may emit
+            # `SYNTHESIZING` states. Requirement: voice/speed must only be
+            # editable when paused/stopped/idle.
+            editable_statuses = {
+                NarrationStatus.IDLE,
+                NarrationStatus.PAUSED,
+                NarrationStatus.STOPPED,
+                NarrationStatus.ERROR,
+            }
+            locked = state.status not in editable_statuses
+            for combo in (getattr(self.window, "voice_combo", None), getattr(self.window, "speed_combo", None)):
+                if combo is None:
+                    continue
+                combo.setEnabled(not locked)
+                combo.setProperty("locked", bool(locked))
+                combo.style().unpolish(combo)
+                combo.style().polish(combo)
+        except Exception:
+            pass
         # Visible highlighting must reflect *audible* playback only.
         # Prefer the new audible range fields; fall back to legacy highlight_* for
         # compatibility with older state producers.

@@ -32,6 +32,13 @@ def test_main_window_help_and_about_smoke(qapp) -> None:
     assert APP_NAME in about.windowTitle()
 
 
+def test_main_window_speed_combo_smoke(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    assert hasattr(w, "speed_combo")
+    assert w.speed_combo.currentText() == "1.00x"
+
+
 def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
     """Smoke test for the two top-right licence buttons."""
 

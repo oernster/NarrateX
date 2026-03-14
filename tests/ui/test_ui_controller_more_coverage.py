@@ -15,6 +15,7 @@ from voice_reader.ui.ui_controller import UiController
 class _FakeNarration:
     listeners: list
     state: NarrationState
+    last_rate: float | None = None
 
     def add_listener(self, listener):
         self.listeners.append(listener)
@@ -34,6 +35,10 @@ class _FakeNarration:
 
     def stop(self):
         return
+
+    def set_playback_rate(self, rate) -> None:
+        # Accept a PlaybackRate-ish object (value object in real code).
+        self.last_rate = float(getattr(rate, "multiplier", rate))
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,14 +115,19 @@ def test_select_book_cancel_noop(monkeypatch, qapp) -> None:
 
     # Cancel dialog.
     monkeypatch.setattr(
-        __import__("voice_reader.ui.ui_controller", fromlist=["QFileDialog"]).QFileDialog,
+        __import__(
+            "voice_reader.ui.ui_controller",
+            fromlist=["QFileDialog"],
+        ).QFileDialog,
         "getOpenFileName",
         lambda *a, **k: ("", ""),
     )
     c.select_book()
 
 
-def test_select_book_cover_extractor_failure_is_ignored(monkeypatch, qapp, tmp_path: Path) -> None:
+def test_select_book_cover_extractor_failure_is_ignored(
+    monkeypatch, qapp, tmp_path: Path
+) -> None:
     del qapp
     w = MainWindow()
     narration = _FakeNarration(
@@ -142,11 +152,22 @@ def test_select_book_cover_extractor_failure_is_ignored(monkeypatch, qapp, tmp_p
     p.write_text("x", encoding="utf-8")
 
     monkeypatch.setattr(
-        __import__("voice_reader.ui.ui_controller", fromlist=["QFileDialog"]).QFileDialog,
+        __import__(
+            "voice_reader.ui.ui_controller",
+            fromlist=["QFileDialog"],
+        ).QFileDialog,
         "getOpenFileName",
         lambda *a, **k: (str(p), ""),
     )
-    monkeypatch.setattr(c, "_cover_extractor", SimpleNamespace(extract_cover_bytes=lambda path: (_ for _ in ()).throw(RuntimeError("x"))))
+    monkeypatch.setattr(
+        c,
+        "_cover_extractor",
+        SimpleNamespace(
+            extract_cover_bytes=lambda path: (
+                _ for _ in ()
+            ).throw(RuntimeError("x"))
+        ),
+    )
     c.select_book()
 
 
@@ -203,3 +224,28 @@ def test_apply_state_ignores_non_state(monkeypatch, qapp) -> None:
     )
     c._apply_state(object())  # pylint: disable=protected-access
 
+
+def test_speed_changed_calls_service(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    narration = _FakeNarration(
+        listeners=[],
+        state=NarrationState(
+            status=NarrationStatus.IDLE,
+            current_chunk_id=None,
+            total_chunks=None,
+            progress=0.0,
+        ),
+    )
+    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    c = UiController(
+        window=w,
+        narration_service=narration,  # type: ignore[arg-type]
+        voice_service=voice_service,
+        device="cpu",
+        engine_name="engine",
+    )
+
+    # Drive controller logic directly (signal wiring covered by smoke tests).
+    c.set_speed("1.25x")
+    assert narration.last_rate == 1.25

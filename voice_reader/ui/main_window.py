@@ -42,6 +42,7 @@ class MainWindow(QMainWindow):
     play_clicked = Signal()
     pause_clicked = Signal()
     stop_clicked = Signal()
+    speed_changed = Signal(str)
 
     def __init__(self, strings: UiStrings | None = None) -> None:
         super().__init__()
@@ -70,6 +71,13 @@ class MainWindow(QMainWindow):
         self.btn_select_book = QPushButton(self._strings.select_book)
         self.voice_combo = QComboBox()
         self.voice_combo.setMinimumWidth(220)
+
+        self.speed_combo = QComboBox()
+        self.speed_combo.setMinimumWidth(95)
+        for s in ["0.75x", "1.00x", "1.25x", "1.50x", "2.00x"]:
+            self.speed_combo.addItem(s)
+        self.speed_combo.setCurrentText("1.00x")
+
         self.btn_play = QPushButton(self._strings.play)
         self.btn_pause = QPushButton(self._strings.pause)
         self.btn_stop = QPushButton(self._strings.stop)
@@ -79,6 +87,8 @@ class MainWindow(QMainWindow):
         controls.addWidget(self.btn_select_book)
         controls.addWidget(QLabel(self._strings.select_voice))
         controls.addWidget(self.voice_combo)
+        controls.addWidget(QLabel("Speed"))
+        controls.addWidget(self.speed_combo)
         controls.addStretch(1)
         controls.addWidget(self.btn_play)
         controls.addWidget(self.btn_pause)
@@ -208,6 +218,7 @@ class MainWindow(QMainWindow):
         self.btn_play.clicked.connect(self.play_clicked.emit)
         self.btn_pause.clicked.connect(self.pause_clicked.emit)
         self.btn_stop.clicked.connect(self.stop_clicked.emit)
+        self.speed_combo.currentTextChanged.connect(self.speed_changed.emit)
 
     def _apply_theme(self) -> None:
         # Dark theme with purple accents.
@@ -215,6 +226,11 @@ class MainWindow(QMainWindow):
         bg = "#0b0f17"
         panel = "#121826"
         text = "#e5e7eb"
+
+        # Locked dropdown accent: amber (readable on dark UI, clearly different
+        # from normal focus/hover purple).
+        locked_bg = "#172033"
+        locked_border = "#f59e0b"
         self.setStyleSheet(f"""
             QMainWindow {{ background: {bg}; }}
             QWidget {{ color: {text}; font-family: Segoe UI; }}
@@ -227,6 +243,21 @@ class MainWindow(QMainWindow):
                 border: 1px solid #1f2937;
                 padding: 4px 8px;
             }}
+
+            /* Clearly indicate "locked while playing" dropdowns. */
+            QComboBox[locked="true"] {{
+                background: {locked_bg};
+                border: 1px solid {locked_border};
+                color: {text};
+            }}
+            QComboBox[locked="true"]::drop-down {{
+                border-left: 1px solid {locked_border};
+            }}
+            QComboBox[locked="true"]:disabled {{
+                /* Keep text readable even when disabled. */
+                color: #cbd5e1;
+            }}
+
             QLabel#cover {{
                 background: {panel};
                 border: 1px solid #1f2937;
@@ -293,7 +324,10 @@ class MainWindow(QMainWindow):
         box.setText(
             """
             <div>
-              <div style="font-size: 16px;"><b>{app}</b> <span style="font-size: 12px;">v{ver}</span></div>
+              <div style="font-size: 16px;">
+                <b>{app}</b>
+                <span style="font-size: 12px;">v{ver}</span>
+              </div>
               <div style="margin-top: 6px;">{copyright}</div>
               <div style="margin-top: 10px;"><b>Author</b>: {author}</div>
               <div style="margin-top: 10px;"><b>Thanks</b>:</div>
@@ -346,7 +380,7 @@ class MainWindow(QMainWindow):
                 return
             except Exception:
                 pass
-        
+
         text = read_licence_text(filename)
         dlg = PlainTextLicenceDialog(
             parent=self,

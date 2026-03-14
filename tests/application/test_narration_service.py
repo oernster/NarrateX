@@ -13,6 +13,7 @@ from voice_reader.domain.interfaces.cache_repository import CacheRepository
 from voice_reader.domain.interfaces.tts_engine import TTSEngine
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.domain.services.reading_start_service import ReadingStart
+from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,6 +88,7 @@ class FakeStreamer(AudioStreamer):
     pause_calls: int = 0
     _stop_flag: bool = False
     _pause_flag: bool = False
+    rate: PlaybackRate = PlaybackRate.default()
 
     def start(
         self,
@@ -132,6 +134,9 @@ class FakeStreamer(AudioStreamer):
         except Exception:
             pass
         return
+
+    def set_playback_rate(self, rate: PlaybackRate) -> None:
+        self.rate = rate
 
     def resume(self) -> None:
         self._pause_flag = False
@@ -228,6 +233,39 @@ def test_prepare_can_restart_from_playback_index(tmp_path: Path) -> None:
     assert svc.wait(timeout_seconds=5.0)
     # Should play fewer than full chunk count.
     assert len(streamer.played) < len(chunks)
+
+
+def test_set_playback_rate_forwards_to_streamer(tmp_path: Path) -> None:
+    book = Book(
+        id="b1",
+        title="Test",
+        raw_text="Hello",
+        normalized_text="Hello world.",
+    )
+    voice = VoiceProfile(name="alice", reference_audio_paths=[tmp_path / "a.wav"])
+    (tmp_path / "a.wav").write_bytes(b"x")
+
+    cache = FakeCache(base=tmp_path / "cache", existing=set())
+    engine = FakeTTSEngine(calls=[])
+    streamer = FakeStreamer(played=[])
+
+    svc = NarrationService(
+        book_repo=FakeBookRepo(book=book),
+        cache_repo=cache,
+        tts_engine=engine,
+        audio_streamer=streamer,
+        chunking_service=ChunkingService(min_chars=10, max_chars=40),
+        device="cpu",
+        language="en",
+        reading_start_detector=FixedStart(fixed_start_char=0),
+    )
+
+    svc.load_book(tmp_path / "book.txt")
+    svc.prepare(voice=voice)
+
+    svc.set_playback_rate(PlaybackRate(1.5))
+    assert streamer.rate.multiplier == 1.5
+    assert svc.playback_rate().multiplier == 1.5
 
 
 def test_pause_stops_prefetch_beyond_current_chunk(tmp_path: Path) -> None:

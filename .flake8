@@ -1,5 +1,16 @@
 [flake8]
 max-line-length = 88
 extend-ignore = E203,W503
-exclude = .git,__pycache__,.venv,venv,build,dist
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    venv*,
+    build,
+    dist,
+    dist-pyinstaller
 
+# NOTE:
+# Run flake8 against source roots (e.g. `voice_reader` / `tests`) rather than
+# `.` to avoid scanning large non-source directories.
