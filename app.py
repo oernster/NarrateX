@@ -23,7 +23,11 @@ import traceback
 from voice_reader.shared.config import Config
 from voice_reader.shared.external_runtime import configure_packaged_runtime
 from voice_reader.shared.logging_utils import configure_logging
-from voice_reader.shared.resources import find_app_icon_path
+from voice_reader.shared.resources import (
+    find_app_icon_path,
+    find_qt_window_icon_path,
+    iter_qt_window_icon_candidates,
+)
 from voice_reader.shared.windows_integration import set_app_user_model_id
 from voice_reader.version import APP_APPUSERMODELID, APP_NAME
 
@@ -353,18 +357,53 @@ def main() -> int:
             # Older bindings/platform quirks shouldn't stop startup.
             pass
 
-        icon_path = find_app_icon_path(project_root=project_root)
+        # Set a branded runtime window/taskbar icon.
+        #
+        # Important subtlety: in some frozen builds, the `.ico` file can exist
+        # but Qt fails to decode it (missing Qt ICO plugin), yielding a *null*
+        # QIcon. If we blindly pick the first existing icon path, the taskbar
+        # button can fall back to a generic/default icon.
+        icon_path = find_qt_window_icon_path(project_root=project_root)
+
+        # Some unit tests use a minimal fake logger without `.info()`.
+        _log_info = getattr(log, "info", None) or getattr(log, "debug", None)
+        if _log_info is not None:
+            _log_info("Resolved Qt window icon path: %s", icon_path)
+
+        chosen_icon = None
+
+        # 1) Try the preferred path (existing heuristic).
         if icon_path is not None:
             try:
-                app_icon = QIcon(str(icon_path))
-                app.setWindowIcon(app_icon)
+                candidate = QIcon(str(icon_path))
+                if not candidate.isNull():
+                    chosen_icon = candidate
+            except Exception:
+                # We'll fall back to other candidates below.
+                pass
+
+        # 2) If it's not loadable, try other existing files (ICO then PNGs).
+        if chosen_icon is None:
+            for p in iter_qt_window_icon_candidates(project_root=project_root):
+                try:
+                    candidate = QIcon(str(p))
+                    if not candidate.isNull():
+                        chosen_icon = candidate
+                        icon_path = p
+                        break
+                except Exception:
+                    continue
+
+        if chosen_icon is not None:
+            try:
+                app.setWindowIcon(chosen_icon)
             except Exception:
                 log.exception("Failed to set application icon")
 
         window = MainWindow()
-        if icon_path is not None:
+        if chosen_icon is not None:
             try:
-                window.setWindowIcon(QIcon(str(icon_path)))
+                window.setWindowIcon(chosen_icon)
             except Exception:
                 log.exception("Failed to set main window icon")
         UiController(

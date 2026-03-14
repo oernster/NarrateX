@@ -63,12 +63,12 @@ The app has been refactored to be **Kokoro-only**:
 
 This significantly reduces dependency creep and makes packaging more predictable.
 
-### Build (PowerShell)
+### Build the app EXE (PowerShell)
 
 ```powershell
  .venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-python buildpyinstaller.py
+python buildexe.py
 ```
 
 Output:
@@ -77,6 +77,33 @@ Output:
 
 This uses a **onedir** build (recommended). The output folder will also contain
 `_internal/` with the PyInstaller runtime and bundled dependencies.
+
+## Windows installer builds
+
+The installer is a separate **onefile** PyInstaller build that embeds a payload
+zip of the app bundle.
+
+Build workflow:
+
+1) Build the app bundle (EXE + `_internal/`): [`buildexe.py`](buildexe.py:1)
+2) Build the installer (`NarrateXSetup.exe`): [`buildinstaller.py`](buildinstaller.py:1)
+
+### Build installer (PowerShell)
+
+```powershell
+.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+
+# 1) Build dist-pyinstaller/NarrateX/NarrateX.exe (onedir)
+python buildexe.py
+
+# 2) Package payload + build dist-installer/NarrateXSetup.exe (onefile)
+python buildinstaller.py
+```
+
+Output:
+
+- `dist-installer/NarrateXSetup.exe`
 
 ### Troubleshooting
 

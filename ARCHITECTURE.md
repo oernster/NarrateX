@@ -186,7 +186,7 @@ The app is **Kokoro-only**.
 
 ## Packaging note (Windows)
 
-The Windows build goal is a Windows GUI executable built with PyInstaller via [`buildpyinstaller.py`](buildpyinstaller.py:1).
+The Windows build goal is a Windows GUI executable built with PyInstaller via [`buildexe.py`](buildexe.py:1).
 
 The current approach is a **onedir** build (fast + predictable):
 

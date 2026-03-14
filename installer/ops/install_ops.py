@@ -161,6 +161,46 @@ def _register_uninstall(
     )
 
 
+def _deploy_runtime_icon_assets(*, install_dir: Path) -> None:
+    """Ensure icon assets exist next to NarrateX.exe.
+
+    Rationale:
+    - Qt runtime window/taskbar icon: can use PNG fallback if ICO plugin missing.
+    - Shortcut icon: can point at narratex.ico.
+    - Explorer/Start Menu: exe embedded icon is primary, but having a stable
+      file icon helps for shortcuts and registry DisplayIcon.
+    """
+
+    project_root = Path(__file__).resolve().parents[2]
+
+    # Always try to deploy the ICO.
+    ico = find_app_icon_path(project_root=project_root)
+    if ico is not None:
+        try:
+            shutil.copy2(ico, install_dir / "narratex.ico")
+        except Exception:
+            pass
+
+    # Also deploy PNG fallbacks (best-effort). The app's runtime icon selection
+    # prefers ICO then uses these.
+    for name in [
+        "narratex_16.png",
+        "narratex_32.png",
+        "narratex_48.png",
+        "narratex_64.png",
+        "narratex_128.png",
+        "narratex_256.png",
+        "narratex_512.png",
+    ]:
+        src = project_root / name
+        if not src.exists():
+            continue
+        try:
+            shutil.copy2(src, install_dir / name)
+        except Exception:
+            pass
+
+
 def install_new(
     identity: InstallerIdentity,
     opts: InstallOptions,
@@ -182,6 +222,9 @@ def install_new(
 
         _check_cancel(cancel_event)
         _swap_in_bundle(staging_dir, target_dir)
+
+        # Make sure icon assets are available next to the installed exe.
+        _deploy_runtime_icon_assets(install_dir=target_dir)
 
         _progress(progress, pct=75, message="Registering uninstall entry...")
         _check_cancel(cancel_event)
@@ -238,7 +281,14 @@ def upgrade_or_reinstall(
         else:
             # Install to new location, then delete old.
             _swap_in_bundle(staging_dir, target_dir)
-            shutil.rmtree(current_install_dir, ignore_errors=True)
+
+            try:
+                shutil.rmtree(current_install_dir, ignore_errors=True)
+            except Exception:
+                pass
+
+        # Ensure icon assets are present for the active install location.
+        _deploy_runtime_icon_assets(install_dir=target_dir)
 
         _progress(progress, pct=75, message="Registering uninstall entry...")
         _check_cancel(cancel_event)

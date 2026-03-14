@@ -1,11 +1,11 @@
-"""Windows-only PyInstaller builder for NarrateX.
+"""Windows-only PyInstaller builder for the NarrateX application EXE.
 
 Goal: produce a runnable Windows GUI executable as fast as possible.
 
 Usage (PowerShell):
 
     venv/Scripts/Activate.ps1
-    python buildpyinstaller.py
+    python buildexe.py
 
 Output:
 
@@ -29,7 +29,7 @@ ICON_ICO = PROJECT_ROOT / "narratex.ico"
 
 def _require_windows() -> None:
     if os.name != "nt":
-        raise SystemExit("buildpyinstaller.py is Windows-only")
+        raise SystemExit("buildexe.py is Windows-only")
 
 
 def _run(cmd: list[str]) -> None:
@@ -136,6 +136,22 @@ def main() -> int:
 
     # Fast, reliable baseline: onedir build.
     log_level = os.getenv("NARRATEX_PYINSTALLER_LOG_LEVEL", "INFO").strip().upper()
+
+    # Ship runtime icon assets into the onedir bundle so Qt can load them at
+    # runtime for the taskbar/titlebar icon.
+    #
+    # Note: `--icon` only affects the *embedded* exe icon (Explorer/Start Menu).
+    # The running taskbar button typically uses the Qt window icon.
+    add_data = [
+        f"{PROJECT_ROOT / 'narratex.ico'};.",
+        f"{PROJECT_ROOT / 'narratex_16.png'};.",
+        f"{PROJECT_ROOT / 'narratex_32.png'};.",
+        f"{PROJECT_ROOT / 'narratex_48.png'};.",
+        f"{PROJECT_ROOT / 'narratex_64.png'};.",
+        f"{PROJECT_ROOT / 'narratex_128.png'};.",
+        f"{PROJECT_ROOT / 'narratex_256.png'};.",
+        f"{PROJECT_ROOT / 'narratex_512.png'};.",
+    ]
     cmd = [
         sys.executable,
         "-m",
@@ -213,9 +229,14 @@ def main() -> int:
         # optional scipy integrations. Exclude it explicitly to avoid PyInstaller
         # attempting to run hook-scipy.py in environments without scipy.
         "--exclude-module=scipy",
-
-        str(ENTRYPOINT),
     ]
+
+    for spec in add_data:
+        cmd.extend(["--add-data", spec])
+
+    # Important: the script/entrypoint must come last. Any options appended
+    # after it will be treated as script arguments and ignored by PyInstaller.
+    cmd.append(str(ENTRYPOINT))
 
     _run(cmd)
 

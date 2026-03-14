@@ -22,23 +22,33 @@ class _FakeQApplication:
     def __init__(self, argv) -> None:
         del argv
         self.aboutToQuit = _FakeSignal()
-        self.app_display_name_calls: list[str] = []
+        self.window_icons: list[object] = []
 
     def setApplicationName(self, _):
         return
 
-    def setApplicationDisplayName(self, name: str):
-        self.app_display_name_calls.append(name)
-
-    def setWindowIcon(self, _):
+    def setApplicationDisplayName(self, _):
         return
+
+    def setWindowIcon(self, icon) -> None:
+        self.window_icons.append(icon)
 
     def exec(self) -> int:
         self.aboutToQuit.emit()
         return 0
 
 
-def test_main_sets_application_display_name_when_supported(monkeypatch, tmp_path: Path) -> None:
+class _FakeQIcon:
+    """A fake QIcon that fails for .ico but succeeds for .png."""
+
+    def __init__(self, path: str | None = None) -> None:
+        self._path = path or ""
+
+    def isNull(self) -> bool:
+        return self._path.lower().endswith(".ico") or not self._path
+
+
+def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(app, "__file__", str(tmp_path / "app.py"))
 
     class _FakeConfig:
@@ -54,7 +64,11 @@ def test_main_sets_application_display_name_when_supported(monkeypatch, tmp_path
             self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
 
     monkeypatch.setattr(app.Config, "from_project_root", lambda project_root: _FakeConfig())
-    monkeypatch.setattr(app, "QApplication", _FakeQApplication)
+
+    # Minimal wiring.
+    fake_qapp = _FakeQApplication([])
+    monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
+    monkeypatch.setattr(app, "QIcon", _FakeQIcon)
     monkeypatch.setattr(app, "MainWindow", lambda: SimpleNamespace(setWindowIcon=lambda *_: None, show=lambda: None))
     monkeypatch.setattr(app, "UiController", lambda **kwargs: SimpleNamespace(**kwargs))
 
@@ -66,18 +80,22 @@ def test_main_sets_application_display_name_when_supported(monkeypatch, tmp_path
     monkeypatch.setattr(app, "VoiceProfileService", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(app, "SoundDeviceAudioStreamer", lambda **kwargs: SimpleNamespace(**kwargs))
     monkeypatch.setattr(app, "ChunkingService", lambda **kwargs: SimpleNamespace(**kwargs))
-
     monkeypatch.setattr(app, "TTSEngineFactory", lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="fake")))
     monkeypatch.setattr(app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=lambda: None))
 
-    monkeypatch.setattr(app, "find_app_icon_path", lambda **kwargs: None)
-    monkeypatch.setattr(app, "find_qt_window_icon_path", lambda **kwargs: None)
-    monkeypatch.setattr(app, "iter_qt_window_icon_candidates", lambda **kwargs: [])
-
-    fake_qapp = _FakeQApplication([])
-    monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
+    # Simulate heuristic preferring ICO, but ICO is unloadable; candidates include PNG.
+    monkeypatch.setattr(app, "find_qt_window_icon_path", lambda **kwargs: tmp_path / "narratex.ico")
+    monkeypatch.setattr(
+        app,
+        "iter_qt_window_icon_candidates",
+        lambda **kwargs: [tmp_path / "narratex.ico", tmp_path / "narratex_256.png"],
+    )
 
     rc = app.main()
     assert rc == 0
-    assert fake_qapp.app_display_name_calls, "Expected setApplicationDisplayName to be called"
+    assert fake_qapp.window_icons, "Expected QApplication.setWindowIcon to be called"
+
+    chosen = fake_qapp.window_icons[-1]
+    assert isinstance(chosen, _FakeQIcon)
+    assert chosen._path.lower().endswith(".png"), "Expected fallback to a PNG-based icon"
 
