@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
+    QDialog,
     QMainWindow,
     QPushButton,
     QProgressBar,
@@ -21,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from voice_reader.version import APP_AUTHOR, APP_COPYRIGHT, APP_NAME, __version__
+from voice_reader.ui.licence_dialog import PlainTextLicenceDialog, read_licence_text
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,6 +112,30 @@ class MainWindow(QMainWindow):
         right_panel.setSpacing(6)
         right_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
 
+        # Top-right buttons.
+        # Add UI/Backend licence buttons to the left of the About button.
+        self.btn_ui_licence = QToolButton()
+        self.btn_ui_licence.setText("📜")
+        self.btn_ui_licence.setObjectName("uiLicenceButton")
+        self.btn_ui_licence.setToolTip("UI licence")
+        self.btn_ui_licence.setCursor(Qt.PointingHandCursor)
+        self.btn_ui_licence.setAutoRaise(True)
+        self.btn_ui_licence.setFixedSize(34, 34)
+        self.btn_ui_licence.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_ui_licence.setProperty("topIconButton", True)
+        self.btn_ui_licence.clicked.connect(self._show_ui_licence_dialog)
+
+        self.btn_backend_licence = QToolButton()
+        self.btn_backend_licence.setText("📃")
+        self.btn_backend_licence.setObjectName("backendLicenceButton")
+        self.btn_backend_licence.setToolTip("Backend licence")
+        self.btn_backend_licence.setCursor(Qt.PointingHandCursor)
+        self.btn_backend_licence.setAutoRaise(True)
+        self.btn_backend_licence.setFixedSize(34, 34)
+        self.btn_backend_licence.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_backend_licence.setProperty("topIconButton", True)
+        self.btn_backend_licence.clicked.connect(self._show_backend_licence_dialog)
+
         # Info button (top-right) that opens About directly.
         self.btn_help = QToolButton()
         # Blue help/info glyph as requested.
@@ -120,11 +146,15 @@ class MainWindow(QMainWindow):
         self.btn_help.setAutoRaise(True)
         self.btn_help.setFixedSize(34, 34)
         self.btn_help.setFont(QFont("Segoe UI", 15))
+        self.btn_help.setProperty("topIconButton", True)
         self.btn_help.clicked.connect(self.show_about_dialog)
 
         help_row = QHBoxLayout()
         help_row.setContentsMargins(0, 0, 0, 0)
+        help_row.setSpacing(4)
         help_row.addStretch(1)
+        help_row.addWidget(self.btn_ui_licence)
+        help_row.addWidget(self.btn_backend_licence)
         help_row.addWidget(self.btn_help)
         right_panel.addLayout(help_row)
 
@@ -210,18 +240,21 @@ class MainWindow(QMainWindow):
             QPushButton:hover {{ border-color: {purple}; }}
             QPushButton:pressed {{ background: #111827; }}
 
-            QToolButton#helpButton {{
+            QToolButton[topIconButton="true"] {{
                 background: transparent;
                 border: 2px solid transparent;
                 border-radius: 17px;
                 padding: 0px;
-                color: #3b82f6;
+                color: {text};
             }}
-            QToolButton#helpButton:hover {{
+            QToolButton[topIconButton="true"]:hover {{
                 border-color: #ffffff;
             }}
-            QToolButton#helpButton:pressed {{
+            QToolButton[topIconButton="true"]:pressed {{
                 background: rgba(255, 255, 255, 0.08);
+            }}
+            QToolButton#helpButton {{
+                color: #3b82f6;
             }}
 
             QProgressBar {{
@@ -280,6 +313,64 @@ class MainWindow(QMainWindow):
 
     def show_about_dialog(self) -> None:
         self.build_about_dialog().exec()
+
+    def _show_ui_licence_dialog(self) -> None:
+        self._open_licence_dialog(
+            attr_name="_ui_licence_dialog",
+            title="UI licence",
+            filename="LGPL3-LICENSE",
+        )
+
+    def _show_backend_licence_dialog(self) -> None:
+        self._open_licence_dialog(
+            attr_name="_backend_licence_dialog",
+            title="Backend licence",
+            filename="LICENSE",
+            initial_width=475,
+        )
+
+    def _open_licence_dialog(
+        self,
+        *,
+        attr_name: str,
+        title: str,
+        filename: str,
+        initial_width: int = 760,
+        initial_height: int = 560,
+    ) -> None:
+        existing = getattr(self, attr_name, None)
+        if isinstance(existing, QDialog):
+            try:
+                existing.raise_()
+                existing.activateWindow()
+                return
+            except Exception:
+                pass
+        
+        text = read_licence_text(filename)
+        dlg = PlainTextLicenceDialog(
+            parent=self,
+            title=title,
+            text=text,
+            initial_width=initial_width,
+            initial_height=initial_height,
+        )
+        setattr(self, attr_name, dlg)
+
+        def _clear_ref() -> None:
+            try:
+                if getattr(self, attr_name, None) is dlg:
+                    setattr(self, attr_name, None)
+            except Exception:
+                pass
+
+        try:
+            dlg.finished.connect(_clear_ref)
+        except Exception:
+            pass
+
+        # Non-blocking but modal.
+        dlg.open()
 
     def set_reader_text(self, text: str) -> None:
         self.reader.setPlainText(text)
