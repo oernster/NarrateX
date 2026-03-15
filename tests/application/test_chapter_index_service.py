@@ -22,7 +22,9 @@ def test_build_index_detects_chapter_1_and_resolves_offsets_and_chunk_index() ->
     assert chapters[1].chunk_index == 1
 
 
-def test_build_index_maps_to_playback_candidate_indices_skipping_silent_chunks() -> None:
+def test_build_index_maps_to_playback_candidate_indices_skipping_silent_chunks() -> (
+    None
+):
     # A first chunk that sanitizes to empty should not count toward playback indices.
     silent = "1\n1.1\n"  # sanitizer drops number-only and numbering prefixes
     c1 = "Chapter 1\nHello.\n"
@@ -59,7 +61,7 @@ def test_build_index_detects_roman_numeral_headings_case_insensitive() -> None:
 
 
 def test_build_index_ignores_unsupported_headings() -> None:
-    text = "Part 1\nChapterhouse\n\"In this chapter we discuss\"\n"
+    text = 'Part 1\nChapterhouse\n"In this chapter we discuss"\n'
     chunks = [TextChunk(chunk_id=0, text=text, start_char=0, end_char=len(text))]
     svc = ChapterIndexService()
     chapters = svc.build_index(text, chunks=chunks, min_char_offset=0)
@@ -96,7 +98,9 @@ def test_resolve_chunk_index_returns_none_when_after_last_candidate() -> None:
     assert [c.title for c in chapters] == ["Chapter 1"]
 
 
-def test_build_index_filters_chapters_when_candidate_ends_before_min_char_offset() -> None:
+def test_build_index_filters_chapters_when_candidate_ends_before_min_char_offset() -> (
+    None
+):
     svc = ChapterIndexService()
     text = "Chapter 1\nA\n\nChapter 2\nB\n"
     chunks = [
@@ -108,7 +112,9 @@ def test_build_index_filters_chapters_when_candidate_ends_before_min_char_offset
     assert [c.title for c in chapters] == ["Chapter 2"]
 
 
-def test_build_index_filters_chapters_on_exception_accessing_candidate(monkeypatch) -> None:
+def test_build_index_filters_chapters_on_exception_accessing_candidate(
+    monkeypatch,
+) -> None:
     del monkeypatch
     svc = ChapterIndexService()
     text = "Chapter 1\nA\n"
@@ -230,4 +236,3 @@ def test_get_next_chapter_handles_exception_indexing() -> None:
     # get_next_chapter assumes normal Sequence semantics.
     svc = ChapterIndexService()
     assert svc.get_next_chapter([], current_char_offset=-1) is None
-

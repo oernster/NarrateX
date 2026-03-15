@@ -32,4 +32,3 @@ def test_chapter_spine_widget_y_positions_single_chapter(qapp) -> None:
     w = ChapterSpineWidget()
     w.set_chapters([Chapter(title="Chapter 1", char_offset=0, chunk_index=0)])
     assert w._y_positions(top=0, bottom=10) == [5]  # noqa: SLF001
-

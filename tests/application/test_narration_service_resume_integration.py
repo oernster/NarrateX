@@ -66,6 +66,9 @@ class _FakeStreamer:
     def set_playback_rate(self, rate) -> None:
         del rate
 
+    def set_volume(self, volume) -> None:
+        del volume
+
     def start(
         self,
         *,

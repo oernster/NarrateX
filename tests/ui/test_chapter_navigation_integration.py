@@ -65,7 +65,9 @@ class _FakeBookmarkRepo:
     def delete_bookmark(self, *, book_id: str, bookmark_id: int) -> None:
         del book_id, bookmark_id
 
-    def save_resume_position(self, *, book_id: str, char_offset: int, chunk_index: int) -> None:
+    def save_resume_position(
+        self, *, book_id: str, char_offset: int, chunk_index: int
+    ) -> None:
         del book_id, char_offset, chunk_index
 
     def load_resume_position(self, *, book_id: str):
@@ -98,7 +100,9 @@ def test_chapter_controls_disabled_when_no_chapters(qapp) -> None:
     assert w.btn_next_chapter.isEnabled() is False
 
 
-def test_prev_next_chapter_jump_uses_prepare_with_target_chunk_index(qapp, monkeypatch) -> None:
+def test_prev_next_chapter_jump_uses_prepare_with_target_chunk_index(
+    qapp, monkeypatch
+) -> None:
     del qapp
     del monkeypatch
     w = MainWindow()
@@ -172,4 +176,3 @@ def test_prev_next_chapter_boundaries_noop(qapp) -> None:
     narration.current_pos = (5, 200)
     c.next_chapter()
     assert narration.prepare_calls == []
-

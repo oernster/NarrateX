@@ -1,4 +1,8 @@
-"""UI controller bridging PySide UI and application services."""
+"""UI controller bridging PySide UI and application services.
+
+This module is intentionally small; implementation details live in helper
+modules under `voice_reader.ui._ui_controller_*`.
+"""
 
 from __future__ import annotations
 
@@ -10,27 +14,36 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QFileDialog
 
 from voice_reader.application.dto.narration_state import NarrationState
-from voice_reader.application.dto.narration_state import NarrationStatus
-from voice_reader.application.services.narration_service import NarrationService
 from voice_reader.application.services.bookmark_service import BookmarkService
-from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.application.services.chapter_index_service import ChapterIndexService
-from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
-from voice_reader.domain.entities.voice_profile import VoiceProfile
+from voice_reader.application.services.narration_service import NarrationService
+from voice_reader.application.services.navigation_chunk_service import (
+    NavigationChunkService,
+)
+from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.chapter import Chapter
-from voice_reader.domain.value_objects.playback_rate import PlaybackRate
+from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
-from voice_reader.ui.bookmarks_dialog import BookmarksDialog, BookmarksDialogActions
+from voice_reader.ui._ui_controller_bookmarks import open_bookmarks_dialog
+from voice_reader.ui._ui_controller_chapters import (
+    apply_chapter_controls,
+    next_chapter,
+    previous_chapter,
+)
+from voice_reader.ui._ui_controller_playback import (
+    pause,
+    play,
+    set_speed,
+    set_volume,
+    stop,
+)
+from voice_reader.ui._ui_controller_state import apply_state, on_state
 from voice_reader.ui.main_window import MainWindow
 
 
 class UiController(QObject):
-    """Testable controller.
-
-    Receives narration state updates from a background thread and updates the UI
-    via a Qt queued signal to stay thread-safe.
-    """
+    """Testable controller."""
 
     state_received = Signal(object)
 
@@ -52,14 +65,17 @@ class UiController(QObject):
         self.voice_service = voice_service
         self.device = device
         self.engine_name = engine_name
+
         self._voices: Sequence[VoiceProfile] = []
         self._last_prepared_voice_id: str | None = None
         self._cover_extractor = CoverExtractor()
+        self._bookmarks_dialog = None
 
         self._chapter_index_service = ChapterIndexService()
+        self._chapters: list[Chapter] = []
+        self._current_chapter: Chapter | None = None
 
-        # Keep controller usable with existing UI tests that pass a minimal
-        # narration stub. Fall back to default domain services if missing.
+        # Optional dependency for chapter indexing on load.
         try:
             detector = self.narration_service.reading_start_detector
         except Exception:
@@ -70,27 +86,59 @@ class UiController(QObject):
             chunker = None
 
         if chunker is None:
-            # Avoid importing ChunkingService here to keep UI layer light; if the
-            # narration stub doesn't provide a chunker, chapter indexing on book
-            # load is simply disabled.
             self._navigation_chunk_service = None
         else:
             self._navigation_chunk_service = NavigationChunkService(
                 reading_start_detector=detector,
                 chunking_service=chunker,
             )
-        self._chapters: list[Chapter] = []
-        self._current_chapter: Chapter | None = None
 
-        # Ensure chapter controls are inert until a book provides chapters.
         try:
             self.window.set_chapter_controls_enabled(previous=False, next_=False)
         except Exception:
             pass
 
-        self.window.lbl_device.setText(f"Device: {self.device}")
-        self.window.lbl_engine.setText(f"Engine: {self.engine_name}")
+        try:
+            self.window.lbl_device.setText(f"Device: {self.device}")
+            self.window.lbl_engine.setText(f"Engine: {self.engine_name}")
+        except Exception:
+            pass
 
+        self._connect_signals()
+
+        # Keep the legacy method names for UI tests/backwards-compat.
+        self.state_received.connect(self._apply_state)
+        self.narration_service.add_listener(self.on_state)
+
+        self.refresh_voices()
+
+        # Initialize playback controls (session-only).
+        try:
+            self.set_speed("1.00x")
+        except Exception:
+            pass
+        # Respect persisted/default volume by pulling from the service when possible.
+        try:
+            raw = getattr(self.narration_service, "playback_volume")()
+            v = int(round(float(getattr(raw, "multiplier", 1.0)) * 100.0))
+            self.set_volume(v)
+        except Exception:
+            try:
+                self.set_volume(100)
+            except Exception:
+                pass
+
+    def on_state(self, state: NarrationState) -> None:
+        """Receive narration state updates (may be called from a background thread)."""
+
+        return on_state(self, state)
+
+    def _apply_state(self, state: object) -> None:
+        """Apply a narration state to the UI (runs on the Qt UI thread)."""
+
+        return apply_state(self, state)
+
+    def _connect_signals(self) -> None:
         self.window.select_book_clicked.connect(self.select_book)
         self.window.play_clicked.connect(self.play)
         self.window.pause_clicked.connect(self.pause)
@@ -116,47 +164,46 @@ class UiController(QObject):
                 self.window.speed_changed.connect(self.set_speed)
             except Exception:
                 pass
-
-        self.state_received.connect(self._apply_state)
-        self.narration_service.add_listener(self.on_state)
-        self.refresh_voices()
-
-        self._bookmarks_dialog: BookmarksDialog | None = None
-
-        # Initialize playback speed once (session-only).
-        try:
-            self.set_speed("1.00x")
-        except Exception:
-            pass
+        if hasattr(self.window, "volume_changed"):
+            try:
+                self.window.volume_changed.connect(self.set_volume)
+            except Exception:
+                pass
 
     def set_speed(self, text: str) -> None:
-        try:
-            raw = str(text).strip().lower().replace("x", "")
-            value = float(raw)
-            rate = PlaybackRate(value)
-        except Exception:
-            self._log.debug("Ignoring invalid speed value: %r", text)
-            return
+        return set_speed(self, text)
 
-        try:
-            self.narration_service.set_playback_rate(rate)
-        except Exception:
-            self._log.exception("Failed setting playback rate")
+    def set_volume(self, value: int) -> None:
+        return set_volume(self, value)
+
+    def play(self) -> None:
+        return play(self)
+
+    def pause(self) -> None:
+        return pause(self)
+
+    def stop(self) -> None:
+        return stop(self)
+
+    def open_bookmarks_dialog(self) -> None:
+        return open_bookmarks_dialog(self)
+
+    def previous_chapter(self) -> None:
+        return previous_chapter(self)
+
+    def next_chapter(self) -> None:
+        return next_chapter(self)
 
     def refresh_voices(self) -> None:
         voices = [v for v in self.voice_service.list_profiles() if v.name != "system"]
-        # Sort alphabetically by the human-readable label.
         voices.sort(key=lambda v: self._voice_label(v).casefold())
         self._voices = voices
+
         self.window.voice_combo.clear()
         for v in self._voices:
-            # Show a friendly name but keep the underlying voice ID recoverable.
-            # We store the internal ID in the item's data so selection works even
-            # when the display label is prettified.
             self.window.voice_combo.addItem(self._voice_label(v), v.name)
         if not self._voices:
             self.window.voice_combo.addItem("(no voices found)")
-        self._log.debug("Loaded %s voice profiles", len(self._voices))
 
     def select_book(self) -> None:
         path_str, _ = QFileDialog.getOpenFileName(
@@ -167,26 +214,11 @@ class UiController(QObject):
         )
         if not path_str:
             return
+
         path = Path(path_str)
-        try:
-            abs_path = path.resolve()
-        except Exception:
-            abs_path = path
-        try:
-            abs_parent = path.parent.resolve()
-        except Exception:
-            abs_parent = path.parent
-        cover_jpg_exists = (path.parent / "cover.jpg").exists()
-        self._log.info(
-            "Selected book path=%s parent=%s cover.jpg.exists=%s",
-            abs_path,
-            abs_parent,
-            cover_jpg_exists,
-        )
         book = self.narration_service.load_book(path)
         self.window.set_reader_text(book.normalized_text)
 
-        # Build navigation chunks and chapter index (session-only, no persistence).
         start_char_for_ui = 0
         try:
             if self._navigation_chunk_service is not None:
@@ -211,33 +243,21 @@ class UiController(QObject):
                 self.window.chapter_spine.set_current_chapter(None)
         except Exception:
             pass
-        self._apply_chapter_controls(current_char_offset=int(start_char_for_ui))
+        apply_chapter_controls(self, current_char_offset=int(start_char_for_ui))
 
-        # Best-effort cover extraction (EPUB/PDF). Non-blocking would be nicer,
-        # but extraction is fast and failure is silent.
         try:
             cover = self._cover_extractor.extract_cover_bytes(path)
         except Exception:
-            self._log.exception("Cover extraction failed for path=%s", abs_path)
+            self._log.exception("Cover extraction failed")
             cover = None
-        self._log.info(
-            "Cover bytes loaded=%s",
-            "None" if cover is None else str(len(cover)),
-        )
         try:
             self.window.set_cover_image(cover)
         except Exception:
-            # If the window implementation changes, don't fail book loading.
             self._log.exception("Failed to set cover image")
-        self._log.info("Selected book: %s", book.title)
-
-        # After loading a book, next Play should auto-resume (handled by NarrationService.prepare).
 
     def _selected_voice(self) -> VoiceProfile | None:
         if not self._voices:
             return None
-        # Prefer resolving by stored internal ID (combo item data). Fallback to
-        # currentText for older/placeholder items.
         name = (
             self.window.voice_combo.currentData()
             or self.window.voice_combo.currentText()
@@ -249,308 +269,12 @@ class UiController(QObject):
 
     @staticmethod
     def _voice_label(voice: VoiceProfile) -> str:
-        """Convert internal voice IDs into human readable dropdown labels."""
-
-        # Kokoro voice IDs: <region><gender>_<name>, e.g. bf_emma, am_michael.
         parts = voice.name.split("_", 1)
         if len(parts) == 2 and len(parts[0]) == 2:
             prefix, raw_name = parts
-            region = prefix[0]
-            gender = prefix[1]
-
-            region_label = {"b": "British", "a": "American"}.get(region)
-            gender_label = {"f": "Female", "m": "Male"}.get(gender)
+            region_label = {"b": "British", "a": "American"}.get(prefix[0])
+            gender_label = {"f": "Female", "m": "Male"}.get(prefix[1])
             name_label = raw_name.replace("-", " ").replace("_", " ").title()
-
             if region_label and gender_label:
                 return f"{name_label} ({region_label} {gender_label})"
-
-        # Default: prettify snake-case while keeping user voice names readable.
         return voice.name.replace("_", " ").strip().title()
-
-    def play(self) -> None:
-        # Semantics:
-        # - If paused: resume (replay current chunk from beginning)
-        # - If stopped/idle: (re)prepare and start from beginning
-        # - If already playing: no-op
-        start_playback_index: int | None = None
-        st = getattr(self.narration_service, "state", None)
-        if isinstance(st, NarrationState):
-            if st.status == NarrationStatus.PAUSED:
-                # If user changed the voice while paused, apply it by restarting
-                # narration with a new prepare()+start() rather than resuming.
-                voice = self._selected_voice()
-                if (
-                    voice is not None
-                    and self._last_prepared_voice_id is not None
-                    and voice.name != self._last_prepared_voice_id
-                ):
-                    # Restart from the *current* chunk (chunk-level semantics).
-                    # Capture before stop() resets state.
-                    start_playback_index = int(st.current_chunk_id or 0)
-                    self.narration_service.stop()
-                else:
-                    self.narration_service.resume()
-                    return
-            if st.status == NarrationStatus.PLAYING:
-                return
-
-        voice = self._selected_voice()
-        if voice is None:
-            self._log.warning("No voice profiles available")
-            return
-
-        self._last_prepared_voice_id = voice.name
-
-        self._log.debug("Selected voice: %s (engine: %s)", voice.name, self.engine_name)
-
-        self.narration_service.prepare(
-            voice=voice,
-            start_playback_index=start_playback_index,
-        )
-        self.narration_service.start()
-
-    def pause(self) -> None:
-        self.narration_service.pause()
-
-    def stop(self) -> None:
-        self.narration_service.stop()
-
-    def open_bookmarks_dialog(self) -> None:
-        book_id = self.narration_service.loaded_book_id()
-        if not book_id:
-            return
-
-        def _list() -> list:
-            return self.bookmark_service.list_bookmarks(book_id=book_id)
-
-        def _add() -> None:
-            chunk_index, char_offset = self.narration_service.current_position()
-            if chunk_index is None or char_offset is None:
-                return
-
-            # Prevent duplicate bookmarks at the same *jump target*.
-            # Note: Go To currently jumps by chunk_index (chunk-level). That means
-            # bookmarks with different char_offsets but the same chunk_index are
-            # effectively identical for navigation, so we dedupe on chunk_index.
-            # This is intentionally a UX-layer rule: persistence remains a dumb store.
-            try:
-                existing = self.bookmark_service.list_bookmarks(book_id=book_id)
-            except Exception:
-                existing = []
-            for bm in existing:
-                if int(getattr(bm, "chunk_index", -1)) == int(chunk_index):
-                    return
-            self.bookmark_service.add_bookmark(
-                book_id=book_id,
-                char_offset=int(char_offset),
-                chunk_index=int(chunk_index),
-            )
-
-        def _goto(bm) -> None:
-            voice = self._selected_voice()
-            if voice is None:
-                return
-            # Stop any current playback before jumping.
-            try:
-                self.narration_service.stop()
-            except Exception:
-                pass
-            self._last_prepared_voice_id = voice.name
-            self.narration_service.prepare(
-                voice=voice,
-                start_playback_index=int(getattr(bm, "chunk_index")),
-            )
-            self.narration_service.start()
-
-            # Requirement: close the bookmarks dialog after a successful Go To.
-            try:
-                if self._bookmarks_dialog is not None:
-                    self._bookmarks_dialog.close()
-            except Exception:
-                pass
-
-        def _delete(bm) -> None:
-            self.bookmark_service.delete_bookmark(
-                book_id=book_id,
-                bookmark_id=int(getattr(bm, "bookmark_id")),
-            )
-
-        actions = BookmarksDialogActions(
-            list_bookmarks=_list,
-            add_bookmark=_add,
-            go_to_bookmark=_goto,
-            delete_bookmark=_delete,
-        )
-
-        if self._bookmarks_dialog is None:
-            self._bookmarks_dialog = BookmarksDialog(
-                parent=self.window, actions=actions
-            )
-        else:
-            # Update actions/book_id on reuse by reconstructing.
-            try:
-                self._bookmarks_dialog.close()
-            except Exception:
-                pass
-            self._bookmarks_dialog = BookmarksDialog(
-                parent=self.window, actions=actions
-            )
-
-        self._bookmarks_dialog.open()
-
-    def on_state(self, state: NarrationState) -> None:
-        # Called from background thread.
-        try:
-            self.state_received.emit(state)
-        except RuntimeError:
-            # QObject already destroyed; ignore late updates.
-            return
-
-    def _apply_state(self, state: object) -> None:
-        if not isinstance(state, NarrationState):
-            return
-        # Keep UI log clean; use Python logging for verbose state transitions.
-        self._log.debug("%s: %s", state.status.value, state.message)
-        if state.status.value == "chunking":
-            # Surface why we are skipping/where we start.
-            self._log.info("%s", state.message)
-        if state.total_chunks:
-            self.window.lbl_progress.setText(
-                f"{(state.current_chunk_id or 0) + 1}/{state.total_chunks}"
-            )
-
-        # Show a user-visible status line so packaging/runtime failures (e.g.
-        # audio device problems) are easier to diagnose without a console.
-        try:
-            if hasattr(self.window, "lbl_status"):
-                self.window.lbl_status.setText(state.message or state.status.value)
-        except Exception:
-            pass
-
-        self.window.progress.setValue(int(state.progress * 100))
-
-        # Lock voice + speed selection while playing.
-        # Disabling prevents mid-play changes; the locked styling provides a
-        # clear visual indicator even on a dark theme.
-        try:
-            # IMPORTANT:
-            # State updates can arrive from both playback and synthesis/prefetch.
-            # While playback is active, background synth updates may emit
-            # `SYNTHESIZING` states. Requirement: voice/speed must only be
-            # editable when paused/stopped/idle.
-            editable_statuses = {
-                NarrationStatus.IDLE,
-                NarrationStatus.PAUSED,
-                NarrationStatus.STOPPED,
-                NarrationStatus.ERROR,
-            }
-            locked = state.status not in editable_statuses
-            for combo in (
-                getattr(self.window, "voice_combo", None),
-                getattr(self.window, "speed_combo", None),
-            ):
-                if combo is None:
-                    continue
-                combo.setEnabled(not locked)
-                combo.setProperty("locked", bool(locked))
-                combo.style().unpolish(combo)
-                combo.style().polish(combo)
-        except Exception:
-            pass
-        # Visible highlighting must reflect *audible* playback only.
-        # Prefer the new audible range fields; fall back to legacy highlight_* for
-        # compatibility with older state producers.
-        start = state.audible_start
-        end = state.audible_end
-        if start is None or end is None:
-            start = state.highlight_start
-            end = state.highlight_end
-        self.window.highlight_range(start, end)
-
-        # Update chapter UI from the authoritative playback char offset.
-        if start is not None:
-            try:
-                self._apply_chapter_controls(current_char_offset=int(start))
-            except Exception:
-                pass
-
-    def _apply_chapter_controls(self, *, current_char_offset: int) -> None:
-        if not self._chapters:
-            self._current_chapter = None
-            try:
-                self.window.set_chapter_controls_enabled(previous=False, next_=False)
-            except Exception:
-                pass
-            try:
-                if hasattr(self.window, "chapter_spine"):
-                    self.window.chapter_spine.set_current_chapter(None)
-            except Exception:
-                pass
-            return
-
-        cur = self._chapter_index_service.get_current_chapter(
-            self._chapters, current_char_offset=int(current_char_offset)
-        )
-        self._current_chapter = cur
-        prev = self._chapter_index_service.get_previous_chapter(
-            self._chapters, current_char_offset=int(current_char_offset)
-        )
-        nxt = self._chapter_index_service.get_next_chapter(
-            self._chapters, current_char_offset=int(current_char_offset)
-        )
-        try:
-            self.window.set_chapter_controls_enabled(
-                previous=prev is not None,
-                next_=nxt is not None,
-            )
-        except Exception:
-            pass
-        try:
-            if hasattr(self.window, "chapter_spine"):
-                self.window.chapter_spine.set_current_chapter(cur)
-        except Exception:
-            pass
-
-    def previous_chapter(self) -> None:
-        self._jump_to_chapter(direction="previous")
-
-    def next_chapter(self) -> None:
-        self._jump_to_chapter(direction="next")
-
-    def _jump_to_chapter(self, *, direction: str) -> None:
-        if not self._chapters:
-            return
-        _chunk, char_offset = self.narration_service.current_position()
-        if char_offset is None:
-            return
-        if direction == "previous":
-            target = self._chapter_index_service.get_previous_chapter(
-                self._chapters, current_char_offset=int(char_offset)
-            )
-        else:
-            target = self._chapter_index_service.get_next_chapter(
-                self._chapters, current_char_offset=int(char_offset)
-            )
-        if target is None:
-            return
-
-        voice = self._selected_voice()
-        if voice is None:
-            return
-        try:
-            self.narration_service.stop()
-        except Exception:
-            pass
-        self._last_prepared_voice_id = voice.name
-        self.narration_service.prepare(
-            voice=voice,
-            start_playback_index=int(target.chunk_index),
-        )
-        self.narration_service.start()
-
-        # Immediate UI refresh after jump.
-        try:
-            self._apply_chapter_controls(current_char_offset=int(target.char_offset))
-        except Exception:
-            pass

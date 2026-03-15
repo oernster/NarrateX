@@ -52,12 +52,18 @@ omit =
     voice_reader/infrastructure/bookmarks/json_bookmark_repository.py
     voice_reader/infrastructure/audio/audio_streamer.py
     voice_reader/infrastructure/audio/sounddevice_streamer.py
+    voice_reader/infrastructure/audio/_sounddevice_workers.py
+    voice_reader/infrastructure/preferences/json_preferences_repository.py
     voice_reader/infrastructure/audio/_sounddevice_helpers.py
     voice_reader/infrastructure/audio/_silence_trimmer.py
     voice_reader/shared/resources.py
     voice_reader/ui/licence_dialog.py
     voice_reader/ui/main_window.py
     voice_reader/ui/ui_controller.py
+    voice_reader/ui/_ui_controller_bookmarks.py
+    voice_reader/ui/_ui_controller_chapters.py
+    voice_reader/ui/_ui_controller_playback.py
+    voice_reader/ui/_ui_controller_state.py
     voice_reader/ui/window_helpers.py
     voice_reader/ui/bookmarks_dialog.py
     voice_reader/domain/services/reading_start_service.py

@@ -30,14 +30,18 @@ from voice_reader.domain.interfaces.book_repository import BookRepository
 from voice_reader.domain.interfaces.cache_repository import CacheRepository
 from voice_reader.domain.interfaces.tts_engine import TTSEngine
 from voice_reader.domain.interfaces.reading_start_detector import ReadingStartDetector
+from voice_reader.domain.interfaces.preferences_repository import PreferencesRepository
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.domain.services.sanitized_text_mapper import SanitizedTextMapper
 from voice_reader.domain.services.spoken_text_sanitizer import SpokenTextSanitizer
 
-from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
+from voice_reader.application.services.navigation_chunk_service import (
+    NavigationChunkService,
+)
 
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
+from voice_reader.domain.value_objects.playback_volume import PlaybackVolume
 
 from voice_reader.application.services.bookmark_service import BookmarkService
 
@@ -66,6 +70,9 @@ class NarrationService:
     # Optional: resume persistence (manual bookmarks are handled by UI/BookmarkService).
     bookmark_service: BookmarkService | None = None
 
+    # Optional: lightweight user preferences persistence.
+    preferences_repo: PreferencesRepository | None = None
+
     def __post_init__(self) -> None:
         self._log = logging.getLogger(self.__class__.__name__)
         self._listeners: List[_StateListener] = []
@@ -92,6 +99,16 @@ class NarrationService:
         # Allows restarting narration from a given playback index.
         self._start_playback_index: int = 0
         self._playback_rate: PlaybackRate = PlaybackRate.default()
+        self._volume: PlaybackVolume = PlaybackVolume.default()
+
+        # Restore persisted volume (best-effort). Playback concern only.
+        if self.preferences_repo is not None:
+            try:
+                restored = self.preferences_repo.load_playback_volume()
+            except Exception:
+                restored = None
+            if restored is not None:
+                self._volume = restored
 
         if self.navigation_chunk_service is None:
             self.navigation_chunk_service = NavigationChunkService(
@@ -107,9 +124,34 @@ class NarrationService:
             # Audio streamer may be a stub in tests.
             pass
 
+        # Initialize default volume (session-only).
+        try:
+            self.audio_streamer.set_volume(self._volume)
+        except Exception:
+            pass
+
     def set_playback_rate(self, rate: PlaybackRate) -> None:
         self._playback_rate = rate
         self.audio_streamer.set_playback_rate(rate)
+
+    def set_volume(self, volume: PlaybackVolume) -> None:
+        """Set playback volume for the current session.
+
+        This is a playback-layer concern only. It must not restart narration,
+        invalidate chunk state, or influence TTS caching.
+        """
+
+        self._volume = volume
+        self.audio_streamer.set_volume(volume)
+
+        if self.preferences_repo is not None:
+            try:
+                self.preferences_repo.save_playback_volume(volume)
+            except Exception:
+                self._log.exception("Failed saving playback volume")
+
+    def playback_volume(self) -> PlaybackVolume:
+        return self._volume
 
     def playback_rate(self) -> PlaybackRate:
         return self._playback_rate

@@ -17,6 +17,7 @@ class _FakeNarration:
     listeners: list
     state: NarrationState
     last_rate: float | None = None
+    last_volume: float | None = None
 
     def add_listener(self, listener):
         self.listeners.append(listener)
@@ -40,6 +41,9 @@ class _FakeNarration:
     def set_playback_rate(self, rate) -> None:
         # Accept a PlaybackRate-ish object (value object in real code).
         self.last_rate = float(getattr(rate, "multiplier", rate))
+
+    def set_volume(self, volume) -> None:
+        self.last_volume = float(getattr(volume, "multiplier", volume))
 
     def loaded_book_id(self):
         return "b1"
@@ -286,3 +290,35 @@ def test_speed_changed_calls_service(qapp) -> None:
     # Drive controller logic directly (signal wiring covered by smoke tests).
     c.set_speed("1.25x")
     assert narration.last_rate == 1.25
+
+
+def test_volume_changed_calls_service_and_maps_slider(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    narration = _FakeNarration(
+        listeners=[],
+        state=NarrationState(
+            status=NarrationStatus.IDLE,
+            current_chunk_id=None,
+            total_chunks=None,
+            progress=0.0,
+        ),
+    )
+    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    c = UiController(
+        window=w,
+        narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
+        voice_service=voice_service,
+        device="cpu",
+        engine_name="engine",
+    )
+
+    c.set_volume(50)
+    assert narration.last_volume == 0.5
+
+    c.set_volume(0)
+    assert narration.last_volume == 0.0
+
+    c.set_volume(100)
+    assert narration.last_volume == 1.0
