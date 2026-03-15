@@ -118,4 +118,3 @@ class ChapterSpineWidget(QWidget):
             t = float(off - lo) / float(span)
             ys.append(int(round(top + t * height)))
         return ys
-

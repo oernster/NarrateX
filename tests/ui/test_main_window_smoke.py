@@ -42,6 +42,18 @@ def test_main_window_speed_combo_smoke(qapp) -> None:
     assert w.speed_combo.currentText() == "1.00x"
 
 
+def test_main_window_volume_controls_smoke(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    assert hasattr(w, "volume_slider")
+    assert w.volume_slider.minimum() == 0
+    assert w.volume_slider.maximum() == 100
+    assert w.volume_slider.value() == 100
+
+    assert hasattr(w, "lbl_volume_icon")
+    assert w.lbl_volume_icon.text() in {"🔊", "🔉", "🔇"}
+
+
 def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
     """Smoke test for the two top-right licence buttons."""
 

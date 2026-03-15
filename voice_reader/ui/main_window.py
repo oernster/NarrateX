@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QProgressBar,
     QMessageBox,
+    QSlider,
     QTextEdit,
     QToolButton,
     QVBoxLayout,
@@ -48,6 +49,7 @@ class MainWindow(QMainWindow):
     stop_clicked = Signal()
     bookmarks_clicked = Signal()
     speed_changed = Signal(str)
+    volume_changed = Signal(int)
 
     previous_chapter_clicked = Signal()
     next_chapter_clicked = Signal()
@@ -86,6 +88,17 @@ class MainWindow(QMainWindow):
             self.speed_combo.addItem(s)
         self.speed_combo.setCurrentText("1.00x")
 
+        # Volume control (session-only, editable during playback).
+        self.lbl_volume_icon = QLabel("🔊")
+        self.lbl_volume_icon.setToolTip("Volume")
+        self.lbl_volume_icon.setFont(QFont("Segoe UI Emoji", 13))
+
+        self.volume_slider = QSlider(Qt.Horizontal)
+        self.volume_slider.setRange(0, 100)
+        self.volume_slider.setValue(100)
+        self.volume_slider.setFixedWidth(120)
+        self.volume_slider.setToolTip("Volume")
+
         self.btn_play = QPushButton(self._strings.play)
         self.btn_pause = QPushButton(self._strings.pause)
         self.btn_stop = QPushButton(self._strings.stop)
@@ -106,6 +119,9 @@ class MainWindow(QMainWindow):
         controls.addWidget(self.voice_combo)
         controls.addWidget(QLabel("Speed"))
         controls.addWidget(self.speed_combo)
+
+        controls.addWidget(self.lbl_volume_icon)
+        controls.addWidget(self.volume_slider)
         controls.addStretch(1)
 
         controls.addWidget(self.btn_play)
@@ -267,8 +283,22 @@ class MainWindow(QMainWindow):
         self.btn_stop.clicked.connect(self.stop_clicked.emit)
         self.btn_bookmarks.clicked.connect(self.bookmarks_clicked.emit)
         self.speed_combo.currentTextChanged.connect(self.speed_changed.emit)
+        self.volume_slider.valueChanged.connect(self.volume_changed.emit)
         self.btn_prev_chapter.clicked.connect(self.previous_chapter_clicked.emit)
         self.btn_next_chapter.clicked.connect(self.next_chapter_clicked.emit)
+
+        # Keep volume icon consistent with current slider position.
+        self.volume_slider.valueChanged.connect(self._update_volume_icon)
+
+    def _update_volume_icon(self, value: int) -> None:
+        v = int(value)
+        if v <= 0:
+            icon = "🔇"
+        elif v <= 50:
+            icon = "🔉"
+        else:
+            icon = "🔊"
+        self.lbl_volume_icon.setText(icon)
 
     def set_chapter_controls_enabled(self, *, previous: bool, next_: bool) -> None:
         self.btn_prev_chapter.setEnabled(bool(previous))

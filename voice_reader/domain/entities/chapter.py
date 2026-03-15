@@ -15,4 +15,3 @@ class Chapter:
     char_offset: int
     # Absolute playback index into the narration candidate list.
     chunk_index: int
-

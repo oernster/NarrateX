@@ -37,4 +37,3 @@ class NavigationChunkService:
             for c in sliced_chunks
         ]
         return chunks, start
-

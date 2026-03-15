@@ -55,7 +55,9 @@ class _FakeBookmarkRepo:
     def delete_bookmark(self, *, book_id: str, bookmark_id: int) -> None:
         del book_id, bookmark_id
 
-    def save_resume_position(self, *, book_id: str, char_offset: int, chunk_index: int) -> None:
+    def save_resume_position(
+        self, *, book_id: str, char_offset: int, chunk_index: int
+    ) -> None:
         del book_id, char_offset, chunk_index
 
     def load_resume_position(self, *, book_id: str):

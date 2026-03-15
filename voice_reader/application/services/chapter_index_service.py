@@ -84,7 +84,9 @@ class ChapterIndexService:
                 # This retains Chapter 1 even when narration start offset is
                 # computed *after* the heading line.
                 try:
-                    if int(candidates[int(chunk_index)].end_char) < int(min_char_offset):
+                    if int(candidates[int(chunk_index)].end_char) < int(
+                        min_char_offset
+                    ):
                         continue
                 except Exception:
                     continue
@@ -162,4 +164,3 @@ class ChapterIndexService:
         if line_end == -1:
             line_end = len(text)
         return text[line_start:line_end].strip()
-

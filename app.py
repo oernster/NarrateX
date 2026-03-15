@@ -25,6 +25,9 @@ from voice_reader.infrastructure.cache.filesystem_cache import FilesystemCacheRe
 from voice_reader.infrastructure.bookmarks.json_bookmark_repository import (
     JSONBookmarkRepository,
 )
+from voice_reader.infrastructure.preferences.json_preferences_repository import (
+    JSONPreferencesRepository,
+)
 from voice_reader.infrastructure.tts.voice_profile_repository import (
     KokoroVoiceProfileRepository,
 )
@@ -211,6 +214,16 @@ def main() -> int:
 
         bookmark_repo = JSONBookmarkRepository(bookmarks_dir=config.paths.bookmarks_dir)
         bookmark_service = BookmarkService(repo=bookmark_repo)
+
+        # Preferences persistence (small JSON file). Keep backwards-compatible
+        # with older test stubs that don't provide `preferences_path`.
+        try:
+            preferences_path = config.paths.preferences_path
+        except Exception:
+            # Default beside bookmarks_dir (same data_root).
+            preferences_path = config.paths.bookmarks_dir.parent / "preferences.json"
+
+        preferences_repo = JSONPreferencesRepository(path=preferences_path)
         voice_repo = KokoroVoiceProfileRepository()
         voice_service = VoiceProfileService(repo=voice_repo)
 
@@ -228,6 +241,7 @@ def main() -> int:
             device=device,
             language=config.default_language,
             bookmark_service=bookmark_service,
+            preferences_repo=preferences_repo,
         )
 
         # ----- Qt startup -----

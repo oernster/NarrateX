@@ -22,6 +22,7 @@ class AppPaths:
     cache_dir: Path
     temp_books_dir: Path
     bookmarks_dir: Path
+    preferences_path: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,11 +52,13 @@ class Config:
             temp_books_dir = data_root / "temp_books"
             cache_dir = cache_root / "cache"
             bookmarks_dir = data_root / "bookmarks"
+            preferences_path = data_root / "preferences.json"
         else:
             voices_dir = project_root / "voices"
             cache_dir = project_root / "cache"
             temp_books_dir = project_root / "temp_books"
             bookmarks_dir = project_root / "bookmarks"
+            preferences_path = project_root / "preferences.json"
 
         paths = AppPaths(
             project_root=project_root,
@@ -63,6 +66,7 @@ class Config:
             cache_dir=cache_dir,
             temp_books_dir=temp_books_dir,
             bookmarks_dir=bookmarks_dir,
+            preferences_path=preferences_path,
         )
         return Config(paths=paths)
 
