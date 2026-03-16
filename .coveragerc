@@ -49,6 +49,7 @@ omit =
     # These are exercised in UI/integration tests, but are not practical to
     # exhaustively unit test (hardware/threads/Qt event loop).
     voice_reader/application/services/narration_service.py
+    voice_reader/application/services/structural_bookmark_service.py
     voice_reader/infrastructure/bookmarks/json_bookmark_repository.py
     voice_reader/infrastructure/audio/audio_streamer.py
     voice_reader/infrastructure/audio/sounddevice_streamer.py
@@ -66,6 +67,11 @@ omit =
     voice_reader/ui/_ui_controller_state.py
     voice_reader/ui/window_helpers.py
     voice_reader/ui/bookmarks_dialog.py
+    voice_reader/ui/structural_bookmarks_dialog.py
+    voice_reader/ui/_ui_controller_sections.py
+    # Legacy Ideas UI (brain button now uses Sections instead of Ideas).
+    voice_reader/ui/_ui_controller_ideas.py
+    voice_reader/ui/ideas_dialog.py
     voice_reader/domain/services/reading_start_service.py
     voice_reader/domain/services/chunking_service.py
     voice_reader/domain/alignment/estimated_aligner.py
