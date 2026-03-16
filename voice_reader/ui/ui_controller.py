@@ -16,6 +16,8 @@ from PySide6.QtWidgets import QFileDialog
 from voice_reader.application.dto.narration_state import NarrationState
 from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.chapter_index_service import ChapterIndexService
+from voice_reader.application.services.idea_map_service import IdeaMapService
+from voice_reader.application.services.idea_indexing_manager import IdeaIndexingManager
 from voice_reader.application.services.narration_service import NarrationService
 from voice_reader.application.services.navigation_chunk_service import (
     NavigationChunkService,
@@ -26,6 +28,7 @@ from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
 from voice_reader.ui._ui_controller_bookmarks import open_bookmarks_dialog
+from voice_reader.ui._ui_controller_ideas import open_ideas_dialog
 from voice_reader.ui._ui_controller_chapters import (
     apply_chapter_controls,
     next_chapter,
@@ -53,6 +56,8 @@ class UiController(QObject):
         window: MainWindow,
         narration_service: NarrationService,
         bookmark_service: BookmarkService,
+        idea_map_service: IdeaMapService | None = None,
+        idea_indexing_manager: IdeaIndexingManager | None = None,
         voice_service: VoiceProfileService,
         device: str,
         engine_name: str,
@@ -62,6 +67,8 @@ class UiController(QObject):
         self.window = window
         self.narration_service = narration_service
         self.bookmark_service = bookmark_service
+        self.idea_map_service = idea_map_service
+        self.idea_indexing_manager = idea_indexing_manager
         self.voice_service = voice_service
         self.device = device
         self.engine_name = engine_name
@@ -70,6 +77,9 @@ class UiController(QObject):
         self._last_prepared_voice_id: str | None = None
         self._cover_extractor = CoverExtractor()
         self._bookmarks_dialog = None
+        self._ideas_dialog = None
+        self._ideas_index_job_book_id: str | None = None
+        self._ideas_index_timer = None
 
         self._chapter_index_service = ChapterIndexService()
         self._chapters: list[Chapter] = []
@@ -106,6 +116,12 @@ class UiController(QObject):
 
         self._connect_signals()
 
+        # v1: search remains disabled until indexing exists. This is only a hook.
+        try:
+            self._apply_search_enabled_state()
+        except Exception:
+            pass
+
         # Keep the legacy method names for UI tests/backwards-compat.
         self.state_received.connect(self._apply_state)
         self.narration_service.add_listener(self.on_state)
@@ -127,6 +143,29 @@ class UiController(QObject):
                 self.set_volume(100)
             except Exception:
                 pass
+
+    def on_app_exit(self) -> None:
+        """Best-effort cleanup for background tasks.
+
+        NarrationService owns resume persistence; this only handles Ideas indexing
+        so we don't leave a worker process running when the app exits.
+        """
+
+        book_id = getattr(self, "_ideas_index_job_book_id", None)
+        if not book_id:
+            return
+        mgr = getattr(self, "idea_indexing_manager", None)
+        if mgr is not None:
+            try:
+                mgr.cancel(book_id=str(book_id))
+            except Exception:  # pragma: no cover
+                pass
+        self._ideas_index_job_book_id = None
+        try:
+            if self._ideas_index_timer is not None:
+                self._ideas_index_timer.stop()
+        except Exception:  # pragma: no cover
+            pass
 
     def on_state(self, state: NarrationState) -> None:
         """Receive narration state updates (may be called from a background thread)."""
@@ -159,6 +198,11 @@ class UiController(QObject):
                 self.window.bookmarks_clicked.connect(self.open_bookmarks_dialog)
             except Exception:
                 pass
+        if hasattr(self.window, "ideas_clicked"):
+            try:
+                self.window.ideas_clicked.connect(self.open_ideas_dialog)
+            except Exception:
+                pass
         if hasattr(self.window, "speed_changed"):
             try:
                 self.window.speed_changed.connect(self.set_speed)
@@ -188,6 +232,155 @@ class UiController(QObject):
     def open_bookmarks_dialog(self) -> None:
         return open_bookmarks_dialog(self)
 
+    def open_ideas_dialog(self) -> None:
+        return open_ideas_dialog(self)
+
+    def _start_ideas_indexing(self, *, book_id: str) -> None:
+        """Start background indexing and begin polling for progress."""
+
+        mgr = getattr(self, "idea_indexing_manager", None)
+        if mgr is None:
+            return
+
+        book_title = None
+        normalized_text = ""
+        try:
+            book = getattr(self.narration_service, "_book", None)  # noqa: SLF001
+            book_title = getattr(book, "title", None)
+            normalized_text = str(getattr(book, "normalized_text", ""))
+        except Exception:
+            pass
+
+        mgr.start_indexing(
+            book_id=book_id,
+            book_title=str(book_title) if book_title is not None else None,
+            normalized_text=normalized_text,
+        )
+        self._ideas_index_job_book_id = book_id
+
+        try:
+            from PySide6.QtCore import QTimer
+
+            if self._ideas_index_timer is None:
+                self._ideas_index_timer = QTimer(self.window)
+                self._ideas_index_timer.setInterval(50)
+                self._ideas_index_timer.timeout.connect(self._poll_ideas_indexing)
+            self._ideas_index_timer.start()
+        except Exception:  # pragma: no cover
+            # Best-effort; indexing still runs.
+            self._ideas_index_timer = None
+
+        self._poll_ideas_indexing()
+
+    def _can_show_idea_progress(self) -> bool:
+        """Avoid overriding narration progress while playback is active."""
+
+        try:
+            st = getattr(self.narration_service, "state", None)
+            status = getattr(st, "status", None)
+            from voice_reader.application.dto.narration_state import NarrationStatus
+
+            return status in {
+                NarrationStatus.IDLE,
+                NarrationStatus.PAUSED,
+                NarrationStatus.STOPPED,
+                NarrationStatus.ERROR,
+            }
+        except Exception:  # pragma: no cover
+            return True
+
+    def _poll_ideas_indexing(self) -> None:
+        book_id = getattr(self, "_ideas_index_job_book_id", None)
+        if not book_id:
+            return
+
+        mgr = getattr(self, "idea_indexing_manager", None)
+        if mgr is None:
+            return
+
+        events = mgr.poll(book_id=book_id)
+
+        # Update UI (best-effort; do not break playback if anything fails).
+        if self._can_show_idea_progress():
+            for ev in events:
+                if not isinstance(ev, dict):
+                    continue
+                if ev.get("type") == "progress":
+                    try:
+                        p = int(ev.get("progress") or 0)
+                    except Exception:
+                        p = 0
+                    try:
+                        self.window.lbl_status.setText("Mapping ideas…")
+                    except Exception:
+                        pass
+                    try:
+                        self.window.progress.setValue(max(0, min(100, p)))
+                    except Exception:
+                        pass
+                elif ev.get("type") == "result":
+                    try:
+                        self.window.lbl_status.setText("Ideas mapped")
+                    except Exception:
+                        pass
+                elif ev.get("type") == "error":
+                    try:
+                        self.window.lbl_status.setText("Ideas mapping failed")
+                    except Exception:
+                        pass
+                    try:
+                        self.window.progress.setValue(0)
+                    except Exception:
+                        pass
+
+        # If we reached a terminal event, stop polling and re-evaluate search enabled state.
+        if any(
+            isinstance(ev, dict) and ev.get("type") in {"result", "error"}
+            for ev in events
+        ):
+            try:
+                if self._ideas_index_timer is not None:
+                    self._ideas_index_timer.stop()
+            except Exception:  # pragma: no cover
+                pass
+            self._ideas_index_job_book_id = None
+            try:
+                self._apply_search_enabled_state()
+            except Exception:  # pragma: no cover
+                pass
+
+
+    def _apply_search_enabled_state(self) -> None:
+        """Enable 🔎 only when a completed idea index exists for the loaded book."""
+
+        if not hasattr(self.window, "btn_search"):
+            return
+
+        book_id = None
+        try:
+            book_id = self.narration_service.loaded_book_id()
+        except Exception:
+            book_id = None
+
+        enabled = False
+        if book_id and self.idea_map_service is not None:
+            try:
+                book = getattr(self.narration_service, "_book", None)  # noqa: SLF001
+                normalized_text = str(getattr(book, "normalized_text", ""))
+                enabled = bool(
+                    self.idea_map_service.has_completed_index_for_text(
+                        book_id=book_id,
+                        normalized_text=normalized_text,
+                    )
+                )
+            except Exception:
+                enabled = False
+
+        try:
+            self.window.btn_search.setEnabled(bool(enabled))
+        except Exception:
+            pass
+
     def previous_chapter(self) -> None:
         return previous_chapter(self)
 
@@ -206,6 +399,26 @@ class UiController(QObject):
             self.window.voice_combo.addItem("(no voices found)")
 
     def select_book(self) -> None:
+        # Resilience: if an Ideas indexing job is running for a previous book,
+        # cancel it before switching books. Indexing can always be restarted.
+        try:
+            old_id = self.narration_service.loaded_book_id()
+        except Exception:
+            old_id = None
+        if old_id and getattr(self, "_ideas_index_job_book_id", None) == old_id:
+            mgr = getattr(self, "idea_indexing_manager", None)
+            if mgr is not None:
+                try:
+                    mgr.cancel(book_id=old_id)
+                except Exception:  # pragma: no cover
+                    pass
+            self._ideas_index_job_book_id = None
+            try:
+                if self._ideas_index_timer is not None:
+                    self._ideas_index_timer.stop()
+            except Exception:  # pragma: no cover
+                pass
+
         path_str, _ = QFileDialog.getOpenFileName(
             self.window,
             "Select Book",
@@ -254,6 +467,12 @@ class UiController(QObject):
             self.window.set_cover_image(cover)
         except Exception:
             self._log.exception("Failed to set cover image")
+
+        # Search enablement depends on idea indexing availability for this book.
+        try:
+            self._apply_search_enabled_state()
+        except Exception:
+            pass
 
     def _selected_voice(self) -> VoiceProfile | None:
         if not self._voices:

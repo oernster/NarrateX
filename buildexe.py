@@ -126,14 +126,34 @@ def main() -> int:
 
     # Clean prior PyInstaller outputs.
     for p in [work_root, dist_root, PROJECT_ROOT / "NarrateX.spec"]:
-        if p.exists():
+        if not p.exists():
+            continue
+        try:
             if p.is_dir():
-                shutil.rmtree(p, ignore_errors=True)
+                shutil.rmtree(p)
             else:
-                try:
-                    p.unlink()
-                except Exception:
-                    pass
+                p.unlink()
+        except PermissionError as exc:
+            raise SystemExit(
+                "Failed to clean previous build output. This usually means the EXE or one of its "
+                "files is still running/locked.\n\n"
+                f"Path: {p}\n\n"
+                "Close NarrateX.exe (and any Explorer preview/pinned taskbar instance), then try again. "
+                "If it still fails, delete dist-pyinstaller/ manually and re-run the build.\n\n"
+                f"Original error: {exc!r}"
+            ) from exc
+        except Exception as exc:
+            raise SystemExit(
+                f"Failed to clean previous build output: {p} ({exc!r})"
+            ) from exc
+
+    # Safety net: ensure our output dir is actually gone before building.
+    if dist_root.exists():
+        raise SystemExit(
+            "dist-pyinstaller/ still exists after cleanup. This strongly suggests a locked file "
+            "prevented deletion, and you may be running an old build.\n\n"
+            "Close NarrateX.exe and re-run python buildexe.py."
+        )
 
     # Fast, reliable baseline: onedir build.
     log_level = os.getenv("NARRATEX_PYINSTALLER_LOG_LEVEL", "INFO").strip().upper()
