@@ -178,7 +178,7 @@ class ReadingStartService:
         if re.match(r"(?i)^\s*dedication\b", line):
             return True
 
-        return False`
+        return False
 
     @staticmethod
     def _looks_like_backmatter(line: str) -> bool:
