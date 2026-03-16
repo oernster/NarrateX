@@ -35,6 +35,43 @@ def test_main_window_help_and_about_smoke(qapp) -> None:
     w.show_about_dialog()
 
 
+def test_main_window_ideas_and_search_buttons_exist(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    assert hasattr(w, "btn_ideas")
+    assert w.btn_ideas.toolTip() == "Map the book"
+
+    assert hasattr(w, "btn_search")
+    assert w.btn_search.isEnabled() is False
+    assert "Search requires an idea map" in w.btn_search.toolTip()
+
+
+def test_ideas_dialog_placeholder_smoke(qapp) -> None:
+    """Phase-0 placeholder should open a non-blocking message box."""
+
+    from types import SimpleNamespace
+
+    from PySide6.QtWidgets import QApplication, QMessageBox
+
+    from voice_reader.ui._ui_controller_ideas import open_ideas_dialog
+
+    w = MainWindow()
+    w.show()
+    qapp.processEvents()
+
+    open_ideas_dialog(SimpleNamespace(window=w, narration_service=SimpleNamespace(loaded_book_id=lambda: None)))
+    qapp.processEvents()
+
+    boxes = [
+        dlg
+        for dlg in QApplication.topLevelWidgets()
+        if isinstance(dlg, QMessageBox) and dlg.windowTitle() == "Ideas"
+    ]
+    assert boxes, "Expected an Ideas placeholder message box to be open"
+    boxes[-1].close()
+    qapp.processEvents()
+
+
 def test_main_window_speed_combo_smoke(qapp) -> None:
     del qapp
     w = MainWindow()

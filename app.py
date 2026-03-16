@@ -14,6 +14,8 @@ from PySide6.QtWidgets import QApplication
 
 from voice_reader.application.services.narration_service import NarrationService
 from voice_reader.application.services.bookmark_service import BookmarkService
+from voice_reader.application.services.idea_map_service import IdeaMapService
+from voice_reader.application.services.idea_indexing_manager import IdeaIndexingManager
 from voice_reader.application.services.tts_engine_factory import TTSEngineFactory
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.services.chunking_service import ChunkingService
@@ -24,6 +26,9 @@ from voice_reader.infrastructure.books.repository import LocalBookRepository
 from voice_reader.infrastructure.cache.filesystem_cache import FilesystemCacheRepository
 from voice_reader.infrastructure.bookmarks.json_bookmark_repository import (
     JSONBookmarkRepository,
+)
+from voice_reader.infrastructure.ideas.json_idea_index_repository import (
+    JSONIdeaIndexRepository,
 )
 from voice_reader.infrastructure.preferences.json_preferences_repository import (
     JSONPreferencesRepository,
@@ -215,6 +220,10 @@ def main() -> int:
         bookmark_repo = JSONBookmarkRepository(bookmarks_dir=config.paths.bookmarks_dir)
         bookmark_service = BookmarkService(repo=bookmark_repo)
 
+        idea_repo = JSONIdeaIndexRepository(bookmarks_dir=config.paths.bookmarks_dir)
+        idea_map_service = IdeaMapService(repo=idea_repo)
+        idea_indexing_manager = IdeaIndexingManager(repo=idea_repo)
+
         # Preferences persistence (small JSON file). Keep backwards-compatible
         # with older test stubs that don't provide `preferences_path`.
         try:
@@ -268,10 +277,12 @@ def main() -> int:
         if not icon.isNull() and hasattr(window, "setWindowIcon"):
             window.setWindowIcon(icon)
 
-        UiController(
+        controller = UiController(
             window=window,
             narration_service=narration_service,
             bookmark_service=bookmark_service,
+            idea_map_service=idea_map_service,
+            idea_indexing_manager=idea_indexing_manager,
             voice_service=voice_service,
             device=device,
             engine_name=tts_engine.engine_name,
@@ -279,6 +290,10 @@ def main() -> int:
 
         def on_quit() -> None:
             try:
+                try:
+                    controller.on_app_exit()
+                except Exception:
+                    log.exception("Failed stopping Ideas indexing on app exit")
                 try:
                     narration_service.on_app_exit()
                 except Exception:

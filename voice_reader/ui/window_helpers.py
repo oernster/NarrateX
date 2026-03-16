@@ -82,6 +82,13 @@ def apply_main_window_theme(window) -> None:
                 color: #3b82f6;
             }}
 
+            /* Phase 6 UX-only hook: highlight 🔎 when disabled due to missing idea map. */
+            QToolButton[searchButton="true"]:disabled {{
+                border: 2px solid {locked_border};
+                border-radius: 17px;
+                color: #cbd5e1;
+            }}
+ 
             QProgressBar {{
                 background: {panel};
                 border: 1px solid #1f2937;

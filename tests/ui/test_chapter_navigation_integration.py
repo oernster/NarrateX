@@ -4,10 +4,13 @@ from dataclasses import dataclass
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.application.services.bookmark_service import BookmarkService
+from voice_reader.application.services.idea_map_service import IdeaMapService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.ui.main_window import MainWindow
 from voice_reader.ui.ui_controller import UiController
+
+from tests.ui._fakes_ideas_repo import FakeIdeasRepo
 
 
 @dataclass
@@ -91,6 +94,7 @@ def test_chapter_controls_disabled_when_no_chapters(qapp) -> None:
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
         bookmark_service=bookmark_service,
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -113,6 +117,7 @@ def test_prev_next_chapter_jump_uses_prepare_with_target_chunk_index(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
         bookmark_service=bookmark_service,
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
@@ -155,6 +160,7 @@ def test_prev_next_chapter_boundaries_noop(qapp) -> None:
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
         bookmark_service=bookmark_service,
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",

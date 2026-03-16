@@ -4,10 +4,13 @@ from dataclasses import dataclass
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.application.services.bookmark_service import BookmarkService
+from voice_reader.application.services.idea_map_service import IdeaMapService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.ui.main_window import MainWindow
 from voice_reader.ui.ui_controller import UiController
+
+from tests.ui._fakes_ideas_repo import FakeIdeasRepo
 
 
 @dataclass
@@ -62,6 +65,7 @@ def test_ui_controller_apply_state_updates_widgets(qapp) -> None:
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
         bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo()),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",

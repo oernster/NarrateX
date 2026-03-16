@@ -48,6 +48,8 @@ class MainWindow(QMainWindow):
     pause_clicked = Signal()
     stop_clicked = Signal()
     bookmarks_clicked = Signal()
+    ideas_clicked = Signal()
+    search_clicked = Signal()
     speed_changed = Signal(str)
     volume_changed = Signal(int)
 
@@ -114,6 +116,27 @@ class MainWindow(QMainWindow):
         self.btn_bookmarks.setFont(QFont("Segoe UI Emoji", 15))
         self.btn_bookmarks.setProperty("bookmarkButton", True)
 
+        self.btn_ideas = QToolButton()
+        self.btn_ideas.setText("🧠")
+        self.btn_ideas.setToolTip("Map the book")
+        self.btn_ideas.setCursor(Qt.PointingHandCursor)
+        self.btn_ideas.setAutoRaise(True)
+        self.btn_ideas.setFixedSize(34, 34)
+        self.btn_ideas.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_ideas.setProperty("topIconButton", True)
+
+        self.btn_search = QToolButton()
+        self.btn_search.setText("🔎")
+        self.btn_search.setToolTip(
+            "Search requires an idea map. Click 🧠 to map the book."
+        )
+        self.btn_search.setCursor(Qt.PointingHandCursor)
+        self.btn_search.setAutoRaise(True)
+        self.btn_search.setFixedSize(34, 34)
+        self.btn_search.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_search.setEnabled(False)
+        self.btn_search.setProperty("searchButton", True)
+
         controls.addWidget(self.btn_select_book)
         controls.addWidget(QLabel(self._strings.select_voice))
         controls.addWidget(self.voice_combo)
@@ -128,6 +151,8 @@ class MainWindow(QMainWindow):
         controls.addWidget(self.btn_pause)
         controls.addWidget(self.btn_stop)
         controls.addWidget(self.btn_bookmarks)
+        controls.addWidget(self.btn_ideas)
+        controls.addWidget(self.btn_search)
         left_panel.addLayout(controls)
 
         # Chapter navigation row (larger buttons for visibility).
@@ -282,6 +307,8 @@ class MainWindow(QMainWindow):
         self.btn_pause.clicked.connect(self.pause_clicked.emit)
         self.btn_stop.clicked.connect(self.stop_clicked.emit)
         self.btn_bookmarks.clicked.connect(self.bookmarks_clicked.emit)
+        self.btn_ideas.clicked.connect(self.ideas_clicked.emit)
+        self.btn_search.clicked.connect(self.search_clicked.emit)
         self.speed_combo.currentTextChanged.connect(self.speed_changed.emit)
         self.volume_slider.valueChanged.connect(self.volume_changed.emit)
         self.btn_prev_chapter.clicked.connect(self.previous_chapter_clicked.emit)
