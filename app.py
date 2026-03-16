@@ -17,6 +17,9 @@ from voice_reader.application.services.narration_service import NarrationService
 from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.idea_map_service import IdeaMapService
 from voice_reader.application.services.idea_indexing_manager import IdeaIndexingManager
+from voice_reader.application.services.structural_bookmark_service import (
+    StructuralBookmarkService,
+)
 from voice_reader.application.services.tts_engine_factory import TTSEngineFactory
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.services.chunking_service import ChunkingService
@@ -233,6 +236,8 @@ def main() -> int:
         idea_map_service = IdeaMapService(repo=idea_repo)
         idea_indexing_manager = IdeaIndexingManager(repo=idea_repo)
 
+        structural_bookmark_service = StructuralBookmarkService()
+
         # Preferences persistence (small JSON file). Keep backwards-compatible
         # with older test stubs that don't provide `preferences_path`.
         try:
@@ -292,6 +297,7 @@ def main() -> int:
             bookmark_service=bookmark_service,
             idea_map_service=idea_map_service,
             idea_indexing_manager=idea_indexing_manager,
+            structural_bookmark_service=structural_bookmark_service,
             voice_service=voice_service,
             device=device,
             engine_name=tts_engine.engine_name,

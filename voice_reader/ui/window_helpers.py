@@ -93,12 +93,7 @@ def apply_main_window_theme(window) -> None:
                 color: #3b82f6;
             }}
 
-            /* Phase 6 UX-only hook: highlight 🔎 when disabled due to missing idea map. */
-            QToolButton[searchButton="true"]:disabled {{
-                border: 2px solid {locked_border};
-                border-radius: 17px;
-                color: #cbd5e1;
-            }}
+            /* Search removed (was tied to Ideas mapping). */
  
             QProgressBar {{
                 background: {panel};
@@ -107,17 +102,7 @@ def apply_main_window_theme(window) -> None:
             }}
             QProgressBar::chunk {{ background: {purple}; }}
 
-            /* Compact Ideas progress bar shown under 🧠 while mapping. */
-            QProgressBar#ideasProgress {{
-                height: 6px;
-                border-radius: 3px;
-                border: 1px solid #1f2937;
-                background: #0f172a;
-            }}
-            QProgressBar#ideasProgress::chunk {{
-                background: {purple};
-                border-radius: 3px;
-            }}
+            /* Ideas progress bar removed (Sections-only brain button). */
             """)
 
 

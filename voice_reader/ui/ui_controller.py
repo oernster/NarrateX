@@ -19,6 +19,9 @@ from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.chapter_index_service import ChapterIndexService
 from voice_reader.application.services.idea_map_service import IdeaMapService
 from voice_reader.application.services.idea_indexing_manager import IdeaIndexingManager
+from voice_reader.application.services.structural_bookmark_service import (
+    StructuralBookmarkService,
+)
 from voice_reader.application.services.narration_service import NarrationService
 from voice_reader.application.services.navigation_chunk_service import (
     NavigationChunkService,
@@ -30,6 +33,7 @@ from voice_reader.domain.services.reading_start_service import ReadingStartServi
 from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
 from voice_reader.ui._ui_controller_bookmarks import open_bookmarks_dialog
 from voice_reader.ui._ui_controller_ideas import open_ideas_dialog
+from voice_reader.ui._ui_controller_sections import open_structural_bookmarks_dialog
 from voice_reader.ui._ui_controller_chapters import (
     apply_chapter_controls,
     next_chapter,
@@ -63,6 +67,7 @@ class UiController(QObject):
         bookmark_service: BookmarkService,
         idea_map_service: IdeaMapService | None = None,
         idea_indexing_manager: IdeaIndexingManager | None = None,
+        structural_bookmark_service: StructuralBookmarkService | None = None,
         voice_service: VoiceProfileService,
         device: str,
         engine_name: str,
@@ -74,6 +79,9 @@ class UiController(QObject):
         self.bookmark_service = bookmark_service
         self.idea_map_service = idea_map_service
         self.idea_indexing_manager = idea_indexing_manager
+        self.structural_bookmark_service = (
+            structural_bookmark_service or StructuralBookmarkService()
+        )
         self.voice_service = voice_service
         self.device = device
         self.engine_name = engine_name
@@ -83,6 +91,7 @@ class UiController(QObject):
         self._cover_extractor = CoverExtractor()
         self._bookmarks_dialog = None
         self._ideas_dialog = None
+        self._sections_dialog = None
         self._ideas_index_job_book_id: str | None = None
         self._ideas_index_timer = None
         self._ideas_launch_inflight: bool = False
@@ -172,6 +181,14 @@ class UiController(QObject):
         so we don't leave a worker process running when the app exits.
         """
 
+        # Sections feature owns no background work; only close the dialog.
+        try:
+            dlg = getattr(self, "_sections_dialog", None)  # noqa: SLF001
+            if dlg is not None:
+                dlg.close()
+        except Exception:
+            pass
+
         # Cancel any in-flight launcher orchestration.
         try:
             if self._ideas_launch_cancel is not None:
@@ -228,7 +245,7 @@ class UiController(QObject):
                 pass
         if hasattr(self.window, "ideas_clicked"):
             try:
-                self.window.ideas_clicked.connect(self.open_ideas_dialog)
+                self.window.ideas_clicked.connect(self.open_sections_dialog)
             except Exception:
                 pass
         if hasattr(self.window, "speed_changed"):
@@ -262,6 +279,9 @@ class UiController(QObject):
 
     def open_ideas_dialog(self) -> None:
         return open_ideas_dialog(self)
+
+    def open_sections_dialog(self) -> None:
+        return open_structural_bookmarks_dialog(self)
 
     def _start_ideas_indexing(self, *, book_id: str) -> None:
         """Start background indexing and begin polling for progress.
@@ -550,33 +570,8 @@ class UiController(QObject):
     def _apply_search_enabled_state(self) -> None:
         """Enable 🔎 only when a completed idea index exists for the loaded book."""
 
-        if not hasattr(self.window, "btn_search"):
-            return
-
-        book_id = None
-        try:
-            book_id = self.narration_service.loaded_book_id()
-        except Exception:
-            book_id = None
-
-        enabled = False
-        if book_id and self.idea_map_service is not None:
-            try:
-                book = getattr(self.narration_service, "_book", None)  # noqa: SLF001
-                normalized_text = str(getattr(book, "normalized_text", ""))
-                enabled = bool(
-                    self.idea_map_service.has_completed_index_for_text(
-                        book_id=book_id,
-                        normalized_text=normalized_text,
-                    )
-                )
-            except Exception:
-                enabled = False
-
-        try:
-            self.window.btn_search.setEnabled(bool(enabled))
-        except Exception:
-            pass
+        # Search removed from UI.
+        return
 
     def previous_chapter(self) -> None:
         return previous_chapter(self)

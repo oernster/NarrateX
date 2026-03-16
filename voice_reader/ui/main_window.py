@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
     stop_clicked = Signal()
     bookmarks_clicked = Signal()
     ideas_clicked = Signal()
-    search_clicked = Signal()
+    # Search removed (was tied to Ideas mapping).
     speed_changed = Signal(str)
     volume_changed = Signal(int)
 
@@ -118,34 +118,14 @@ class MainWindow(QMainWindow):
 
         self.btn_ideas = QToolButton()
         self.btn_ideas.setText("🧠")
-        self.btn_ideas.setToolTip("Map the book")
+        self.btn_ideas.setToolTip("Sections")
         self.btn_ideas.setCursor(Qt.PointingHandCursor)
         self.btn_ideas.setAutoRaise(True)
         self.btn_ideas.setFixedSize(34, 34)
         self.btn_ideas.setFont(QFont("Segoe UI Emoji", 15))
         self.btn_ideas.setProperty("topIconButton", True)
 
-        # Dedicated progress indicator for background idea mapping.
-        # Keep it compact and visually associated with the 🧠 control.
-        self.ideas_progress = QProgressBar()
-        self.ideas_progress.setObjectName("ideasProgress")
-        self.ideas_progress.setRange(0, 100)
-        self.ideas_progress.setValue(0)
-        self.ideas_progress.setTextVisible(False)
-        self.ideas_progress.setFixedWidth(70)
-        self.ideas_progress.setVisible(False)
-
-        self.btn_search = QToolButton()
-        self.btn_search.setText("🔎")
-        self.btn_search.setToolTip(
-            "Search requires an idea map. Click 🧠 to map the book."
-        )
-        self.btn_search.setCursor(Qt.PointingHandCursor)
-        self.btn_search.setAutoRaise(True)
-        self.btn_search.setFixedSize(34, 34)
-        self.btn_search.setFont(QFont("Segoe UI Emoji", 15))
-        self.btn_search.setEnabled(False)
-        self.btn_search.setProperty("searchButton", True)
+        # Search removed in Sections-only brain button design.
 
         controls.addWidget(self.btn_select_book)
         controls.addWidget(QLabel(self._strings.select_voice))
@@ -161,14 +141,7 @@ class MainWindow(QMainWindow):
         controls.addWidget(self.btn_pause)
         controls.addWidget(self.btn_stop)
         controls.addWidget(self.btn_bookmarks)
-        # Group 🧠 with its progress.
-        ideas_group = QVBoxLayout()
-        ideas_group.setSpacing(2)
-        ideas_group.setContentsMargins(0, 0, 0, 0)
-        ideas_group.addWidget(self.btn_ideas, alignment=Qt.AlignHCenter)
-        ideas_group.addWidget(self.ideas_progress, alignment=Qt.AlignHCenter)
-        controls.addLayout(ideas_group)
-        controls.addWidget(self.btn_search)
+        controls.addWidget(self.btn_ideas)
         left_panel.addLayout(controls)
 
         # Chapter navigation row (larger buttons for visibility).
@@ -324,7 +297,6 @@ class MainWindow(QMainWindow):
         self.btn_stop.clicked.connect(self.stop_clicked.emit)
         self.btn_bookmarks.clicked.connect(self.bookmarks_clicked.emit)
         self.btn_ideas.clicked.connect(self.ideas_clicked.emit)
-        self.btn_search.clicked.connect(self.search_clicked.emit)
         self.speed_combo.currentTextChanged.connect(self.speed_changed.emit)
         self.volume_slider.valueChanged.connect(self.volume_changed.emit)
         self.btn_prev_chapter.clicked.connect(self.previous_chapter_clicked.emit)

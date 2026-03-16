@@ -154,7 +154,9 @@ def test_refresh_voices_filters_system_and_sorts(qapp) -> None:
     assert w.voice_combo.count() == 2
 
 
-def test_ui_controller_search_button_enabled_only_when_index_completed(qapp) -> None:
+def test_ui_controller_has_no_search_button(qapp) -> None:
+    """Search was removed with the Sections-only brain button design."""
+
     del qapp
     w = MainWindow()
 
@@ -169,28 +171,17 @@ def test_ui_controller_search_button_enabled_only_when_index_completed(qapp) -> 
     )
     voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
 
-    fp = IdeaMapService.fingerprint_sha256(normalized_text="")
-    ideas = IdeaMapService(
-        repo=_FakeIdeasRepo(
-            doc={
-                "schema_version": 1,
-                "status": {"state": "completed"},
-                "book": {"fingerprint_sha256": fp},
-            }
-        )  # type: ignore[arg-type]
-    )
     UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
         bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=ideas,
+        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
     )
 
-    assert hasattr(w, "btn_search")
-    assert w.btn_search.isEnabled() is True
+    assert not hasattr(w, "btn_search")
 
 
 def test_select_book_cancel_noop(monkeypatch, qapp) -> None:
@@ -261,7 +252,8 @@ def test_select_book_cancels_ideas_job_when_switching_books(monkeypatch, qapp) -
         engine_name="engine",
     )
     c._ideas_index_job_book_id = "b1"  # noqa: SLF001
-    c._ideas_index_timer = SimpleNamespace(stop=lambda: None)  # noqa: SLF001
+    # Timer is optional; this test only asserts cancel() is called.
+    c._ideas_index_timer = None  # noqa: SLF001
 
     # Cancel dialog: do not open a new book.
     monkeypatch.setattr(
@@ -309,7 +301,7 @@ def test_on_app_exit_cancels_ideas_job(monkeypatch, qapp) -> None:
         engine_name="engine",
     )
     c._ideas_index_job_book_id = "b1"  # noqa: SLF001
-    c._ideas_index_timer = SimpleNamespace(stop=lambda: None)  # noqa: SLF001
+    c._ideas_index_timer = None  # noqa: SLF001
 
     c.on_app_exit()
     assert mgr.cancel_calls == ["b1"]

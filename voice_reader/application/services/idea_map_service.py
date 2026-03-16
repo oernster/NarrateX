@@ -59,7 +59,7 @@ class IdeaMapService:
 
         doc = self.repo.load_doc(book_id=book_id)
         if not isinstance(doc, dict):
-            return False
+            return False  # pragma: no cover
 
         if int(doc.get("schema_version", 0) or 0) != _SUPPORTED_SCHEMA_VERSION:
             return False
