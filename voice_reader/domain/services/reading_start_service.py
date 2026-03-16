@@ -1,11 +1,4 @@
-"""Domain service to detect a sensible narration start point.
-
-Goal: skip boring front-matter (title pages, copyright, ToC) and start at the
-first real content section (Chapter 1, Prologue, etc.).
-
-This logic is heuristic by nature and intentionally pure (no IO) to keep it
-unit-testable.
-"""
+"""Domain service to detect a sensible narration start point."""
 
 from __future__ import annotations
 
@@ -23,21 +16,16 @@ class ReadingStart:
 class ReadingStartService:
     """Detect the character offset to begin narration."""
 
-    max_scan_chars: int = 60_000
-    max_prose_seek_chars: int = 30_000
+    max_scan_chars: int = 60000
+    max_prose_seek_chars: int = 40000
 
     def detect_start(self, text: str) -> ReadingStart:
-        normalized = text
-        scan = normalized[: self.max_scan_chars]
+        scan = text[: self.max_scan_chars]
 
         candidates: list[ReadingStart] = []
 
-        # 0) Introduction is preferred over Chapter 1 / Prologue when present.
+        # Introduction
         for m in re.finditer(r"(?im)^\s*introduction\s*$", scan):
-            line = self._line_at(scan, m.start())
-            # `_line_at` returns a stripped line; treat it as already normalized.
-            if self._looks_like_toc_entry(line):
-                continue
             candidates.append(
                 ReadingStart(
                     start_char=self._start_after_heading(scan, m.end()),
@@ -46,12 +34,20 @@ class ReadingStartService:
             )
             break
 
-        # 1) Explicit Chapter 1 markers.
+        # Foreword / Preface / Acknowledgements
+        for pat in self._frontmatter_patterns():
+            for m in pat.finditer(scan):
+                candidates.append(
+                    ReadingStart(
+                        start_char=self._start_after_heading(scan, m.end()),
+                        reason="Detected Frontmatter",
+                    )
+                )
+                break
+
+        # Chapter 1
         for pat in self._chapter_one_patterns():
             for m in pat.finditer(scan):
-                line = self._line_at(scan, m.start())
-                if self._looks_like_toc_entry(line):
-                    continue
                 candidates.append(
                     ReadingStart(
                         start_char=self._start_after_heading(scan, m.end()),
@@ -60,12 +56,9 @@ class ReadingStartService:
                 )
                 break
 
-        # 2) Prologue markers.
+        # Prologue
         for pat in self._prologue_patterns():
             for m in pat.finditer(scan):
-                line = self._line_at(scan, m.start())
-                if self._looks_like_toc_entry(line):
-                    continue
                 candidates.append(
                     ReadingStart(
                         start_char=self._start_after_heading(scan, m.end()),
@@ -74,276 +67,229 @@ class ReadingStartService:
                 )
                 break
 
-        # 3) Numeric heading ("1.", "1 ") on a line by itself.
-        m = re.search(r"(?im)^(\s*1\s*(?:\.|\))\s*)$", scan)
-        if m:
-            candidates.append(
-                ReadingStart(
-                    start_char=self._start_after_heading(scan, m.end()),
-                    reason="Detected numeric heading 1",
+        # Fallback: skip ToC
+        if not candidates:
+            toc_end = self._detect_toc_end(scan)
+            if toc_end is not None:
+                candidates.append(
+                    ReadingStart(
+                        start_char=toc_end,
+                        reason="Skipped Table of Contents",
+                    )
                 )
-            )
 
-        # 4) Fallback: after Table of Contents section if present.
-        toc_end = self._detect_toc_end(scan)
-        if toc_end is not None:
-            candidates.append(
-                ReadingStart(
-                    start_char=toc_end,
-                    reason="Skipped Table of Contents",
-                )
-            )
-
-        # Choose earliest plausible start that is not too early.
         best = self._pick_best(candidates)
+
         if best is None:
             return ReadingStart(start_char=0, reason="Start at beginning")
 
-        start = self._skip_leading_whitespace(normalized, best.start_char)
-        start = self._advance_to_prose(normalized, start)
+        start = self._skip_leading_whitespace(text, best.start_char)
+        start = self._seek_first_paragraph(text, start)
+
         return ReadingStart(start_char=start, reason=best.reason)
 
-    def _advance_to_prose(self, text: str, start: int) -> int:
-        """Skip outline-like headings until we hit real prose.
-
-        Many real EPUBs contain an index / outline with headings and numbering
-        like "1.1", "1.1.2" followed by short section titles. This is useful
-        visually but terrible when spoken.
-
-        We seek forward up to `max_prose_seek_chars` for a line that looks like
-        a paragraph (punctuation and/or sufficient word count).
-        """
+    def _seek_first_paragraph(self, text: str, start: int) -> int:
+        """Find the first real prose paragraph."""
 
         end = min(len(text), start + self.max_prose_seek_chars)
         window = text[start:end]
 
         offset = start
-        for line in window.splitlines(keepends=True):
+
+        for line in window.splitlines():
+
             stripped = line.strip()
+
             if not stripped:
-                offset += len(line)
+                offset += len(line) + 1
                 continue
 
-            if self._looks_like_toc_entry(stripped) or self._looks_like_outline_line(
-                stripped
-            ):
-                offset += len(line)
+            if self._looks_like_structure(stripped):
+                offset += len(line) + 1
                 continue
 
-            if self._looks_like_prose(stripped):
+            if self._looks_like_backmatter(stripped):
+                return start
+
+            if self._looks_like_paragraph(stripped):
                 return self._skip_leading_whitespace(text, offset)
 
-            # Otherwise treat as a heading and keep scanning.
-            offset += len(line)
+            offset += len(line) + 1
 
         return start
 
     @staticmethod
-    def _looks_like_outline_line(line: str) -> bool:
-        # Number-only ("1", "1.1.2")
-        if re.match(r"^\d+(?:\.\d+)*$", line):
+    def _looks_like_paragraph(line: str) -> bool:
+
+        words = [w for w in re.split(r"\s+", line) if w]
+
+        if len(words) < 3:
+            return False
+
+        if not any(ch.islower() for ch in line):
+            return False
+
+        if re.search(r"[.!?]\s*$", line):
             return True
-        # "1.1 Title" or "1 Title"
-        if re.match(r"^\d+(?:\.\d+)*\s+\S+", line):
+
+        if len(words) >= 14 or len(line) >= 90:
             return True
-        # Short standalone headings (no punctuation)
-        if len(line) <= 40 and not re.search(r"[.!?]", line):
-            return True
+
         return False
 
     @staticmethod
-    def _looks_like_prose(line: str) -> bool:
-        words = [w for w in re.split(r"\s+", line) if w]
+    def _looks_like_structure(line: str) -> bool:
 
-        # If punctuation is present, it might be either prose or a short title.
-        # Many books open with short, valid sentences (especially in prologues).
-        # We treat a short line as prose when it *looks like a sentence*, e.g.
-        # contains lowercase letters and a common verb ("is", "was", etc.).
-        if re.search(r"[.!?]", line):
-            has_lowercase = any(ch.islower() for ch in line)
-            ends_like_sentence = bool(re.search(r"[.!?]\s*$", line))
-            looks_sentence_like = bool(
-                re.search(
-                    r"\b(?:am|is|are|was|were|be|been|being|have|has|had|do|does|did|"
-                    r"can|could|will|would|should|may|might|must)\b",
-                    line,
-                    re.IGNORECASE,
-                )
-            )
-
-            if (
-                ends_like_sentence
-                and has_lowercase
-                and looks_sentence_like
-                and len(words) >= 3
-            ):
-                return True
-
-            # Otherwise, require enough words/length to avoid classifying headings
-            # like "Part I." or "A New Beginning." as prose.
-            if len(words) >= 12 or len(line) >= 90:
-                return True
-            return False
-
-        # Or a sufficiently long line with multiple words.
-        if len(words) >= 14 and len(line) >= 80:
+        # dotted TOC leaders
+        if re.search(r"\.{2,}\s*\d+\s*$", line):
             return True
-        return False
+
+        # trailing page numbers
+        if re.search(r"\s\d+\s*$", line) and len(line) < 60:
+            return True
+
+        # roman page numbers
+        if re.match(r".+\s+[ivxlcdm]+\s*$", line, re.I):
+            return True
+
+        # outline numbering
+        if re.match(r"^\d+(?:\.\d+)*$", line):
+            return True
+
+        # numbered headings like "4.2 Chapter title"
+        if re.match(r"^\d+(?:\.\d+)*\s+\S+", line):
+            return True
+
+        # short section titles typical of TOC entries
+        words = line.split()
+        if len(words) <= 8 and not re.search(r"[.!?]", line):
+            return True
+
+        # titles that follow numeric sections like
+        # "The symptom often looks like this."
+        # which appear in ToCs under numbering
+        if len(words) <= 10 and re.match(r"^[A-Z]", line):
+            return True
+
+        # title page / copyright / dedication
+        if re.match(r"(?i)^\s*(copyright|all rights reserved)\b", line):
+            return True
+
+        if re.match(r"(?i)^\s*dedication\b", line):
+            return True
+
+        return False`
+
+    @staticmethod
+    def _looks_like_backmatter(line: str) -> bool:
+        """Detect end-of-book sections."""
+
+        return bool(
+            re.match(
+                r"(?im)^\s*(appendix|afterword|epilogue|bibliography|references|index)\b",
+                line,
+            )
+        )
 
     @staticmethod
     def _skip_leading_whitespace(text: str, idx: int) -> int:
-        i = max(0, min(idx, len(text)))
-        while i < len(text) and text[i].isspace():
-            i += 1
-        return i
+        while idx < len(text) and text[idx].isspace():
+            idx += 1
+        return idx
 
     @staticmethod
     def _pick_best(candidates: list[ReadingStart]) -> ReadingStart | None:
+
         if not candidates:
             return None
+
         intro = [c for c in candidates if "Introduction" in c.reason]
         if intro:
             return min(intro, key=lambda c: c.start_char)
-        # Prefer Chapter 1 over others if multiple exist.
-        chapter1 = [c for c in candidates if "Chapter 1" in c.reason]
-        if chapter1:
-            return min(chapter1, key=lambda c: c.start_char)
-        prologue = [c for c in candidates if "Prologue" in c.reason]
-        if prologue:
-            return min(prologue, key=lambda c: c.start_char)
-        numeric = [c for c in candidates if "numeric heading" in c.reason]
-        if numeric:
-            return min(numeric, key=lambda c: c.start_char)
+
+        front = [c for c in candidates if "Frontmatter" in c.reason]
+        if front:
+            return min(front, key=lambda c: c.start_char)
+
+        ch1 = [c for c in candidates if "Chapter 1" in c.reason]
+        if ch1:
+            return min(ch1, key=lambda c: c.start_char)
+
+        pro = [c for c in candidates if "Prologue" in c.reason]
+        if pro:
+            return min(pro, key=lambda c: c.start_char)
+
         return min(candidates, key=lambda c: c.start_char)
 
     @staticmethod
-    def _detect_toc_end(scan: str) -> int | None:
-        # Heuristic:
-        # - find a "Contents" / "Table of Contents" heading near the beginning
-        # - then skip subsequent lines that look like TOC entries
-        toc_heading = re.search(r"(?im)^(\s*(table of contents|contents)\s*)$", scan)
-        if not toc_heading:
-            return None
-        start = toc_heading.end()
+    def _start_after_heading(text: str, idx: int) -> int:
 
-        # Consume likely TOC lines.
-        lines = scan[start:].splitlines(keepends=True)
-        offset = start
-        consumed_any = False
-        for line in lines:
-            stripped = line.strip()
-            if not stripped:
-                offset += len(line)
-                continue
-            if ReadingStartService._looks_like_toc_entry(stripped):
-                consumed_any = True
-                offset += len(line)
-                continue
-            # Stop at first non-TOC-looking line, after consuming some entries.
-            if consumed_any:
-                break
-            # If the line after heading doesn't look like TOC, don't skip.
-            return None
-        return offset if consumed_any else None
-
-    @staticmethod
-    def _looks_like_toc_entry(line: str) -> bool:
-        # Typical TOC lines:
-        # "Chapter 1  ....  12", "1. Something  7", "Prologue  i"
-        if re.search(r"(?i)\bchapter\b\s+\d+", line):
-            # Only treat as TOC if there's a page reference / leader dots.
-            if re.search(r"\.{2,}\s*(\d+|[ivxlcdm]+)\s*$", line, re.I):
-                return True
-            if re.search(r"\s+(\d+|[ivxlcdm]+)\s*$", line, re.I) and len(line) > 12:
-                return True
-        if re.match(r"^\s*\d+\s*[.)]\s+.+\s+\d+\s*$", line):
-            return True
-        if re.match(r"^\s*(prologue|epilogue|introduction)\b.*\s+\d+\s*$", line, re.I):
-            return True
-        if re.search(r"\.{2,}\s*\d+\s*$", line):
-            return True
-        # Roman numeral page refs.
-        if re.match(r"^\s*.+\s+([ivxlcdm]+)\s*$", line, re.I):
-            return True
-        return False
-
-    @staticmethod
-    def _line_at(text: str, idx: int) -> str:
-        """Return the full line containing idx."""
-
-        if idx < 0:
-            idx = 0
-        if idx > len(text):
-            idx = len(text)
-        line_start = text.rfind("\n", 0, idx)
-        if line_start == -1:
-            line_start = 0
-        else:
-            line_start += 1
         line_end = text.find("\n", idx)
-        if line_end == -1:
-            line_end = len(text)
-        return text[line_start:line_end].strip()
 
-    @staticmethod
-    def _start_after_heading(text: str, heading_end: int) -> int:
-        """Return an index just after the heading line.
-
-        This prevents the narrator from reading section titles like
-        "INTRODUCTION" or "CHAPTER 1" aloud.
-        """
-
-        if heading_end < 0:
-            heading_end = 0
-        if heading_end > len(text):
-            heading_end = len(text)
-
-        # Find the end of the heading line starting from the end of the match.
-        line_end = text.find("\n", heading_end)
         if line_end == -1:
             return len(text)
-        # Advance past the newline.
+
         i = line_end + 1
-        # Skip blank lines and indentation.
+
         while i < len(text) and text[i].isspace():
             i += 1
 
-        # If the next line still looks like a standalone heading (all-caps short
-        # subtitle), skip it once.
-        next_line = ReadingStartService._line_at(text, i)
-        if ReadingStartService._looks_like_standalone_title(next_line):
-            next_line_end = text.find("\n", i)
-            if next_line_end != -1:
-                i = next_line_end + 1
-                while i < len(text) and text[i].isspace():
-                    i += 1
         return i
 
     @staticmethod
-    def _looks_like_standalone_title(line: str) -> bool:
-        if not line:
-            return False
-        # Avoid skipping real sentences.
-        if any(ch in line for ch in (".", "!", "?")):
-            return False
-        # Short lines in uppercase are often section titles/subtitles.
-        letters = [c for c in line if c.isalpha()]
-        if not letters:
-            return False
-        upper_ratio = sum(1 for c in letters if c.isupper()) / float(len(letters))
-        return upper_ratio > 0.9 and len(line) <= 60
+    def _detect_toc_end(scan: str) -> int | None:
+
+        toc = re.search(r"(?im)^\s*(table of contents|contents)\s*$", scan)
+
+        if not toc:
+            return None
+
+        start = toc.end()
+
+        lines = scan[start:].splitlines(keepends=True)
+
+        offset = start
+        consumed = False
+
+        for line in lines:
+
+            stripped = line.strip()
+
+            if not stripped:
+                offset += len(line)
+                continue
+
+            if ReadingStartService._looks_like_structure(stripped):
+                consumed = True
+                offset += len(line)
+                continue
+
+            if consumed:
+                break
+
+            return None
+
+        return offset if consumed else None
 
     @staticmethod
     def _chapter_one_patterns() -> list[re.Pattern[str]]:
         return [
-            re.compile(r"(?im)^\s*chapter\s+1\b", re.IGNORECASE),
-            re.compile(r"(?im)^\s*chapter\s+i\b", re.IGNORECASE),
-            re.compile(r"(?im)^\s*ch\.\s*1\b", re.IGNORECASE),
+            re.compile(r"(?im)^\s*chapter\s+1\b"),
+            re.compile(r"(?im)^\s*chapter\s+i\b"),
+            re.compile(r"(?im)^\s*ch\.\s*1\b"),
         ]
 
     @staticmethod
     def _prologue_patterns() -> list[re.Pattern[str]]:
         return [
-            re.compile(r"(?im)^\s*prologue\b", re.IGNORECASE),
-            re.compile(r"(?im)^\s*introduction\b", re.IGNORECASE),
+            re.compile(r"(?im)^\s*prologue\b"),
+        ]
+
+    @staticmethod
+    def _frontmatter_patterns() -> list[re.Pattern[str]]:
+        return [
+            re.compile(r"(?im)^\s*foreword\b"),
+            re.compile(r"(?im)^\s*preface\b"),
+            re.compile(r"(?im)^\s*acknowledgements?\b"),
+            re.compile(r"(?im)^\s*acknowledgments\b"),
         ]
