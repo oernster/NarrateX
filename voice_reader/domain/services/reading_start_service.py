@@ -77,6 +77,7 @@ class ReadingStartService:
                 return ReadingStart(start_char=0, reason="Start at beginning")
 
         best = self._pick_best(candidates)
+        assert best is not None
 
         start = self._skip_leading_whitespace(text, best.start_char)
         start = self._seek_first_paragraph(text, start)
@@ -140,6 +141,34 @@ class ReadingStartService:
 
         return False
 
+    # ---- Backwards-compatible helpers for existing tests/callers ----
+    @staticmethod
+    def _looks_like_prose(line: str) -> bool:
+        """Legacy alias for prose detection.
+
+        Tests and older call sites refer to `_looks_like_prose()`. The current
+        implementation uses `_looks_like_paragraph()`.
+        """
+
+        return ReadingStartService._looks_like_paragraph(line)
+
+    @staticmethod
+    def _line_at(text: str, idx: int) -> str:
+        """Return the line containing `idx` (clamped to the document bounds)."""
+
+        if not text:
+            return ""
+
+        i = max(0, min(int(idx), len(text) - 1))
+
+        line_start = text.rfind("\n", 0, i)
+        line_start = 0 if line_start == -1 else line_start + 1
+
+        line_end = text.find("\n", i)
+        line_end = len(text) if line_end == -1 else line_end
+
+        return text[line_start:line_end].strip("\r\n")
+
     @staticmethod
     def _looks_like_outline_line(line: str) -> bool:
         """Reject numbering and short heading lines."""
@@ -194,13 +223,13 @@ class ReadingStartService:
         """
         Choose the earliest structural heading in the document.
 
-        This guarantees we land on Prologue when it precedes Introduction,
-        which is the normal book structure.
+        This matches typical book flow: if a Prologue appears before an
+        Introduction, narration should start at the Prologue.
         """
         if not candidates:
             return None
 
-        return min(candidates, key=lambda c: c.start_char)
+        return min(candidates, key=lambda c: int(c.start_char))
 
     @staticmethod
     def _start_after_heading(text: str, heading_match_end: int) -> int:
@@ -236,6 +265,13 @@ class ReadingStartService:
                 offset += len(line)
                 continue
 
+            # If we've already consumed ToC-looking entries and we now see a clean
+            # structural heading, treat it as the end of the ToC.
+            if consumed_any and ReadingStartService._looks_like_structural_heading(
+                stripped
+            ):
+                break
+
             if (
                 ReadingStartService._looks_like_toc_entry(stripped)
                 or ReadingStartService._looks_like_outline_line(stripped)
@@ -252,6 +288,38 @@ class ReadingStartService:
             return None
 
         return offset if consumed_any else None
+
+    @staticmethod
+    def _looks_like_structural_heading(line: str) -> bool:
+        """Detect *clean* headings that indicate we're out of the ToC.
+
+        This must not match typical ToC entry lines like:
+        - "Chapter 1 .... 1"
+        - "Introduction .... v"
+
+        It should match real headings like:
+        - "CHAPTER 1"
+        - "CHAPTER I"
+        - "INTRODUCTION"
+        - "PROLOGUE"
+        """
+
+        if re.search(r"\.{2,}", line):
+            return False
+
+        for pat in (
+            re.compile(r"(?im)^\s*introduction\s*$"),
+            re.compile(r"(?im)^\s*(foreword|preface|acknowledgements?|acknowledgments)\s*$"),
+            re.compile(r"(?im)^\s*prologue\s*$"),
+            # Chapter headings may contain the number/roman numeral as part of the heading.
+            re.compile(
+                r"(?im)^\s*(?:\d+(?:\.\d+)*)?\s*chapter\s+(?:1|i)\b(?!.*\.{2,})(?:\s*$|\s*[.:\-–—]\s*\S+)"
+            ),
+        ):
+            if pat.match(line):
+                return True
+
+        return False
 
     @staticmethod
     def _introduction_patterns() -> list[re.Pattern[str]]:
