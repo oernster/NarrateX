@@ -14,7 +14,7 @@ from typing import Sequence
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QFileDialog
 
-from voice_reader.application.dto.narration_state import NarrationState
+from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.chapter_index_service import ChapterIndexService
 from voice_reader.application.services.idea_map_service import IdeaMapService
@@ -500,6 +500,22 @@ class UiController(QObject):
             self.window.voice_combo.addItem("(no voices found)")
 
     def select_book(self) -> None:
+        # Prevent book switching during playback/preparation. The UI should already
+        # disable the button, but keep this as a safety net (signals/tests can call
+        # the handler directly).
+        try:
+            st = getattr(self.narration_service, "state", None)
+            if isinstance(st, NarrationState) and st.status in {
+                NarrationStatus.LOADING,
+                NarrationStatus.CHUNKING,
+                NarrationStatus.SYNTHESIZING,
+                NarrationStatus.PLAYING,
+            }:
+                return
+        except Exception:
+            # Never block book selection due to an introspection error.
+            pass
+
         # Resilience: if an Ideas indexing job is running for a previous book,
         # cancel it before switching books. Indexing can always be restarted.
         try:

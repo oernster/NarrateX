@@ -81,3 +81,58 @@ def test_ui_controller_apply_state_updates_widgets(qapp) -> None:
     )
     c._apply_state(state)  # pylint: disable=protected-access
     assert "1/10" in w.lbl_progress.text()
+
+    # Select Book must be locked (disabled + orange border property) during playback.
+    assert w.btn_select_book.isEnabled() is False
+    assert w.btn_select_book.property("selectBookLocked") is True
+
+    # Unlock on paused.
+    c._apply_state(
+        NarrationState(
+            status=NarrationStatus.PAUSED,
+            current_chunk_id=0,
+            total_chunks=10,
+            progress=0.5,
+            message="Paused",
+            highlight_start=0,
+            highlight_end=3,
+        )
+    )
+    assert w.btn_select_book.isEnabled() is True
+    assert w.btn_select_book.property("selectBookLocked") is False
+
+    # Lock for other active statuses.
+    for status in (
+        NarrationStatus.LOADING,
+        NarrationStatus.CHUNKING,
+        NarrationStatus.SYNTHESIZING,
+    ):
+        c._apply_state(
+            NarrationState(
+                status=status,
+                current_chunk_id=None,
+                total_chunks=None,
+                progress=0.0,
+                message="",
+            )
+        )
+        assert w.btn_select_book.isEnabled() is False
+        assert w.btn_select_book.property("selectBookLocked") is True
+
+    # Ensure it remains enabled for stopped/idle/error.
+    for status in (
+        NarrationStatus.STOPPED,
+        NarrationStatus.IDLE,
+        NarrationStatus.ERROR,
+    ):
+        c._apply_state(
+            NarrationState(
+                status=status,
+                current_chunk_id=None,
+                total_chunks=None,
+                progress=0.0,
+                message="",
+            )
+        )
+        assert w.btn_select_book.isEnabled() is True
+        assert w.btn_select_book.property("selectBookLocked") is False

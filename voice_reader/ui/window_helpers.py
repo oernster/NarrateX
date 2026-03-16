@@ -65,6 +65,17 @@ def apply_main_window_theme(window) -> None:
             QPushButton:hover {{ border-color: {purple}; }}
             QPushButton:pressed {{ background: #111827; }}
 
+            /* Clearly indicate a control is locked while playback is active. */
+            QPushButton[selectBookLocked="true"] {{
+                background: {locked_bg};
+                border: 2px solid {locked_border};
+                color: {text};
+            }}
+            QPushButton[selectBookLocked="true"]:disabled {{
+                /* Keep it readable while disabled; the border is the primary affordance. */
+                color: #cbd5e1;
+            }}
+
             QToolButton[topIconButton="true"] {{
                 background: transparent;
                 border: 2px solid transparent;
