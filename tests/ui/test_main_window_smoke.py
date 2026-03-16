@@ -41,6 +41,10 @@ def test_main_window_ideas_and_search_buttons_exist(qapp) -> None:
     assert hasattr(w, "btn_ideas")
     assert w.btn_ideas.toolTip() == "Map the book"
 
+    # Dedicated mapping progress lives next to 🧠 and is hidden by default.
+    assert hasattr(w, "ideas_progress")
+    assert w.ideas_progress.isVisible() is False
+
     assert hasattr(w, "btn_search")
     assert w.btn_search.isEnabled() is False
     assert "Search requires an idea map" in w.btn_search.toolTip()

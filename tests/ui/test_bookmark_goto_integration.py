@@ -30,7 +30,17 @@ class _FakeNarration:
     def current_position(self):
         return 0, 0
 
-    def prepare(self, *, voice, start_playback_index=None):
+    def prepare(
+        self,
+        *,
+        voice,
+        start_playback_index=None,
+        start_char_offset=None,
+        force_start_char=None,
+        skip_essay_index=True,
+        persist_resume=True,
+    ):
+        del start_char_offset, force_start_char, skip_essay_index, persist_resume
         self.prepare_calls.append((voice, start_playback_index))
 
     def start(self):

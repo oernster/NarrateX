@@ -25,9 +25,18 @@ class FakeNarration:
     def add_listener(self, listener):
         self.listeners.append(listener)
 
-    def prepare(self, *, voice, start_playback_index=None):
-        del start_playback_index
-        del voice
+    def prepare(
+        self,
+        *,
+        voice,
+        start_playback_index=None,
+        start_char_offset=None,
+        force_start_char=None,
+        skip_essay_index=True,
+        persist_resume=True,
+    ):
+        del voice, start_playback_index
+        del start_char_offset, force_start_char, skip_essay_index, persist_resume
         self.prepare_calls += 1
 
     def start(self):
