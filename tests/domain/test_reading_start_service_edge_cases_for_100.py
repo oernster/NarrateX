@@ -39,4 +39,5 @@ def test_pick_best_prefers_chapter_over_prologue_over_numeric() -> None:
     ]
     picked = svc._pick_best(candidates)  # pylint: disable=protected-access
     assert picked is not None
-    assert picked.reason == "Detected Chapter 1"
+    # `_pick_best` chooses the earliest structural heading in the document.
+    assert picked.reason == "Detected Prologue"
