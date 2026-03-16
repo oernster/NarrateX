@@ -148,7 +148,12 @@ def open_ideas_dialog(controller) -> None:
             running_id = getattr(controller, "_ideas_index_job_book_id", None)  # noqa: SLF001
         except Exception:  # pragma: no cover
             running_id = None
-        if running_id == book_id:
+        try:
+            launch_inflight = bool(getattr(controller, "_ideas_launch_inflight", False))  # noqa: SLF001
+        except Exception:  # pragma: no cover
+            launch_inflight = False
+
+        if running_id == book_id or launch_inflight:
             box = QMessageBox(controller.window)
             box.setWindowTitle("Ideas")
             box.setText("Mapping is already in progress.")

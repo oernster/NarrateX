@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 
 from voice_reader.application.services.idea_indexer_v1 import build_idea_index_doc_v1
 
@@ -52,10 +53,11 @@ def run_worker(*, out_q, payload: dict) -> None:
         if book_title is not None:
             book_title = str(book_title)
 
-        normalized_text = payload.get("normalized_text")
-        if normalized_text is None:
-            normalized_text = ""
-        normalized_text = str(normalized_text)
+        text_path = payload.get("text_path")
+        if not text_path:
+            raise ValueError("text_path is required")
+        text_path = Path(str(text_path))
+        normalized_text = text_path.read_text(encoding="utf-8", errors="replace")
 
         fingerprint = hashlib.sha256(normalized_text.encode("utf-8", errors="replace")).hexdigest()
 
