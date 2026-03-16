@@ -125,6 +125,16 @@ class MainWindow(QMainWindow):
         self.btn_ideas.setFont(QFont("Segoe UI Emoji", 15))
         self.btn_ideas.setProperty("topIconButton", True)
 
+        # Dedicated progress indicator for background idea mapping.
+        # Keep it compact and visually associated with the 🧠 control.
+        self.ideas_progress = QProgressBar()
+        self.ideas_progress.setObjectName("ideasProgress")
+        self.ideas_progress.setRange(0, 100)
+        self.ideas_progress.setValue(0)
+        self.ideas_progress.setTextVisible(False)
+        self.ideas_progress.setFixedWidth(70)
+        self.ideas_progress.setVisible(False)
+
         self.btn_search = QToolButton()
         self.btn_search.setText("🔎")
         self.btn_search.setToolTip(
@@ -151,7 +161,13 @@ class MainWindow(QMainWindow):
         controls.addWidget(self.btn_pause)
         controls.addWidget(self.btn_stop)
         controls.addWidget(self.btn_bookmarks)
-        controls.addWidget(self.btn_ideas)
+        # Group 🧠 with its progress.
+        ideas_group = QVBoxLayout()
+        ideas_group.setSpacing(2)
+        ideas_group.setContentsMargins(0, 0, 0, 0)
+        ideas_group.addWidget(self.btn_ideas, alignment=Qt.AlignHCenter)
+        ideas_group.addWidget(self.ideas_progress, alignment=Qt.AlignHCenter)
+        controls.addLayout(ideas_group)
         controls.addWidget(self.btn_search)
         left_panel.addLayout(controls)
 

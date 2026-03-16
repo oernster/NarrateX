@@ -46,12 +46,24 @@ class NavigationChunkService:
 
         return False
 
-    def build_chunks(self, *, book_text: str) -> tuple[list[TextChunk], ReadingStart]:
+    def build_chunks(
+        self,
+        *,
+        book_text: str,
+        force_start_char: int | None = None,
+        skip_essay_index: bool = True,
+    ) -> tuple[list[TextChunk], ReadingStart]:
         """Return (chunks, reading_start) in absolute book coordinates."""
 
-        start = self.reading_start_detector.detect_start(book_text)
-
-        slice_start = int(start.start_char)
+        if force_start_char is not None:
+            slice_start = max(0, int(force_start_char))
+            start = ReadingStart(
+                start_char=slice_start,
+                reason="Forced start",
+            )
+        else:
+            start = self.reading_start_detector.detect_start(book_text)
+            slice_start = int(start.start_char)
         slice_text = book_text[slice_start:]
 
         # IMPORTANT: never remove/alter text before chunking.
@@ -70,27 +82,28 @@ class NavigationChunkService:
 
         # If present, exclude chunks fully contained in the Essay Index block.
         # This preserves original offsets (we are only filtering the candidate list).
-        essay_span = self._detect_essay_index_span(slice_text=slice_text)
-        if essay_span is not None:
-            span_start, span_end = essay_span
-            abs_start = slice_start + int(span_start)
-            abs_end = slice_start + int(span_end)
-            filtered = [
-                c
-                for c in chunks
-                if not (
-                    int(c.start_char) >= abs_start and int(c.end_char) <= abs_end
-                )
-            ]
-            # Safety: never return an empty list (would stall playback).
-            # Filtering is still important; retain unfiltered list if we'd drop all.
-            if filtered:
-                chunks = filtered
-            else:  # pragma: no cover
+        if skip_essay_index:
+            essay_span = self._detect_essay_index_span(slice_text=slice_text)
+            if essay_span is not None:
+                span_start, span_end = essay_span
+                abs_start = slice_start + int(span_start)
+                abs_end = slice_start + int(span_end)
+                filtered = [
+                    c
+                    for c in chunks
+                    if not (
+                        int(c.start_char) >= abs_start and int(c.end_char) <= abs_end
+                    )
+                ]
+                # Safety: never return an empty list (would stall playback).
+                # Filtering is still important; retain unfiltered list if we'd drop all.
+                if filtered:
+                    chunks = filtered
+                else:  # pragma: no cover
+                    chunks = chunks
+            else:
+                # No Essay Index detected: keep chunks unchanged.
                 chunks = chunks
-        else:
-            # No Essay Index detected: keep chunks unchanged.
-            chunks = chunks
 
         return chunks, start
 

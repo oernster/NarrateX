@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import importlib.metadata
 import logging
+import multiprocessing as mp
 import os
 import shutil
 import sys
@@ -171,6 +172,14 @@ def ensure_stdio() -> None:
 
 def main() -> int:
     try:
+        # IMPORTANT (Windows frozen builds + multiprocessing):
+        # Our Ideas indexing runs in a spawned child process. In a frozen
+        # application (PyInstaller), Windows uses the "spawn" start method which
+        # re-launches the executable. Without mp.freeze_support(), the child can
+        # incorrectly execute the normal app startup path and create a second
+        # (blank) Qt window.
+        mp.freeze_support()
+
         ensure_stdio()
 
         # Must be set before any Qt object exists
@@ -321,4 +330,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    # Required for PyInstaller/Windows when using multiprocessing spawn.
+    mp.freeze_support()
     raise SystemExit(main())

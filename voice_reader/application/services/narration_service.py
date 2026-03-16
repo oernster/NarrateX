@@ -77,6 +77,10 @@ class NarrationService:
         self._log = logging.getLogger(self.__class__.__name__)
         self._listeners: List[_StateListener] = []
         self._stop_event = threading.Event()
+        # Allows a graceful stop at the next chunk boundary (end of current chunk).
+        # Used by queued navigation actions (e.g. Ideas Go To) to avoid cutting audio
+        # mid-chunk.
+        self._stop_after_current_chunk = threading.Event()
         self._play_thread: Optional[threading.Thread] = None
         self._lock = threading.Lock()
         self._state = NarrationState(
@@ -100,6 +104,10 @@ class NarrationService:
         self._start_playback_index: int = 0
         self._playback_rate: PlaybackRate = PlaybackRate.default()
         self._volume: PlaybackVolume = PlaybackVolume.default()
+
+        # When False, suppress resume persistence while this run is active.
+        # Used by Ideas "Go To" jumps so they don't overwrite the user's resume.
+        self._persist_resume: bool = True
 
         # Restore persisted volume (best-effort). Playback concern only.
         if self.preferences_repo is not None:
@@ -166,6 +174,10 @@ class NarrationService:
     def load_book(self, source_path: Path) -> Book:
         # Book switch: persist resume for the previous book (best-effort).
         self._maybe_save_resume_position()
+
+        # Reset persistence policy to default for the new book/session.
+        # Idea-map "Go To" jumps temporarily disable resume persistence.
+        self._persist_resume = True
 
         # If a playback thread is active (e.g. user paused but did not stop),
         # stop it before switching books. Otherwise `start()` can no-op due to the
@@ -241,6 +253,8 @@ class NarrationService:
         return chunk_index, char_offset
 
     def _maybe_save_resume_position(self) -> None:
+        if not bool(getattr(self, "_persist_resume", True)):
+            return
         if self.bookmark_service is None:
             return
         if self._book is None:
@@ -259,13 +273,42 @@ class NarrationService:
             self._log.exception("Failed saving resume position")
 
     def prepare(
-        self, *, voice: VoiceProfile, start_playback_index: int | None = None
+        self,
+        *,
+        voice: VoiceProfile,
+        start_playback_index: int | None = None,
+        start_char_offset: int | None = None,
+        force_start_char: int | None = None,
+        skip_essay_index: bool = True,
+        persist_resume: bool = True,
     ) -> List[TextChunk]:
         if self._book is None:
             raise ValueError("Book not loaded")
+
+        try:
+            self._log.info(
+                "Prepare: book_id=%s voice=%s start_playback_index=%s start_char_offset=%s force_start_char=%s skip_essay_index=%s persist_resume=%s",
+                getattr(self._book, "id", None),
+                getattr(voice, "name", None),
+                start_playback_index,
+                start_char_offset,
+                force_start_char,
+                bool(skip_essay_index),
+                bool(persist_resume),
+            )
+        except Exception:  # pragma: no cover
+            pass
         self._voice = voice
 
-        if start_playback_index is None:
+        # New run: clear any pending stop-at-boundary request.
+        try:
+            self._stop_after_current_chunk.clear()
+        except Exception:  # pragma: no cover
+            pass
+
+        self._persist_resume = bool(persist_resume)
+
+        if start_playback_index is None and start_char_offset is None:
             # Auto-resume behavior: when a resume position exists, Play starts from
             # that chunk index without additional UI.
             resume_idx: int | None = None
@@ -278,19 +321,44 @@ class NarrationService:
                     rp = None
                 if rp is not None:
                     resume_idx = int(rp.chunk_index)
+
+            try:
+                self._log.info(
+                    "Prepare: auto-resume resume_idx=%s (bookmark_service=%s)",
+                    resume_idx,
+                    self.bookmark_service is not None,
+                )
+            except Exception:  # pragma: no cover
+                pass
             self._start_playback_index = max(0, int(resume_idx or 0))
-        else:
+        elif start_playback_index is not None:
             self._start_playback_index = max(0, int(start_playback_index))
+        else:
+            # Defer mapping start_char_offset -> playback index until after we build
+            # chunks (requires the same navigation filters and speak-text filtering).
+            self._start_playback_index = 0
 
         # Reset play position tracking for the next run.
         self._current_play_index = -1
 
         assert self.navigation_chunk_service is not None
         chunks, start = self.navigation_chunk_service.build_chunks(
-            book_text=self._book.normalized_text
+            book_text=self._book.normalized_text,
+            force_start_char=force_start_char,
+            skip_essay_index=bool(skip_essay_index),
         )
         self._start_char = int(start.start_char)
         self._log.debug("Narration start: %s at %s", start.reason, start.start_char)
+
+        try:
+            self._log.info(
+                "Prepare: navigation start_char=%s reason=%s chunks=%s",
+                int(start.start_char),
+                start.reason,
+                len(chunks),
+            )
+        except Exception:  # pragma: no cover
+            pass
         self._cache_book_id = None
 
         self._set_state(
@@ -306,6 +374,71 @@ class NarrationService:
         )
 
         self._chunks = list(chunks)
+
+        # If we have an absolute start offset (e.g. Ideas Go To), we must ensure
+        # playback begins from the first chunk containing/after that offset.
+        #
+        # NOTE: When `force_start_char` is used, chunk_id values reset to 0..N in
+        # slice coordinates, so `_run()` will still start at chunk-local char 0.
+        # To start at the *exact* target within the first chunk, we also need to
+        # adjust the chunk text/offsets in-place.
+        if start_char_offset is not None:
+            try:
+                absolute = int(start_char_offset)
+            except Exception:  # pragma: no cover
+                absolute = None
+            if absolute is not None and self._chunks:
+                for i, c in enumerate(self._chunks):
+                    if int(c.start_char) <= absolute < int(c.end_char):
+                        cut = max(0, absolute - int(c.start_char))
+                        if cut:
+                            self._chunks[i] = TextChunk(
+                                chunk_id=int(c.chunk_id),
+                                text=str(c.text)[cut:],
+                                start_char=int(c.start_char) + int(cut),
+                                end_char=int(c.end_char),
+                            )
+                        break
+                    if int(c.start_char) >= absolute:
+                        break
+
+        if start_char_offset is not None:
+            idx = self._resolve_playback_index_for_char_offset(
+                char_offset=int(start_char_offset),
+                chunks=self._chunks,
+            )
+
+            try:
+                resolved = None if idx is None else int(idx)
+                self._log.info(
+                    "Prepare: start_char_offset=%s resolved_playback_index=%s",
+                    int(start_char_offset),
+                    resolved,
+                )
+                if resolved is not None:
+                    c = self._chunks[resolved]
+                    self._log.info(
+                        "Prepare: resolved chunk_id=%s chunk_range=[%s,%s)",
+                        int(c.chunk_id),
+                        int(c.start_char),
+                        int(c.end_char),
+                    )
+            except Exception:  # pragma: no cover
+                pass
+            if idx is not None:
+                self._start_playback_index = max(0, int(idx))
+
+        try:
+            if start_char_offset is not None and self._chunks:
+                c0 = self._chunks[0]
+                self._log.info(
+                    "Prepare: first_chunk after trim chunk_id=%s chunk_range=[%s,%s)",
+                    int(c0.chunk_id),
+                    int(c0.start_char),
+                    int(c0.end_char),
+                )
+        except Exception:  # pragma: no cover
+            pass
         self._set_state(
             NarrationState(
                 status=NarrationStatus.IDLE,
@@ -319,9 +452,59 @@ class NarrationService:
         )
         return list(self._chunks)
 
+    def _resolve_playback_index_for_char_offset(
+        self, *, char_offset: int, chunks: List[TextChunk]
+    ) -> int | None:
+        """Map an absolute book char_offset to a playback candidate index.
+
+        This must match candidate filtering used in [`_run()`](voice_reader/application/services/narration_service.py:484):
+        candidates are chunks where sanitized speak_text is non-empty.
+        """
+
+        if not chunks:
+            return None
+
+        candidates: list[TextChunk] = []
+        for c in chunks:
+            mapped = self.sanitized_text_mapper.sanitize_with_mapping(original_text=c.text)
+            if mapped.speak_text:
+                candidates.append(c)
+
+        if not candidates:
+            return None
+
+        try:
+            self._log.info(
+                "ResolveIndex: char_offset=%s playback_candidates=%s total_chunks=%s",
+                int(char_offset),
+                len(candidates),
+                len(chunks),
+            )
+        except Exception:  # pragma: no cover
+            pass
+
+        for idx, c in enumerate(candidates):
+            if int(c.start_char) <= int(char_offset) < int(c.end_char):
+                return int(idx)
+            if int(c.start_char) >= int(char_offset):
+                return int(idx)
+        return None
+
     def start(self) -> None:
         with self._lock:
+            # New run: clear any previous stop-at-boundary request.
+            try:
+                self._stop_after_current_chunk.clear()
+            except Exception:  # pragma: no cover
+                pass
             if self._play_thread and self._play_thread.is_alive():
+                try:
+                    self._log.info(
+                        "Start ignored: narration thread still alive (start_playback_index=%s)",
+                        int(getattr(self, "_start_playback_index", 0)),
+                    )
+                except Exception:  # pragma: no cover
+                    pass
                 return
             if self._book is None or self._voice is None:
                 raise ValueError("Book and voice must be set before start")
@@ -329,6 +512,17 @@ class NarrationService:
                 self._chunks = self.chunking_service.chunk_text(
                     self._book.normalized_text
                 )
+
+            try:
+                self._log.info(
+                    "Start: book_id=%s voice=%s start_playback_index=%s chunks=%s",
+                    getattr(self._book, "id", None),
+                    getattr(self._voice, "name", None),
+                    int(getattr(self, "_start_playback_index", 0)),
+                    len(self._chunks),
+                )
+            except Exception:  # pragma: no cover
+                pass
             self._stop_event.clear()
             self._play_thread = threading.Thread(
                 target=self._run,
@@ -336,6 +530,18 @@ class NarrationService:
                 daemon=True,
             )
             self._play_thread.start()
+
+    def request_stop_after_current_chunk(self) -> None:
+        """Request a graceful stop after the current chunk finishes."""
+
+        try:
+            self._log.info("StopAfterChunk: requested")
+        except Exception:  # pragma: no cover
+            pass
+        try:
+            self._stop_after_current_chunk.set()
+        except Exception:  # pragma: no cover
+            pass
 
     def wait(self, timeout_seconds: float | None = None) -> bool:
         """Wait for the current narration thread to finish.
@@ -406,16 +612,37 @@ class NarrationService:
             )
         )
 
-    def stop(self) -> None:
+    def stop(self, *, persist_resume: bool = True) -> None:
         # Capture resume before we clear state/highlighting.
-        self._maybe_save_resume_position()
+        if bool(persist_resume):
+            self._maybe_save_resume_position()
+
+        try:
+            self._log.info(
+                "Stop: signalling stop (thread_alive=%s)",
+                bool(self._play_thread and self._play_thread.is_alive()),
+            )
+        except Exception:  # pragma: no cover
+            pass
         self._stop_event.set()
+        try:
+            self._stop_after_current_chunk.clear()
+        except Exception:  # pragma: no cover
+            pass
         self._pause_event.clear()
         self.audio_streamer.stop()
 
         # Ensure the narration thread has terminated so a subsequent start() is
         # not ignored due to an "already alive" thread.
         self.wait(timeout_seconds=2.0)
+
+        try:
+            self._log.info(
+                "Stop: completed (thread_alive=%s)",
+                bool(self._play_thread and self._play_thread.is_alive()),
+            )
+        except Exception:  # pragma: no cover
+            pass
 
         self._set_state(
             NarrationState(
@@ -432,6 +659,9 @@ class NarrationService:
                 highlight_end=None,
             )
         )
+
+        # Reset persistence policy after a run finishes.
+        self._persist_resume = True
 
     def on_app_exit(self) -> None:
         """Persist resume position on application exit.
@@ -900,6 +1130,34 @@ class NarrationService:
                     )
                 )
 
+            def on_end(play_index: int) -> None:
+                # If a queued navigation requested a graceful stop, stop right
+                # after the current chunk completes.
+                try:
+                    if not self._stop_after_current_chunk.is_set():
+                        return
+                except Exception:  # pragma: no cover
+                    return
+
+                try:
+                    self._log.info(
+                        "StopAfterChunk: stopping after chunk_end play_index=%s",
+                        int(play_index),
+                    )
+                except Exception:  # pragma: no cover
+                    pass
+
+                # Set both stop signals so synthesis and playback wind down.
+                try:
+                    self._stop_after_current_chunk.clear()
+                except Exception:  # pragma: no cover
+                    pass
+                self._stop_event.set()
+                try:
+                    self.audio_streamer.stop()
+                except Exception:  # pragma: no cover
+                    pass
+
             def on_progress(play_index: int, chunk_local_ms: int) -> None:
                 # Resolve audible highlight span from per-chunk alignment.
                 if play_index < 0 or play_index >= playback_total:
@@ -1030,12 +1288,31 @@ class NarrationService:
             self.audio_streamer.start(
                 chunk_audio_paths=audio_paths_iter(),
                 on_chunk_start=on_start,
-                on_chunk_end=None,
+                on_chunk_end=on_end,
                 on_playback_progress=on_progress,
             )
 
             if synth_errors:
                 raise synth_errors[0]
+
+            if self._stop_event.is_set():
+                # A stop request occurred (user stop, or stop-after-chunk).
+                self._set_state(
+                    NarrationState(
+                        status=NarrationStatus.STOPPED,
+                        current_chunk_id=None,
+                        playback_chunk_id=None,
+                        prefetch_chunk_id=None,
+                        total_chunks=playback_total,
+                        progress=0.0,
+                        message="Stopped",
+                        audible_start=None,
+                        audible_end=None,
+                        highlight_start=None,
+                        highlight_end=None,
+                    )
+                )
+                return
 
             self._set_state(
                 NarrationState(

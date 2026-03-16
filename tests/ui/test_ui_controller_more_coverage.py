@@ -27,8 +27,18 @@ class _FakeNarration:
         del path
         return SimpleNamespace(normalized_text="Hello", title="T")
 
-    def prepare(self, *, voice, start_playback_index=None):
+    def prepare(
+        self,
+        *,
+        voice,
+        start_playback_index=None,
+        start_char_offset=None,
+        force_start_char=None,
+        skip_essay_index=True,
+        persist_resume=True,
+    ):
         del voice, start_playback_index
+        del start_char_offset, force_start_char, skip_essay_index, persist_resume
 
     def start(self):
         return

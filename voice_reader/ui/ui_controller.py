@@ -11,7 +11,7 @@ from pathlib import Path
 import threading
 from typing import Sequence
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtWidgets import QFileDialog
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
@@ -53,6 +53,7 @@ class UiController(QObject):
     """Testable controller."""
 
     state_received = Signal(object)
+    ui_call_requested = Signal(object)
 
     def __init__(
         self,
@@ -131,6 +132,9 @@ class UiController(QObject):
 
         # Keep the legacy method names for UI tests/backwards-compat.
         self.state_received.connect(self._apply_state)
+        # Thread-safe UI posting: background threads may request a UI callback.
+        # Qt will queue-deliver to the UI thread because this QObject lives there.
+        self.ui_call_requested.connect(self._run_ui_callable)
         self.narration_service.add_listener(self.on_state)
 
         self.refresh_voices()
@@ -150,6 +154,16 @@ class UiController(QObject):
                 self.set_volume(100)
             except Exception:
                 pass
+
+    @Slot(object)
+    def _run_ui_callable(self, fn: object) -> None:
+        """Execute a callable on the Qt UI thread (best-effort)."""
+
+        try:
+            if callable(fn):
+                fn()
+        except Exception:
+            return
 
     def on_app_exit(self) -> None:
         """Best-effort cleanup for background tasks.
@@ -273,24 +287,40 @@ class UiController(QObject):
         self._ideas_launch_cancel = threading.Event()
 
         # Lightweight UI feedback only (do not touch multiprocessing here).
+        # Do NOT write into lbl_status: narration overwrites it frequently.
         try:
-            self.window.lbl_status.setText("Mapping ideas…")
+            tip = "Mapping ideas… 0%"
+            if hasattr(self.window, "btn_ideas"):
+                self.window.btn_ideas.setToolTip(tip)
+            if hasattr(self.window, "ideas_progress"):
+                self.window.ideas_progress.setToolTip(tip)
         except Exception:
             pass
 
+        # Show the dedicated Ideas progress bar (kept separate from narration progress).
         try:
-            from PySide6.QtCore import QTimer
-        except Exception:  # pragma: no cover
-            QTimer = None  # type: ignore[assignment]
+            if hasattr(self.window, "ideas_progress"):
+                self.window.ideas_progress.setVisible(True)
+                self.window.ideas_progress.setValue(0)
+        except Exception:
+            pass
 
         def _post_to_ui(fn) -> None:
-            if QTimer is None:
-                try:
-                    fn()
-                except Exception:
-                    return
+            # IMPORTANT:
+            # Do not use QTimer.singleShot from a background thread. In PySide/Qt,
+            # the timer is owned by the thread that creates it; a non-Qt thread
+            # typically has no event loop, and the callback may never run.
+            try:
+                self.ui_call_requested.emit(fn)
                 return
-            QTimer.singleShot(0, fn)
+            except Exception:
+                pass
+
+            # Best-effort fallback.
+            try:
+                fn()
+            except Exception:
+                return
 
         def _launcher() -> None:
             cancel_ev = self._ideas_launch_cancel
@@ -341,12 +371,24 @@ class UiController(QObject):
                     self._ideas_launch_inflight = False
                     self._ideas_index_job_book_id = book_id
                     try:
-                        if self._ideas_index_timer is None and QTimer is not None:
+                        from PySide6.QtCore import QTimer
+
+                        if self._ideas_index_timer is None:
                             self._ideas_index_timer = QTimer(self.window)
                             self._ideas_index_timer.setInterval(50)
-                            self._ideas_index_timer.timeout.connect(self._poll_ideas_indexing)
+                            self._ideas_index_timer.timeout.connect(
+                                self._poll_ideas_indexing
+                            )
                         if self._ideas_index_timer is not None:
                             self._ideas_index_timer.start()
+                        try:
+                            self._log.debug(
+                                "Ideas: polling timer started book_id=%s interval_ms=%s",
+                                str(book_id),
+                                50,
+                            )
+                        except Exception:
+                            pass
                     except Exception:
                         self._ideas_index_timer = None
                     self._poll_ideas_indexing()
@@ -401,38 +443,85 @@ class UiController(QObject):
 
         events = mgr.poll(book_id=book_id)
 
+        # Optional deep debug: surface worker debug events into app logs.
+        try:
+            import os
+
+            ideas_debug = os.getenv("NARRATEX_IDEAS_DEBUG", "").strip().lower() in {
+                "1",
+                "true",
+                "yes",
+            }
+        except Exception:
+            ideas_debug = False
+
         # Update UI (best-effort; do not break playback if anything fails).
-        if self._can_show_idea_progress():
-            for ev in events:
-                if not isinstance(ev, dict):
-                    continue
-                if ev.get("type") == "progress":
-                    try:
-                        p = int(ev.get("progress") or 0)
-                    except Exception:
-                        p = 0
-                    try:
-                        self.window.lbl_status.setText("Mapping ideas…")
-                    except Exception:
-                        pass
-                    try:
-                        self.window.progress.setValue(max(0, min(100, p)))
-                    except Exception:
-                        pass
-                elif ev.get("type") == "result":
-                    try:
-                        self.window.lbl_status.setText("Ideas mapped")
-                    except Exception:
-                        pass
-                elif ev.get("type") == "error":
-                    try:
-                        self.window.lbl_status.setText("Ideas mapping failed")
-                    except Exception:
-                        pass
-                    try:
-                        self.window.progress.setValue(0)
-                    except Exception:
-                        pass
+        # Always drive the dedicated Ideas progress bar, regardless of playback state,
+        # because it is separate from narration progress.
+        for ev in events:
+            if not isinstance(ev, dict):
+                continue
+            if ev.get("type") == "debug" and ideas_debug:
+                try:
+                    self._log.debug("Ideas worker: %s", str(ev.get("message") or ""))
+                except Exception:
+                    pass
+                continue
+            if ev.get("type") == "progress":
+                try:
+                    p = int(ev.get("progress") or 0)
+                except Exception:
+                    p = 0
+                try:
+                    msg = str(ev.get("message") or "Mapping ideas…")
+                except Exception:
+                    msg = "Mapping ideas…"
+                tip = f"{msg} {max(0, min(100, p))}%"
+                try:
+                    if hasattr(self.window, "btn_ideas"):
+                        self.window.btn_ideas.setToolTip(tip)
+                    if hasattr(self.window, "ideas_progress"):
+                        self.window.ideas_progress.setToolTip(tip)
+                except Exception:
+                    pass
+                try:
+                    if hasattr(self.window, "ideas_progress"):
+                        self.window.ideas_progress.setVisible(True)
+                        self.window.ideas_progress.setValue(max(0, min(100, p)))
+                except Exception:
+                    pass
+            elif ev.get("type") == "result":
+                try:
+                    if hasattr(self.window, "btn_ideas"):
+                        self.window.btn_ideas.setToolTip("Idea map ready")
+                    if hasattr(self.window, "ideas_progress"):
+                        self.window.ideas_progress.setToolTip("Idea map ready")
+                except Exception:
+                    pass
+                try:
+                    if hasattr(self.window, "ideas_progress"):
+                        self.window.ideas_progress.setValue(100)
+                        self.window.ideas_progress.setVisible(False)
+                except Exception:
+                    pass
+            elif ev.get("type") == "error":
+                try:
+                    msg = str(ev.get("message") or "Ideas mapping failed")
+                except Exception:
+                    msg = "Ideas mapping failed"
+                try:
+                    if hasattr(self.window, "btn_ideas"):
+                        self.window.btn_ideas.setToolTip(msg)
+                    if hasattr(self.window, "ideas_progress"):
+                        self.window.ideas_progress.setToolTip(msg)
+                except Exception:
+                    pass
+                try:
+                    if hasattr(self.window, "ideas_progress"):
+                        self.window.ideas_progress.setValue(0)
+                        self.window.ideas_progress.setVisible(False)
+                except Exception:
+                    pass
 
         # If we reached a terminal event, stop polling and re-evaluate search enabled state.
         if any(
@@ -445,6 +534,13 @@ class UiController(QObject):
             except Exception:  # pragma: no cover
                 pass
             self._ideas_index_job_book_id = None
+            # Ensure the Ideas progress bar is hidden/reset.
+            try:
+                if hasattr(self.window, "ideas_progress"):
+                    self.window.ideas_progress.setValue(0)
+                    self.window.ideas_progress.setVisible(False)
+            except Exception:
+                pass
             try:
                 self._apply_search_enabled_state()
             except Exception:  # pragma: no cover

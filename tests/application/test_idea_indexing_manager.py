@@ -159,6 +159,27 @@ def test_manager_poll_persists_progress_and_error_without_spawning() -> None:
     assert p.join_calls >= 1
 
 
+def test_manager_poll_debug_logging_branch_does_not_crash() -> None:
+    """Cover the no-events debug logging branch."""
+
+    repo = _Repo(docs={})
+    mgr = IdeaIndexingManager(repo=repo)  # type: ignore[arg-type]
+
+    class _Q:
+        def get_nowait(self):
+            raise queue.Empty
+
+        def qsize(self):
+            return 0
+
+    class _P:
+        def is_alive(self):
+            return True
+
+    mgr._jobs["b1"] = IdeaIndexJob(book_id="b1", process=_P(), out_q=_Q(), started_at="t")  # noqa: SLF001
+    assert mgr.poll(book_id="b1") == []
+
+
 def test_manager_cancel_terminates_and_persists_cancelled() -> None:
     repo = _Repo(docs={})
     mgr = IdeaIndexingManager(repo=repo)  # type: ignore[arg-type]

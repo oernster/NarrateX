@@ -276,3 +276,23 @@ def test_load_book_stops_active_play_thread_to_allow_new_play(tmp_path: Path) ->
 
     svc.load_book(tmp_path / "b2.txt")
     assert stop_calls, "Expected load_book() to stop active playback before switching"
+
+
+def test_stop_accepts_persist_resume_false(tmp_path: Path) -> None:
+    """Coverage: stop(persist_resume=False) is used by queued navigation (Ideas GoTo)."""
+
+    book = Book(id="book-1", title="T", raw_text="x", normalized_text="Hello")
+
+    svc = NarrationService(
+        book_repo=_FakeBookRepo(book=book),
+        cache_repo=_FakeCache(base=tmp_path),
+        tts_engine=_FakeTTSEngine(),
+        audio_streamer=_FakeStreamer(),
+        chunking_service=ChunkingService(min_chars=1, max_chars=5),
+        device="cpu",
+        language="en",
+        bookmark_service=_FakeBookmarkService(resume_chunk_index=None),  # type: ignore[arg-type]
+    )
+
+    svc.load_book(tmp_path / "b1.txt")
+    svc.stop(persist_resume=False)

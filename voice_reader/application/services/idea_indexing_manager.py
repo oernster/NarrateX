@@ -9,6 +9,7 @@ Phase 3 scope:
 
 from __future__ import annotations
 
+import logging
 import multiprocessing as mp
 import queue
 from dataclasses import dataclass
@@ -68,6 +69,11 @@ class IdeaIndexingManager:
         if existing is not None and existing.process.is_alive():
             return existing
 
+        # Debug visibility for packaged builds where spawn/process creation can fail silently.
+        logging.getLogger(self.__class__.__name__).info(
+            "Ideas: start_indexing book_id=%s text_path=%s", book_id, str(text_path)
+        )
+
         started_at = _utc_now_iso()
         # Persist a lightweight running marker.
         self._repo.save_doc_atomic(
@@ -93,6 +99,13 @@ class IdeaIndexingManager:
         p = ctx.Process(target=run_worker, kwargs={"out_q": out_q, "payload": payload})
         p.daemon = True
         p.start()
+
+        logging.getLogger(self.__class__.__name__).info(
+            "Ideas: worker process started book_id=%s pid=%s alive=%s",
+            book_id,
+            getattr(p, "pid", None),
+            bool(getattr(p, "is_alive", lambda: False)()),
+        )
 
         job = IdeaIndexJob(
             book_id=book_id,
@@ -153,6 +166,19 @@ class IdeaIndexingManager:
                 break
             if isinstance(ev, dict):
                 events.append(ev)
+
+        # If the UI is stuck at 0%, the most common causes are:
+        # - worker process crashed before emitting progress
+        # - queue is not being drained
+        # - job is not alive
+        # Log minimal state when no events arrive.
+        if not events:
+            logging.getLogger(self.__class__.__name__).debug(
+                "Ideas: poll book_id=%s alive=%s qsize=%s",
+                book_id,
+                bool(getattr(job.process, "is_alive", lambda: False)()),
+                getattr(job.out_q, "qsize", lambda: "?")(),
+            )
 
         # Best-effort persistence: running progress + completion.
         for ev in events:

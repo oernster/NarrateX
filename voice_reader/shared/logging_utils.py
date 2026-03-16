@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import warnings
+from pathlib import Path
 
 
 def _level_from_env(default: int) -> int:
@@ -34,10 +35,26 @@ def configure_logging(level: int = logging.INFO) -> None:
         category=UserWarning,
     )
 
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
+
+    # Optional file logging for diagnosing packaged builds.
+    # Enable with: NARRATEX_LOG_FILE=1
+    if os.getenv("NARRATEX_LOG_FILE", "").strip().lower() in {"1", "true", "yes"}:
+        try:
+            base = Path(sys.argv[0]).resolve().parent
+        except Exception:
+            base = Path.cwd()
+        try:
+            log_path = base / "NarrateX.debug.log.txt"
+            handlers.append(logging.FileHandler(str(log_path), encoding="utf-8"))
+        except Exception:
+            # Never fail startup due to logging.
+            pass
+
     logging.basicConfig(
         level=level,
         format=(
             "%(asctime)s | %(levelname)s | %(threadName)s | %(name)s | %(message)s"
         ),
-        handlers=[logging.StreamHandler(sys.stdout)],
+        handlers=handlers,
     )

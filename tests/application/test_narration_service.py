@@ -104,6 +104,10 @@ class FakeStreamer(AudioStreamer):
         on_chunk_end=None,
         on_playback_progress=None,
     ) -> None:
+        # Be resilient to a prior stop() call.
+        # The real AudioStreamer should be reusable across multiple play sessions.
+        self._stop_flag = False
+        self._pause_flag = False
         it = iter(chunk_audio_paths)
         i = 0
         while not self._stop_flag:
