@@ -20,6 +20,25 @@ def apply_state(controller, state: object) -> None:
     if not isinstance(state, NarrationState):
         return
 
+    # Book switching must be disabled during active playback/preparation.
+    # Re-enable on PAUSED/STOPPED/IDLE/ERROR.
+    book_select_locked_statuses = {
+        NarrationStatus.LOADING,
+        NarrationStatus.CHUNKING,
+        NarrationStatus.SYNTHESIZING,
+        NarrationStatus.PLAYING,
+    }
+    select_book_locked = state.status in book_select_locked_statuses
+    try:
+        btn = getattr(controller.window, "btn_select_book", None)
+        if btn is not None:
+            btn.setEnabled(not select_book_locked)
+            btn.setProperty("selectBookLocked", bool(select_book_locked))
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+    except Exception:
+        pass
+
     if state.total_chunks:
         try:
             controller.window.lbl_progress.setText(

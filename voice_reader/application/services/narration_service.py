@@ -166,6 +166,15 @@ class NarrationService:
     def load_book(self, source_path: Path) -> Book:
         # Book switch: persist resume for the previous book (best-effort).
         self._maybe_save_resume_position()
+
+        # If a playback thread is active (e.g. user paused but did not stop),
+        # stop it before switching books. Otherwise `start()` can no-op due to the
+        # previous thread still being alive.
+        try:
+            self.stop()
+        except Exception:
+            # Best-effort: book switching should still proceed even if stop fails.
+            pass
         self._set_state(
             NarrationState(
                 status=NarrationStatus.LOADING,
