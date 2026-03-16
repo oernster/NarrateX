@@ -31,12 +31,18 @@ def test_run_worker_emits_progress_and_result() -> None:
     ctx = get_context("spawn")
     q = ctx.Queue()
 
+    import tempfile
+    from pathlib import Path
+
+    p = Path(tempfile.mkdtemp()) / "b1.normalized.txt"
+    p.write_text("Hello world", encoding="utf-8")
+
     run_worker(
         out_q=q,
         payload={
             "book_id": "b1",
             "book_title": "Title",
-            "normalized_text": "Hello world",
+            "text_path": str(p),
         },
     )
 
@@ -51,17 +57,23 @@ def test_run_worker_emits_progress_and_result() -> None:
 
 
 def test_run_worker_accepts_none_normalized_text() -> None:
-    """Cover the tolerant normalized_text=None branch."""
+    """Cover tolerant branches; worker reads from a file."""
 
     ctx = get_context("spawn")
     q = ctx.Queue()
+
+    import tempfile
+    from pathlib import Path
+
+    p = Path(tempfile.mkdtemp()) / "b1.normalized.txt"
+    p.write_text("", encoding="utf-8")
 
     run_worker(
         out_q=q,
         payload={
             "book_id": "b1",
             "book_title": None,
-            "normalized_text": None,
+            "text_path": str(p),
         },
     )
 
@@ -73,7 +85,16 @@ def test_run_worker_emits_error_when_missing_book_id() -> None:
     ctx = get_context("spawn")
     q = ctx.Queue()
 
-    run_worker(out_q=q, payload={"normalized_text": "x"})
+    run_worker(out_q=q, payload={"text_path": "missing.txt"})
+    ev = q.get(timeout=1.0)
+    assert ev["type"] == "error"
+
+
+def test_run_worker_emits_error_when_missing_text_path() -> None:
+    ctx = get_context("spawn")
+    q = ctx.Queue()
+
+    run_worker(out_q=q, payload={"book_id": "b1"})
     ev = q.get(timeout=1.0)
     assert ev["type"] == "error"
 

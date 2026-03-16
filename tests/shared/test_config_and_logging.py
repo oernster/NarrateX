@@ -12,6 +12,7 @@ def test_config_creates_directories(tmp_path: Path) -> None:
     cfg.ensure_directories()
     assert cfg.paths.voices_dir.exists()
     assert cfg.paths.cache_dir.exists()
+    assert cfg.paths.ideas_work_dir.exists()
     assert cfg.paths.temp_books_dir.exists()
     assert cfg.paths.bookmarks_dir.exists()
 

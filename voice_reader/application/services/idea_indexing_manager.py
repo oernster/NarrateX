@@ -13,10 +13,12 @@ import multiprocessing as mp
 import queue
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from voice_reader.domain.interfaces.idea_index_repository import IdeaIndexRepository
 from voice_reader.application.services.idea_index_worker import run_worker
+from voice_reader.application.services.ideas_staging import safe_unlink
 
 
 def _utc_now_iso() -> str:
@@ -31,6 +33,7 @@ class IdeaIndexJob:
     process: Any
     out_q: Any
     started_at: str
+    input_text_path: str | None = None
 
 
 class IdeaIndexingManager:
@@ -53,7 +56,7 @@ class IdeaIndexingManager:
         *,
         book_id: str,
         book_title: str | None,
-        normalized_text: str,
+        text_path: str | Path,
     ) -> IdeaIndexJob:
         """Start a new indexing job for a book (no-op if already running)."""
 
@@ -81,16 +84,23 @@ class IdeaIndexingManager:
 
         ctx = mp.get_context("spawn")
         out_q: mp.Queue = ctx.Queue()
+        text_path = str(Path(text_path).resolve())
         payload = {
             "book_id": book_id,
             "book_title": book_title,
-            "normalized_text": normalized_text,
+            "text_path": text_path,
         }
         p = ctx.Process(target=run_worker, kwargs={"out_q": out_q, "payload": payload})
         p.daemon = True
         p.start()
 
-        job = IdeaIndexJob(book_id=book_id, process=p, out_q=out_q, started_at=started_at)
+        job = IdeaIndexJob(
+            book_id=book_id,
+            process=p,
+            out_q=out_q,
+            started_at=started_at,
+            input_text_path=text_path,
+        )
         self._jobs[book_id] = job
         return job
 
@@ -107,6 +117,9 @@ class IdeaIndexingManager:
             job.process.join(timeout=0.2)
         except Exception:  # pragma: no cover
             pass
+
+        # Cleanup staged input (best-effort).
+        safe_unlink(job.input_text_path)
 
         # Persist cancellation state (best-effort).
         try:
@@ -189,6 +202,13 @@ class IdeaIndexingManager:
                 job.process.join(timeout=0.2)
         except Exception:  # pragma: no cover
             pass
+
+        # Cleanup staged input on terminal events (best-effort).
+        if any(
+            isinstance(ev, dict) and ev.get("type") in {"result", "error"}
+            for ev in events
+        ):
+            safe_unlink(job.input_text_path)
 
         return events
 

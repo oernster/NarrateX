@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+import threading
 from typing import Sequence
 
 from PySide6.QtCore import QObject, Signal
@@ -43,6 +44,9 @@ from voice_reader.ui._ui_controller_playback import (
 )
 from voice_reader.ui._ui_controller_state import apply_state, on_state
 from voice_reader.ui.main_window import MainWindow
+
+from voice_reader.application.services.ideas_staging import stage_normalized_text
+from voice_reader.shared.config import Config
 
 
 class UiController(QObject):
@@ -80,6 +84,9 @@ class UiController(QObject):
         self._ideas_dialog = None
         self._ideas_index_job_book_id: str | None = None
         self._ideas_index_timer = None
+        self._ideas_launch_inflight: bool = False
+        self._ideas_launch_cancel: threading.Event | None = None
+        self._ideas_launch_thread: threading.Thread | None = None
 
         self._chapter_index_service = ChapterIndexService()
         self._chapters: list[Chapter] = []
@@ -150,6 +157,13 @@ class UiController(QObject):
         NarrationService owns resume persistence; this only handles Ideas indexing
         so we don't leave a worker process running when the app exits.
         """
+
+        # Cancel any in-flight launcher orchestration.
+        try:
+            if self._ideas_launch_cancel is not None:
+                self._ideas_launch_cancel.set()
+        except Exception:  # pragma: no cover
+            pass
 
         book_id = getattr(self, "_ideas_index_job_book_id", None)
         if not book_id:
@@ -236,41 +250,128 @@ class UiController(QObject):
         return open_ideas_dialog(self)
 
     def _start_ideas_indexing(self, *, book_id: str) -> None:
-        """Start background indexing and begin polling for progress."""
+        """Start background indexing and begin polling for progress.
+
+        Hard requirement: must not block the Qt/UI thread.
+        """
 
         mgr = getattr(self, "idea_indexing_manager", None)
         if mgr is None:
             return
 
-        book_title = None
-        normalized_text = ""
+        # Avoid re-entry while orchestration is in flight.
+        if getattr(self, "_ideas_launch_inflight", False):
+            return
+        self._ideas_launch_inflight = True
+
+        # Cancel any previous orchestration thread.
         try:
-            book = getattr(self.narration_service, "_book", None)  # noqa: SLF001
-            book_title = getattr(book, "title", None)
-            normalized_text = str(getattr(book, "normalized_text", ""))
+            if self._ideas_launch_cancel is not None:
+                self._ideas_launch_cancel.set()
+        except Exception:
+            pass
+        self._ideas_launch_cancel = threading.Event()
+
+        # Lightweight UI feedback only (do not touch multiprocessing here).
+        try:
+            self.window.lbl_status.setText("Mapping ideas…")
         except Exception:
             pass
 
-        mgr.start_indexing(
-            book_id=book_id,
-            book_title=str(book_title) if book_title is not None else None,
-            normalized_text=normalized_text,
-        )
-        self._ideas_index_job_book_id = book_id
-
         try:
             from PySide6.QtCore import QTimer
-
-            if self._ideas_index_timer is None:
-                self._ideas_index_timer = QTimer(self.window)
-                self._ideas_index_timer.setInterval(50)
-                self._ideas_index_timer.timeout.connect(self._poll_ideas_indexing)
-            self._ideas_index_timer.start()
         except Exception:  # pragma: no cover
-            # Best-effort; indexing still runs.
-            self._ideas_index_timer = None
+            QTimer = None  # type: ignore[assignment]
 
-        self._poll_ideas_indexing()
+        def _post_to_ui(fn) -> None:
+            if QTimer is None:
+                try:
+                    fn()
+                except Exception:
+                    return
+                return
+            QTimer.singleShot(0, fn)
+
+        def _launcher() -> None:
+            cancel_ev = self._ideas_launch_cancel
+            try:
+                # Snapshot book metadata on the launcher thread (may still be large,
+                # but avoids blocking the Qt loop).
+                book_title = None
+                normalized_text = ""
+                try:
+                    book = getattr(self.narration_service, "_book", None)  # noqa: SLF001
+                    book_title = getattr(book, "title", None)
+                    normalized_text = str(getattr(book, "normalized_text", ""))
+                except Exception:
+                    pass
+
+                if cancel_ev is not None and cancel_ev.is_set():
+                    raise RuntimeError("Ideas launch cancelled")
+
+                # Stage normalized text to an app-managed work dir.
+                # app.py ensures directories; tests may not. Ensure directory exists.
+                try:
+                    work_dir = Config.from_project_root(Path.cwd()).paths.ideas_work_dir
+                except Exception:
+                    # Fallback for older/partial config stubs.
+                    work_dir = Path.cwd() / "cache" / "ideas_work"
+
+                text_path = stage_normalized_text(
+                    work_dir=Path(work_dir),
+                    book_id=str(book_id),
+                    normalized_text=normalized_text,
+                )
+
+                if cancel_ev is not None and cancel_ev.is_set():
+                    # Avoid spawning if user switched books/app exited.
+                    from voice_reader.application.services.ideas_staging import safe_unlink
+
+                    safe_unlink(text_path)
+                    raise RuntimeError("Ideas launch cancelled")
+
+                # Spawn process (can be expensive on Windows); keep off UI thread.
+                mgr.start_indexing(
+                    book_id=book_id,
+                    book_title=str(book_title) if book_title is not None else None,
+                    text_path=str(text_path),
+                )
+
+                def _on_launched() -> None:
+                    self._ideas_launch_inflight = False
+                    self._ideas_index_job_book_id = book_id
+                    try:
+                        if self._ideas_index_timer is None and QTimer is not None:
+                            self._ideas_index_timer = QTimer(self.window)
+                            self._ideas_index_timer.setInterval(50)
+                            self._ideas_index_timer.timeout.connect(self._poll_ideas_indexing)
+                        if self._ideas_index_timer is not None:
+                            self._ideas_index_timer.start()
+                    except Exception:
+                        self._ideas_index_timer = None
+                    self._poll_ideas_indexing()
+
+                _post_to_ui(_on_launched)
+            except Exception:
+                def _on_failed() -> None:
+                    self._ideas_launch_inflight = False
+                    # Do not leave polling stuck.
+                    try:
+                        if self._ideas_index_timer is not None:
+                            self._ideas_index_timer.stop()
+                    except Exception:
+                        pass
+                    self._ideas_index_job_book_id = None
+                    try:
+                        self.window.lbl_status.setText("Ideas mapping failed")
+                    except Exception:
+                        pass
+
+                _post_to_ui(_on_failed)
+
+        t = threading.Thread(target=_launcher, name="IdeasLaunch", daemon=True)
+        self._ideas_launch_thread = t
+        t.start()
 
     def _can_show_idea_progress(self) -> bool:
         """Avoid overriding narration progress while playback is active."""
@@ -418,6 +519,14 @@ class UiController(QObject):
                     self._ideas_index_timer.stop()
             except Exception:  # pragma: no cover
                 pass
+
+        # Also cancel any in-flight launch orchestration.
+        try:
+            if self._ideas_launch_cancel is not None:
+                self._ideas_launch_cancel.set()
+        except Exception:  # pragma: no cover
+            pass
+        self._ideas_launch_inflight = False
 
         path_str, _ = QFileDialog.getOpenFileName(
             self.window,

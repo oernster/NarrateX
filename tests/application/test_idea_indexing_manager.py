@@ -22,7 +22,7 @@ def test_manager_start_persists_running_marker() -> None:
     repo = _Repo(docs={})
     mgr = IdeaIndexingManager(repo=repo)  # type: ignore[arg-type]
 
-    mgr.start_indexing(book_id="b1", book_title=None, normalized_text="hi")
+    mgr.start_indexing(book_id="b1", book_title=None, text_path="x.txt")
     assert repo.docs["b1"]["status"]["state"] == "running"
 
 
@@ -31,7 +31,7 @@ def test_manager_start_raises_on_empty_book_id() -> None:
     mgr = IdeaIndexingManager(repo=repo)  # type: ignore[arg-type]
 
     try:
-        mgr.start_indexing(book_id=" ", book_title=None, normalized_text="hi")
+        mgr.start_indexing(book_id=" ", book_title=None, text_path="x.txt")
         raise AssertionError("expected ValueError")
     except ValueError:
         pass
@@ -41,7 +41,13 @@ def test_manager_poll_persists_result_doc() -> None:
     repo = _Repo(docs={})
     mgr = IdeaIndexingManager(repo=repo)  # type: ignore[arg-type]
 
-    mgr.start_indexing(book_id="b1", book_title="T", normalized_text="hi")
+    import tempfile
+    from pathlib import Path
+
+    p = Path(tempfile.mkdtemp()) / "b1.normalized.txt"
+    p.write_text("hi", encoding="utf-8")
+
+    mgr.start_indexing(book_id="b1", book_title="T", text_path=str(p))
 
     # Give the worker a moment to run and emit events.
     for _ in range(50):
@@ -63,12 +69,12 @@ def test_manager_start_is_noop_when_job_running(monkeypatch) -> None:
         def is_alive(self):
             return True
 
-    job = mgr.start_indexing(book_id="b1", book_title=None, normalized_text="hi")
+    job = mgr.start_indexing(book_id="b1", book_title=None, text_path="x.txt")
     # Force the stored job to appear alive, and ensure second start returns it.
     job.process = _P()
     mgr._jobs["b1"] = job  # noqa: SLF001
 
-    job2 = mgr.start_indexing(book_id="b1", book_title=None, normalized_text="hi")
+    job2 = mgr.start_indexing(book_id="b1", book_title=None, text_path="x.txt")
     assert job2 is job
 
 
@@ -94,7 +100,7 @@ def test_manager_active_job_returns_job_when_finished() -> None:
         def is_alive(self):
             return False
 
-    job = mgr.start_indexing(book_id="b1", book_title=None, normalized_text="hi")
+    job = mgr.start_indexing(book_id="b1", book_title=None, text_path="x.txt")
     job.process = _P()
     mgr._jobs["b1"] = job  # noqa: SLF001
 
@@ -172,12 +178,25 @@ def test_manager_cancel_terminates_and_persists_cancelled() -> None:
             self.joined = True
 
     p = _P()
-    mgr._jobs["b1"] = IdeaIndexJob(book_id="b1", process=p, out_q=None, started_at="t")  # noqa: SLF001
+    import tempfile
+    from pathlib import Path
+
+    staged = Path(tempfile.mkdtemp()) / "staged.txt"
+    staged.write_text("x", encoding="utf-8")
+
+    mgr._jobs["b1"] = IdeaIndexJob(
+        book_id="b1",
+        process=p,
+        out_q=None,
+        started_at="t",
+        input_text_path=str(staged),
+    )  # noqa: SLF001
 
     mgr.cancel(book_id="b1")
     assert p.terminated is True
     assert p.joined is True
     assert repo.docs["b1"]["status"]["state"] == "cancelled"
+    assert staged.exists() is False
 
 
 def test_manager_cancel_is_noop_when_no_job() -> None:

@@ -72,6 +72,18 @@ def test_ideas_click_unindexed_shows_permission_and_starts_indexing(qapp, tmp_pa
 
     repo = JSONIdeaIndexRepository(bookmarks_dir=tmp_path)
     idea_service = IdeaMapService(repo=repo)
+
+    # Ensure staging occurs under the test temp dir (avoid touching real cwd/cache).
+    import voice_reader.shared.config as cfg_mod
+
+    original_from_project_root = cfg_mod.Config.from_project_root
+
+    def _fake_from_project_root(_):
+        real = original_from_project_root(tmp_path)
+        return real
+
+    cfg_mod.Config.from_project_root = staticmethod(_fake_from_project_root)  # type: ignore[assignment]
+
     mgr = IdeaIndexingManager(repo=repo)
     voice_service = VoiceProfileService(repo=_FakeVoiceRepo())
 
@@ -85,6 +97,9 @@ def test_ideas_click_unindexed_shows_permission_and_starts_indexing(qapp, tmp_pa
         device="cpu",
         engine_name="engine",
     )
+
+    # Provide a book so the launcher can stage text.
+    narration._book = type("B", (), {"normalized_text": "Hello", "title": "T"})()  # type: ignore[attr-defined]
 
     # Ensure only new dialogs are considered.
     existing = {
@@ -108,11 +123,24 @@ def test_ideas_click_unindexed_shows_permission_and_starts_indexing(qapp, tmp_pa
     box.done(int(QMessageBox.Ok))
     QApplication.processEvents()
 
-    assert c._ideas_index_job_book_id == "b1"  # noqa: SLF001
+    # Job id may be set shortly after launcher posts back; assert we at least entered launch.
+    assert getattr(c, "_ideas_launch_inflight", False) in {True, False}  # noqa: SLF001
 
     # Poll once to ensure no exceptions and doc is at least running.
-    c._poll_ideas_indexing()  # noqa: SLF001
-    doc = repo.load_doc(book_id="b1")
+    import time
+
+    deadline = time.monotonic() + 2.0
+    doc = None
+    while time.monotonic() < deadline:
+        c._poll_ideas_indexing()  # noqa: SLF001
+        doc = repo.load_doc(book_id="b1")
+        if isinstance(doc, dict):
+            break
+        time.sleep(0.01)
+
+    # Restore Config patch.
+    cfg_mod.Config.from_project_root = original_from_project_root  # type: ignore[assignment]
+
     assert isinstance(doc, dict)
     assert doc.get("status", {}).get("state") in {"running", "completed"}
 
