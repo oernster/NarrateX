@@ -108,6 +108,7 @@ def test_chapter_controls_disabled_when_no_chapters(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     assert w.btn_prev_chapter.isEnabled() is False
@@ -131,6 +132,7 @@ def test_prev_next_chapter_jump_uses_prepare_with_target_chunk_index(
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     # Inject a deterministic chapter list and force current position.
@@ -174,6 +176,7 @@ def test_prev_next_chapter_boundaries_noop(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     from voice_reader.domain.entities.chapter import Chapter

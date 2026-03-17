@@ -42,8 +42,7 @@ def test_save_atomic_writes_file(tmp_path: Path) -> None:
 def test_save_requires_dict(tmp_path: Path) -> None:
     repo = JSONIdeaIndexRepository(bookmarks_dir=tmp_path)
     try:
-        repo.save_doc_atomic(book_id="b1", doc=[] )  # type: ignore[arg-type]
+        repo.save_doc_atomic(book_id="b1", doc=[])  # type: ignore[arg-type]
     except TypeError:
         return
     raise AssertionError("Expected TypeError")
-

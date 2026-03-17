@@ -11,7 +11,9 @@ from voice_reader.application.services.voice_profile_service import VoiceProfile
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.domain.services.reading_start_service import ReadingStartService
-from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
+from voice_reader.application.services.navigation_chunk_service import (
+    NavigationChunkService,
+)
 from voice_reader.ui._ui_controller_sections import open_structural_bookmarks_dialog
 from voice_reader.ui.main_window import MainWindow
 
@@ -347,4 +349,3 @@ def test_go_to_section_falls_back_to_chunk_index_when_offset_missing(qapp) -> No
     assert narration.prepare_calls
     call = narration.prepare_calls[-1]
     assert call["start_playback_index"] == 5
-

@@ -51,8 +51,18 @@ LIGHT = Theme(
         }
         QPushButton#DangerAction:hover { background: #6a1b21; }
 
-        QLineEdit { background: white; border: 1px solid #d1d5db; border-radius: 10px; padding: 8px; }
-        QPushButton#BrowseButton { background: #e5e7eb; border: none; border-radius: 10px; padding: 8px 12px; }
+        QLineEdit {
+            background: white;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            padding: 8px;
+        }
+        QPushButton#BrowseButton {
+            background: #e5e7eb;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 12px;
+        }
         QPushButton#BrowseButton:hover { background: #dbe0e8; }
 
         QProgressBar#ProgressBar {
@@ -111,8 +121,19 @@ DARK = Theme(
         }
         QPushButton#DangerAction:hover { background: #6a1b21; }
 
-        QLineEdit { background: #0f1220; border: 1px solid #2b2f44; border-radius: 10px; padding: 8px; }
-        QPushButton#BrowseButton { background: #24283b; border: none; border-radius: 10px; padding: 8px 12px; color: #e5e7eb; }
+        QLineEdit {
+            background: #0f1220;
+            border: 1px solid #2b2f44;
+            border-radius: 10px;
+            padding: 8px;
+        }
+        QPushButton#BrowseButton {
+            background: #24283b;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 12px;
+            color: #e5e7eb;
+        }
         QPushButton#BrowseButton:hover { background: #2b3050; }
 
         QProgressBar#ProgressBar {

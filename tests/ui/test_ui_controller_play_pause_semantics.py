@@ -109,6 +109,7 @@ def test_play_when_paused_calls_resume(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     c.toggle_play_pause()
@@ -140,6 +141,7 @@ def test_play_when_paused_and_voice_changed_restarts(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     # Start with default selection: system.
@@ -189,6 +191,7 @@ def test_voice_dropdown_sorted_alphabetically_with_system_first(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     labels = [w.voice_combo.itemText(i) for i in range(w.voice_combo.count())]
@@ -218,6 +221,7 @@ def test_play_when_idle_prepares_and_starts(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     c.toggle_play_pause()
@@ -248,6 +252,7 @@ def test_toggle_when_playing_calls_pause(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     c.toggle_play_pause()
@@ -284,6 +289,7 @@ def test_toggle_when_synthesizing_calls_pause(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     c.toggle_play_pause()

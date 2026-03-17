@@ -69,6 +69,7 @@ def test_ui_controller_apply_state_updates_widgets(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
     state = NarrationState(
         status=NarrationStatus.PLAYING,

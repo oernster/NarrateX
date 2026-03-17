@@ -53,13 +53,17 @@ def open_structural_bookmarks_dialog(controller) -> None:
 
     # Use any already-computed chapter metadata as candidates.
     try:
-        chapter_candidates = list(getattr(controller, "_chapters", []) or [])  # noqa: SLF001
+        chapter_candidates = list(
+            getattr(controller, "_chapters", []) or []
+        )  # noqa: SLF001
     except Exception:
         chapter_candidates = []
 
     # If chunks are available, allow optional chunk_index resolution.
     try:
-        chunks = list(getattr(controller.narration_service, "_chunks", []) or [])  # noqa: SLF001
+        chunks = list(
+            getattr(controller.narration_service, "_chunks", []) or []
+        )  # noqa: SLF001
     except Exception:
         chunks = None
 
@@ -166,7 +170,9 @@ def open_structural_bookmarks_dialog(controller) -> None:
         controller.narration_service.start()
 
         try:
-            if getattr(controller, "_sections_dialog", None) is not None:  # noqa: SLF001
+            if (
+                getattr(controller, "_sections_dialog", None) is not None
+            ):  # noqa: SLF001
                 controller._sections_dialog.close()  # noqa: SLF001
         except Exception:  # pragma: no cover
             pass
@@ -186,4 +192,3 @@ def open_structural_bookmarks_dialog(controller) -> None:
         book_title=book_title,
     )
     controller._sections_dialog.open()  # noqa: SLF001
-

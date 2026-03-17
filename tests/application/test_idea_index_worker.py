@@ -171,24 +171,22 @@ def test_run_worker_progress_steps_change_with_text_size() -> None:
         q = ctx.Queue()
         p = Path(tempfile.mkdtemp()) / "b1.normalized.txt"
         p.write_text("x" * int(n_chars), encoding="utf-8")
-        run_worker(out_q=q, payload={"book_id": "b1", "book_title": None, "text_path": str(p)})
+        run_worker(
+            out_q=q, payload={"book_id": "b1", "book_title": None, "text_path": str(p)}
+        )
         return _drain_until_result(q, timeout_seconds=5.0)
 
     # Between 20k and 80k -> 8 steps + initial 0 + final 100
     evs_mid = _run_with_chars(20_000)
     pcts_mid = [
-        int(ev.get("progress") or 0)
-        for ev in evs_mid
-        if ev.get("type") == "progress"
+        int(ev.get("progress") or 0) for ev in evs_mid if ev.get("type") == "progress"
     ]
     assert len(pcts_mid) >= 10
 
     # Between 80k and 200k -> 12 steps + initial 0 + final 100
     evs_big = _run_with_chars(80_000)
     pcts_big = [
-        int(ev.get("progress") or 0)
-        for ev in evs_big
-        if ev.get("type") == "progress"
+        int(ev.get("progress") or 0) for ev in evs_big if ev.get("type") == "progress"
     ]
     assert len(pcts_big) >= 14
 
@@ -265,4 +263,3 @@ def test_run_worker_emits_debug_event_on_error_when_enabled(monkeypatch) -> None
         ev.get("type") == "debug" and "worker error" in str(ev.get("message", ""))
         for ev in q.events
     )
-

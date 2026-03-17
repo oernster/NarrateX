@@ -39,4 +39,3 @@ def test_sections_dialog_renders_items_and_invokes_goto(qapp) -> None:
     dlg.list.setCurrentRow(0)
     dlg.btn_goto.click()
     assert calls and calls[0].label == "Chapter 1: Start"
-

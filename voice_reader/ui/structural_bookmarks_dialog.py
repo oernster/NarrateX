@@ -141,4 +141,3 @@ class StructuralBookmarksDialog(QDialog):
                 box.setWindowTitle("Sections")
                 box.setText(f"Failed jumping to section: {exc}")
                 box.open()
-

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -12,101 +11,12 @@ from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.ui.main_window import MainWindow
 from voice_reader.ui.ui_controller import UiController
 
-
-@dataclass
-class _FakeNarration:
-    listeners: list
-    state: NarrationState
-    last_rate: float | None = None
-    last_volume: float | None = None
-
-    def add_listener(self, listener):
-        self.listeners.append(listener)
-
-    def load_book(self, path: Path):
-        del path
-        return SimpleNamespace(normalized_text="Hello", title="T")
-
-    def prepare(
-        self,
-        *,
-        voice,
-        start_playback_index=None,
-        start_char_offset=None,
-        force_start_char=None,
-        skip_essay_index=True,
-        persist_resume=True,
-    ):
-        del voice, start_playback_index
-        del start_char_offset, force_start_char, skip_essay_index, persist_resume
-
-    def start(self):
-        return
-
-    def pause(self):
-        return
-
-    def stop(self):
-        return
-
-    def set_playback_rate(self, rate) -> None:
-        # Accept a PlaybackRate-ish object (value object in real code).
-        self.last_rate = float(getattr(rate, "multiplier", rate))
-
-    def set_volume(self, volume) -> None:
-        self.last_volume = float(getattr(volume, "multiplier", volume))
-
-    def loaded_book_id(self):
-        return "b1"
-
-    def current_position(self):
-        return 0, 0
-
-    def _maybe_save_resume_position(self):
-        return
-
-
-@dataclass
-class _FakeBookmarks:
-    def list_bookmarks(self, *, book_id: str):
-        del book_id
-        return []
-
-    def add_bookmark(self, *, book_id: str, char_offset: int, chunk_index: int):
-        del book_id, char_offset, chunk_index
-        return None
-
-    def delete_bookmark(self, *, book_id: str, bookmark_id: int) -> None:
-        del book_id, bookmark_id
-
-    def save_resume_position(
-        self, *, book_id: str, char_offset: int, chunk_index: int
-    ) -> None:
-        del book_id, char_offset, chunk_index
-
-    def load_resume_position(self, *, book_id: str):
-        del book_id
-        return None
-
-
-@dataclass(frozen=True, slots=True)
-class _FakeVoiceRepo:
-    profiles: list[VoiceProfile]
-
-    def list_profiles(self):
-        return list(self.profiles)
-
-
-@dataclass
-class _FakeIdeasRepo:
-    doc: dict | None
-
-    def load_doc(self, *, book_id: str):
-        del book_id
-        return self.doc
-
-    def save_doc_atomic(self, *, book_id: str, doc: dict) -> None:
-        del book_id, doc
+from tests.ui.ui_controller_fakes import (
+    FakeBookmarks,
+    FakeIdeasRepo,
+    FakeNarration,
+    FakeVoiceRepo,
+)
 
 
 def test_voice_label_formats_kokoro_ids() -> None:
@@ -122,7 +32,7 @@ def test_voice_label_prettifies_snake_case() -> None:
 def test_refresh_voices_filters_system_and_sorts(qapp) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -131,7 +41,7 @@ def test_refresh_voices_filters_system_and_sorts(qapp) -> None:
             progress=0.0,
         ),
     )
-    repo = _FakeVoiceRepo(
+    repo = FakeVoiceRepo(
         profiles=[
             VoiceProfile(name="system", reference_audio_paths=[]),
             VoiceProfile(name="bf_emma", reference_audio_paths=[]),
@@ -142,11 +52,12 @@ def test_refresh_voices_filters_system_and_sorts(qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
     c.refresh_voices()
 
@@ -160,7 +71,7 @@ def test_ui_controller_has_no_search_button(qapp) -> None:
     del qapp
     w = MainWindow()
 
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -169,16 +80,17 @@ def test_ui_controller_has_no_search_button(qapp) -> None:
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
 
     UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     assert not hasattr(w, "btn_search")
@@ -187,7 +99,7 @@ def test_ui_controller_has_no_search_button(qapp) -> None:
 def test_select_book_cancel_noop(monkeypatch, qapp) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -196,15 +108,16 @@ def test_select_book_cancel_noop(monkeypatch, qapp) -> None:
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     # Cancel dialog.
@@ -222,7 +135,7 @@ def test_select_book_cancel_noop(monkeypatch, qapp) -> None:
 def test_select_book_cancels_ideas_job_when_switching_books(monkeypatch, qapp) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -231,7 +144,7 @@ def test_select_book_cancels_ideas_job_when_switching_books(monkeypatch, qapp) -
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
 
     # Arrange: controller thinks an ideas indexing job is running for this book.
     class _Mgr:
@@ -244,12 +157,13 @@ def test_select_book_cancels_ideas_job_when_switching_books(monkeypatch, qapp) -
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         idea_indexing_manager=mgr,  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
     c._ideas_index_job_book_id = "b1"  # noqa: SLF001
     # Timer is optional; this test only asserts cancel() is called.
@@ -272,7 +186,7 @@ def test_select_book_cancels_ideas_job_when_switching_books(monkeypatch, qapp) -
 def test_on_app_exit_cancels_ideas_job(monkeypatch, qapp) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -281,7 +195,7 @@ def test_on_app_exit_cancels_ideas_job(monkeypatch, qapp) -> None:
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
 
     class _Mgr:
         cancel_calls: list[str] = []
@@ -293,12 +207,13 @@ def test_on_app_exit_cancels_ideas_job(monkeypatch, qapp) -> None:
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         idea_indexing_manager=mgr,  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
     c._ideas_index_job_book_id = "b1"  # noqa: SLF001
     c._ideas_index_timer = None  # noqa: SLF001
@@ -312,7 +227,7 @@ def test_select_book_cover_extractor_failure_is_ignored(
 ) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -321,15 +236,16 @@ def test_select_book_cover_extractor_failure_is_ignored(
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     p = tmp_path / "a.txt"
@@ -356,7 +272,7 @@ def test_select_book_cover_extractor_failure_is_ignored(
 def test_on_state_ignores_runtime_error_on_emit(monkeypatch, qapp) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -365,15 +281,16 @@ def test_on_state_ignores_runtime_error_on_emit(monkeypatch, qapp) -> None:
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     # Patch the controller's SignalInstance to a stub that raises RuntimeError.
@@ -389,7 +306,7 @@ def test_on_state_ignores_runtime_error_on_emit(monkeypatch, qapp) -> None:
 def test_apply_state_ignores_non_state(monkeypatch, qapp) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -398,15 +315,16 @@ def test_apply_state_ignores_non_state(monkeypatch, qapp) -> None:
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
     c._apply_state(object())  # pylint: disable=protected-access
 
@@ -414,7 +332,7 @@ def test_apply_state_ignores_non_state(monkeypatch, qapp) -> None:
 def test_speed_changed_calls_service(qapp) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -423,15 +341,16 @@ def test_speed_changed_calls_service(qapp) -> None:
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     # Drive controller logic directly (signal wiring covered by smoke tests).
@@ -442,7 +361,7 @@ def test_speed_changed_calls_service(qapp) -> None:
 def test_volume_changed_calls_service_and_maps_slider(qapp) -> None:
     del qapp
     w = MainWindow()
-    narration = _FakeNarration(
+    narration = FakeNarration(
         listeners=[],
         state=NarrationState(
             status=NarrationStatus.IDLE,
@@ -451,15 +370,16 @@ def test_volume_changed_calls_service_and_maps_slider(qapp) -> None:
             progress=0.0,
         ),
     )
-    voice_service = VoiceProfileService(repo=_FakeVoiceRepo(profiles=[]))
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo(profiles=[]))
     c = UiController(
         window=w,
         narration_service=narration,  # type: ignore[arg-type]
-        bookmark_service=BookmarkService(repo=_FakeBookmarks()),  # type: ignore[arg-type]
-        idea_map_service=IdeaMapService(repo=_FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     c.set_volume(50)

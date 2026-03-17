@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 
-from voice_reader.application.services.tts_engine_factory import TTSEngineFactory
+from voice_reader.infrastructure.tts.tts_engine_factory import TTSEngineFactory
 from voice_reader.infrastructure.tts.kokoro_engine import KokoroEngine
 
 

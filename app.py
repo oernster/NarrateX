@@ -20,7 +20,8 @@ from voice_reader.application.services.idea_indexing_manager import IdeaIndexing
 from voice_reader.application.services.structural_bookmark_service import (
     StructuralBookmarkService,
 )
-from voice_reader.application.services.tts_engine_factory import TTSEngineFactory
+from voice_reader.infrastructure.tts.tts_engine_factory import TTSEngineFactory
+from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.infrastructure.audio.audio_streamer import SoundDeviceAudioStreamer
@@ -301,6 +302,7 @@ def main() -> int:
             voice_service=voice_service,
             device=device,
             engine_name=tts_engine.engine_name,
+            cover_extractor=CoverExtractor(),
         )
 
         def on_quit() -> None:

@@ -120,7 +120,9 @@ def test_build_doc_v1_has_minimal_schema_and_navigable_anchor() -> None:
     assert any(a["anchor_id"] == aid for a in doc["anchors"])
 
 
-def test_build_doc_v1_indexes_only_main_text_excluding_chapter1_prelude_and_essay_index() -> None:
+def test_build_doc_v1_indexes_only_main_text_excluding_chapter1_prelude_and_essay_index() -> (
+    None
+):
     text = (
         "Foreword\n\nSome foreword text.\n\n"
         "Prologue\n\nSome prologue text.\n\n"
@@ -146,7 +148,9 @@ def test_build_doc_v1_indexes_only_main_text_excluding_chapter1_prelude_and_essa
 
     # Ensure we didn't index the Essay Index heading.
     labels = [n.get("label") for n in doc.get("nodes", []) if isinstance(n, dict)]
-    assert not any(isinstance(s, str) and s.strip().casefold() == "essay index" for s in labels)
+    assert not any(
+        isinstance(s, str) and s.strip().casefold() == "essay index" for s in labels
+    )
 
 
 def test_build_doc_v1_uses_prologue_as_scope_start_when_no_chapter1_present() -> None:
@@ -212,7 +216,9 @@ def test_build_doc_v1_excludes_essay_index_span_when_present() -> None:
     )
     doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text=text)
     labels = [n.get("label") for n in doc.get("nodes", []) if isinstance(n, dict)]
-    assert not any(isinstance(s, str) and s.strip().casefold() == "essay index" for s in labels)
+    assert not any(
+        isinstance(s, str) and s.strip().casefold() == "essay index" for s in labels
+    )
 
 
 def test_build_doc_v1_detect_start_is_used_when_no_markers_present() -> None:
@@ -238,7 +244,9 @@ def test_build_doc_v1_does_not_start_scope_on_toc_like_chapter1_entry() -> None:
     )
 
 
-def test_build_doc_v1_chapter_one_start_line_at_exception_is_handled(monkeypatch) -> None:
+def test_build_doc_v1_chapter_one_start_line_at_exception_is_handled(
+    monkeypatch,
+) -> None:
     """Coverage: exercise the exception handler around ReadingStartService._line_at."""
 
     def _boom_line_at(_text: str, _idx: int) -> str:
@@ -291,14 +299,18 @@ def test_build_doc_v1_toc_entry_probe_exceptions_are_handled(monkeypatch) -> Non
 def test_build_doc_v1_handles_no_playback_candidates() -> None:
     """If the text sanitizes to nothing, doc should still be well-formed."""
 
-    doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text="   \n\n   ")
+    doc = build_idea_index_doc_v1(
+        book_id="b1", book_title=None, normalized_text="   \n\n   "
+    )
     assert doc["schema_version"] == 1
     assert doc["status"]["state"] == "completed"
     assert doc["anchors"] == []
     assert doc["nodes"] == []
 
 
-def test_resolve_chunk_index_fallback_path_is_used_when_offset_before_first_chunk() -> None:
+def test_resolve_chunk_index_fallback_path_is_used_when_offset_before_first_chunk() -> (
+    None
+):
     # Import the private helper intentionally for coverage: it encodes a key
     # navigation guarantee.
     from voice_reader.application.services.idea_indexer_v1 import _resolve_chunk_index
@@ -347,7 +359,9 @@ def test_touch_weak_label_expansion_for_coverage_smoke() -> None:
 
 
 def test_expand_label_from_text_covers_edge_cases_for_100_percent() -> None:
-    from voice_reader.application.services.idea_indexer_v1 import _expand_label_from_text
+    from voice_reader.application.services.idea_indexer_v1 import (
+        _expand_label_from_text,
+    )
     from typing import cast
 
     # Empty label: default fallback.
@@ -369,4 +383,3 @@ def test_expand_label_from_text_covers_edge_cases_for_100_percent() -> None:
         _expand_label_from_text(label="When", text="When alpha", char_offset=9999)
         == "When"
     )
-

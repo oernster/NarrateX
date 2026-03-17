@@ -27,4 +27,3 @@ class StructuralBookmark:
     kind: str
     # Reserved for future indentation (e.g. Part > Chapter). Initial UI is flat.
     level: int = 0
-

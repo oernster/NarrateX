@@ -34,7 +34,8 @@ def _read_lgpl3_text() -> str:
     except Exception:
         pass
 
-    # Repo layout fallback: installer/ui/lgpl3_license_text.py -> repo root is parents[2].
+    # Repo layout fallback: installer/ui/lgpl3_license_text.py -> repo root is
+    # parents[2].
     try:
         candidates.append(Path(__file__).resolve().parents[2] / "LGPL3-LICENSE")
     except Exception:

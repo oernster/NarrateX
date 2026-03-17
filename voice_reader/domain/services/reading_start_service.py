@@ -205,12 +205,8 @@ class ReadingStartService:
 
     @staticmethod
     def _looks_like_backmatter(line: str) -> bool:
-        return bool(
-            re.match(
-                r"(?im)^\s*(appendix|afterword|epilogue|bibliography|references|index)\b",
-                line,
-            )
-        )
+        pat = r"(?im)^\s*(appendix|afterword|epilogue|bibliography|references|index)\b"
+        return bool(re.match(pat, line))
 
     @staticmethod
     def _skip_leading_whitespace(text: str, idx: int) -> int:
@@ -272,10 +268,9 @@ class ReadingStartService:
             ):
                 break
 
-            if (
-                ReadingStartService._looks_like_toc_entry(stripped)
-                or ReadingStartService._looks_like_outline_line(stripped)
-            ):
+            if ReadingStartService._looks_like_toc_entry(
+                stripped
+            ) or ReadingStartService._looks_like_outline_line(stripped):
                 consumed_any = True
                 offset += len(line)
                 continue
@@ -309,11 +304,14 @@ class ReadingStartService:
 
         for pat in (
             re.compile(r"(?im)^\s*introduction\s*$"),
-            re.compile(r"(?im)^\s*(foreword|preface|acknowledgements?|acknowledgments)\s*$"),
-            re.compile(r"(?im)^\s*prologue\s*$"),
-            # Chapter headings may contain the number/roman numeral as part of the heading.
             re.compile(
-                r"(?im)^\s*(?:\d+(?:\.\d+)*)?\s*chapter\s+(?:1|i)\b(?!.*\.{2,})(?:\s*$|\s*[.:\-–—]\s*\S+)"
+                r"(?im)^\s*(foreword|preface|acknowledgements?|acknowledgments)\s*$",
+            ),
+            re.compile(r"(?im)^\s*prologue\s*$"),
+            # Chapter headings may include number/roman numeral.
+            re.compile(
+                r"(?im)^\s*(?:\d+(?:\.\d+)*)?\s*chapter\s+(?:1|i)\b"
+                r"(?!.*\.{2,})(?:\s*$|\s*[.:\-–—]\s*\S+)"
             ),
         ):
             if pat.match(line):

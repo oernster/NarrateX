@@ -87,7 +87,9 @@ class _FakeBookmarkService:
         self.last_saved = (str(book_id), int(char_offset), int(chunk_index))
 
 
-def test_prepare_start_char_offset_maps_to_playback_candidate_index(tmp_path: Path) -> None:
+def test_prepare_start_char_offset_maps_to_playback_candidate_index(
+    tmp_path: Path,
+) -> None:
     # Arrange: a "number-only" chunk should be filtered out of playback candidates,
     # so mapping needs to consider speak_text filtering.
     text = "1\n\nAlpha beta.\n\nGamma delta."
@@ -155,4 +157,3 @@ def test_prepare_persist_resume_false_suppresses_resume_saves(tmp_path: Path) ->
     # Stop should not save because persistence is suppressed.
     svc.stop()
     assert bs.save_calls == 0
-

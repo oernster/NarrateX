@@ -97,6 +97,7 @@ def test_go_to_bookmark_calls_prepare_with_chunk_index_and_starts(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     bm = Bookmark(
