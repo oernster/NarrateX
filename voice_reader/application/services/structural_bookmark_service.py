@@ -481,7 +481,7 @@ def choose_best_occurrence(
     label: str,
     kind: str,
     occurrences: Sequence[HeadingOccurrence],
-    body_start_offset: int,
+    prefer_min_offset: int,
 ) -> HeadingOccurrence | None:
     """Choose the best candidate occurrence for a structural bookmark label."""
 
@@ -489,10 +489,10 @@ def choose_best_occurrence(
     if not occurrences:
         return None
 
-    body_cut = max(0, int(body_start_offset))
+    prefer_cut = max(0, int(prefer_min_offset))
 
-    post = [o for o in occurrences if int(o.char_offset) >= body_cut]
-    pre = [o for o in occurrences if int(o.char_offset) < body_cut]
+    post = [o for o in occurrences if int(o.char_offset) >= prefer_cut]
+    pre = [o for o in occurrences if int(o.char_offset) < prefer_cut]
 
     def blank_score(o: HeadingOccurrence) -> int:
         if o.prev_blank and o.next_blank:
@@ -843,6 +843,7 @@ class StructuralBookmarkService:
         normalized_text: str,
         chapter_candidates: list[object] | None = None,
         chunks: Sequence[TextChunk] | None = None,
+        min_char_offset: int | None = None,
     ) -> list[StructuralBookmark]:
         del book_id  # reserved for future caching/telemetry
 
@@ -853,6 +854,14 @@ class StructuralBookmarkService:
         body_start_offset = detect_body_start_offset(text)
         front_matter_present = _has_front_matter_marker(normalized_text=text)
         toc_end_offset = detect_toc_end_offset(text)
+
+        prefer_min_offset = max(0, int(body_start_offset))
+        if min_char_offset is not None:
+            try:
+                prefer_min_offset = max(prefer_min_offset, int(min_char_offset))
+            except Exception:
+                # Defensive: treat invalid min_char_offset as unset.
+                pass
 
         # HARD REQUIREMENT: if a TOC is detected, structural bookmark anchors must
         # never resolve inside it.
@@ -944,7 +953,7 @@ class StructuralBookmarkService:
                 label=label_disp,
                 kind=str(kind),
                 occurrences=occurrences,
-                body_start_offset=int(body_start_offset),
+                prefer_min_offset=int(prefer_min_offset),
             )
 
             # If front matter exists, and the only exact matches are before the
@@ -980,11 +989,11 @@ class StructuralBookmarkService:
             best_offset: int | None = None
             best_chunk_index: int | None = None
 
-            # Prefer the earliest trustworthy post-body candidate.
-            post_meta = [o for o in meta_offsets if int(o) >= int(body_start_offset)]
+            # Prefer the earliest trustworthy post-body/post-boundary candidate.
+            post_meta = [o for o in meta_offsets if int(o) >= int(prefer_min_offset)]
             best_meta_post = min(post_meta) if post_meta else None
 
-            if best_text is not None and int(best_text.char_offset) >= int(body_start_offset):
+            if best_text is not None and int(best_text.char_offset) >= int(prefer_min_offset):
                 best_offset = int(best_text.char_offset)
             if best_meta_post is not None:
                 if best_offset is None or int(best_meta_post) < int(best_offset):
@@ -1000,6 +1009,42 @@ class StructuralBookmarkService:
             if best_offset is None:
                 # No safe anchor: omit bookmark.
                 continue
+
+            # Canonicalize the bookmark anchor to a stable navigation target:
+            # - prefer chunk-aligned anchors when chunks are available
+            # - ensure the final jump target is not before `min_char_offset`
+            #   (sections must never land in ToC/front matter)
+            canonical_offset = int(best_offset)
+            if chunks is not None:
+                idx = resolve_chunk_index_for_offset(
+                    char_offset=int(best_offset),
+                    chunks=chunks,
+                )
+                if idx is not None:
+                    try:
+                        jump_start = int(chunks[int(idx)].start_char)
+                        jump_end = int(chunks[int(idx)].end_char)
+                    except Exception:
+                        jump_start = int(best_offset)
+                        jump_end = int(best_offset)
+
+                    # Chunk-intersection semantics:
+                    # drop only if the resolved jump target ends before the boundary.
+                    if min_char_offset is not None:
+                        try:
+                            if int(jump_end) < int(min_char_offset):
+                                continue
+                        except Exception:
+                            pass
+
+                    canonical_offset = int(jump_start)
+
+            if min_char_offset is not None:
+                try:
+                    canonical_offset = max(int(canonical_offset), int(min_char_offset))
+                except Exception:
+                    # If invalid, ignore the boundary.
+                    pass
 
             # Safety: if the best anchor is in front matter, omit for structural kinds
             # that must not bind to TOC copies.
@@ -1025,14 +1070,14 @@ class StructuralBookmarkService:
             # Resolve chunk index lazily for navigation fallbacks.
             if chunks is not None:
                 best_chunk_index = resolve_chunk_index_for_offset(
-                    char_offset=int(best_offset),
+                    char_offset=int(canonical_offset),
                     chunks=chunks,
                 )
 
             out.append(
                 StructuralBookmark(
                     label=label_disp,
-                    char_offset=int(best_offset),
+                    char_offset=int(canonical_offset),
                     chunk_index=int(best_chunk_index) if best_chunk_index is not None else None,
                     kind=str(kind),
                     level=0,

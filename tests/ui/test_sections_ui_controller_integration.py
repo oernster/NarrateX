@@ -9,6 +9,9 @@ from voice_reader.application.services.structural_bookmark_service import (
 )
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
+from voice_reader.domain.services.chunking_service import ChunkingService
+from voice_reader.domain.services.reading_start_service import ReadingStartService
+from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
 from voice_reader.ui._ui_controller_sections import open_structural_bookmarks_dialog
 from voice_reader.ui.main_window import MainWindow
 
@@ -113,6 +116,7 @@ def test_go_to_section_calls_prepare_with_force_start_char(qapp) -> None:
     call = narration.prepare_calls[-1]
     assert call["start_char_offset"] is not None
     assert call["force_start_char"] == call["start_char_offset"]
+    assert call["skip_essay_index"] is True
     assert call["persist_resume"] is False
 
 
@@ -185,6 +189,90 @@ def test_sections_go_to_prefers_body_heading_when_toc_duplicates_exist(qapp) -> 
     expected_offset = text.index("\nChapter 3\nBody") + 1
     assert call["start_char_offset"] == expected_offset
     assert call["force_start_char"] == expected_offset
+    assert call["skip_essay_index"] is True
+
+
+def test_sections_go_to_defensive_guard_never_forces_pre_boundary_offset(qapp) -> None:
+    from types import SimpleNamespace
+
+    from PySide6.QtWidgets import QApplication
+
+    del qapp
+    w = MainWindow()
+    w.show()
+    QApplication.processEvents()
+
+    # ReadingStartService will treat Chapter 1 as the first real section and start
+    # after the heading line (at the first paragraph). We intentionally return a
+    # pre-boundary bookmark to ensure the UI guard won't force narration there.
+    text = "\n\nChapter 1\n\nBody paragraph.\n"
+
+    # Precompute the readable-start boundary the controller will compute.
+    boundary = int(ReadingStartService().detect_start(text).start_char)
+
+    # Provide a navigation-chunk service so the controller uses the same path as
+    # real book load.
+    class _Nav:
+        def __init__(self):
+            self._svc = NavigationChunkService(
+                reading_start_detector=ReadingStartService(),
+                chunking_service=ChunkingService(),
+            )
+
+        def build_chunks(self, *, book_text: str):
+            return self._svc.build_chunks(book_text=book_text)
+
+    narration = _FakeNarration(
+        listeners=[],
+        state=NarrationState(
+            status=NarrationStatus.IDLE,
+            current_chunk_id=None,
+            total_chunks=None,
+            progress=0.0,
+        ),
+        prepare_calls=[],
+    )
+    narration._book = type("B", (), {"normalized_text": text, "title": "T"})()
+
+    class _Svc:
+        def build_for_loaded_book(self, **_):
+            return [
+                type(
+                    "SB",
+                    (),
+                    {
+                        "label": "Chapter 1",
+                        "char_offset": 2,  # before the readable start
+                        "chunk_index": None,
+                        "kind": "chapter",
+                        "level": 0,
+                    },
+                )()
+            ]
+
+    controller = SimpleNamespace(
+        window=w,
+        narration_service=narration,
+        structural_bookmark_service=_Svc(),
+        _navigation_chunk_service=_Nav(),
+        _chapters=[],
+        _sections_dialog=None,
+        _selected_voice=lambda: VoiceProfile(name="bf_emma", reference_audio_paths=[]),
+    )
+
+    open_structural_bookmarks_dialog(controller)
+    QApplication.processEvents()
+    dlg = getattr(controller, "_sections_dialog", None)
+    assert dlg is not None
+    dlg.list.setCurrentRow(0)
+    dlg.btn_goto.click()
+
+    assert narration.prepare_calls
+    call = narration.prepare_calls[-1]
+    assert call["skip_essay_index"] is True
+    # Guard behavior: if the anchor is pre-boundary, we should not force-start.
+    assert call["force_start_char"] is None
+    assert call["start_char_offset"] == boundary
 
 
 def test_go_to_section_falls_back_to_chunk_index_when_offset_missing(qapp) -> None:
