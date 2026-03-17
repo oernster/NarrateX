@@ -97,8 +97,8 @@ def apply_main_window_theme(window) -> None:
             /* Primary transport control: single circular play/pause toggle. */
             QToolButton#playPauseButton {{
                 background: #0b1220;
-                border: 2px solid rgba(59, 130, 246, 0.55);
-                border-radius: 24px;
+                border: 3px solid rgba(59, 130, 246, 0.62);
+                border-radius: 26px;
                 padding: 0px;
                 color: {text};
             }}
@@ -112,6 +112,20 @@ def apply_main_window_theme(window) -> None:
             QToolButton#playPauseButton:checked {{
                 /* Slightly stronger ring when actively playing. */
                 border-color: {blue};
+            }}
+
+            /* Secondary transport: Stop should read clearly, but stay subordinate. */
+            QPushButton#stopButton {{
+                background: {panel};
+                border: 1px solid #334155;
+                padding: 7px 12px;
+                border-radius: 6px;
+            }}
+            QPushButton#stopButton:hover {{
+                border-color: #94a3b8;
+            }}
+            QPushButton#stopButton:pressed {{
+                background: #111827;
             }}
 
             /* Search removed (was tied to Ideas mapping). */

@@ -255,3 +255,38 @@ def test_toggle_when_playing_calls_pause(qapp) -> None:
     assert narration.prepare_calls == 0
     assert narration.start_calls == 0
     assert narration.resume_calls == 0
+
+
+def test_toggle_when_synthesizing_calls_pause(qapp) -> None:
+    """Transport should be pause-able even when state reports SYNTHESIZING.
+
+    This avoids "dead clicks" caused by state race between playing/prefetch.
+    """
+
+    del qapp
+    w = MainWindow()
+    narration = FakeNarration(
+        listeners=[],
+        state=NarrationState(
+            status=NarrationStatus.SYNTHESIZING,
+            current_chunk_id=0,
+            total_chunks=10,
+            progress=0.1,
+            message="Preparing",
+        ),
+    )
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo())
+    c = UiController(
+        window=w,
+        narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo()),  # type: ignore[arg-type]
+        voice_service=voice_service,
+        device="cpu",
+        engine_name="engine",
+    )
+
+    c.toggle_play_pause()
+    assert narration.prepare_calls == 0
+    assert narration.start_calls == 0
+    assert narration.resume_calls == 0

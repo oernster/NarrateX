@@ -4,8 +4,18 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QFont, QImage, QPixmap, QTextCursor
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QIcon,
+    QImage,
+    QPainter,
+    QPen,
+    QPixmap,
+    QTextCursor,
+)
+from PySide6.QtWidgets import QGraphicsDropShadowEffect
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -61,6 +71,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self._strings = strings or UiStrings()
 
+        # Keep cover column dimensions in one place so related alignment (like the
+        # subtle progress block) can intentionally snap to the same boundary.
+        cover_w, cover_h = 225, 330
+
         # Transport UI is driven by narration state (see [`apply_state()`](voice_reader/ui/_ui_controller_state.py:19)).
         # Keep local state so the Play/Pause toggle never visually flips ahead of
         # the backend (e.g., during LOADING/CHUNKING/SYNTHESIZING).
@@ -111,13 +125,46 @@ class MainWindow(QMainWindow):
         self.btn_play_pause.setCursor(Qt.PointingHandCursor)
         self.btn_play_pause.setToolTip("Play")
         self.btn_play_pause.setText("▶")
-        self.btn_play_pause.setFixedSize(48, 48)
-        self.btn_play_pause.setFont(QFont("Segoe UI", 14))
+        # Slightly larger to read as the single primary transport control.
+        self.btn_play_pause.setFixedSize(52, 52)
+        self.btn_play_pause.setFont(QFont("Segoe UI", 15))
+
+        # Subtle, premium glow (local effect only; does not restyle other controls).
+        try:
+            glow = QGraphicsDropShadowEffect(self.btn_play_pause)
+            glow.setBlurRadius(18)
+            glow.setOffset(0, 0)
+            glow.setColor(QColor(59, 130, 246, 70))
+            self.btn_play_pause.setGraphicsEffect(glow)
+        except Exception:
+            pass
         self.btn_play_pause.clicked.connect(self._on_play_pause_clicked)
 
         self.btn_stop = QPushButton(self._strings.stop)
+        self.btn_stop.setObjectName("stopButton")
         self.btn_stop.setCursor(Qt.PointingHandCursor)
         self.btn_stop.setMinimumHeight(top_row_min_h)
+        # Slightly larger than a standard button, but still secondary.
+        self.btn_stop.setMinimumWidth(104)
+
+        # Add a restrained red square stop cue via an icon, keeping the button
+        # visually secondary without turning it into a warning-colored block.
+        self.btn_stop.setText("Stop")
+        try:
+            cue_size = 12
+            pm = QPixmap(cue_size, cue_size)
+            pm.fill(Qt.transparent)
+            p = QPainter(pm)
+            p.setRenderHint(QPainter.Antialiasing, True)
+            p.setPen(QPen(QColor(0, 0, 0, 0)))
+            p.setBrush(QColor("#ef4444"))
+            r = pm.rect().adjusted(1, 1, -1, -1)
+            p.drawRoundedRect(r, 2, 2)
+            p.end()
+            self.btn_stop.setIcon(QIcon(pm))
+            self.btn_stop.setIconSize(QSize(cue_size, cue_size))
+        except Exception:
+            pass
 
         # Volume control (session-only, editable during playback).
         self.lbl_volume_icon = QLabel("🔊")
@@ -209,15 +256,30 @@ class MainWindow(QMainWindow):
         self.lbl_status.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.lbl_status.setMinimumWidth(260)
 
+        # Progress block: wrap in a fixed/min-width right-aligned container so it
+        # feels intentionally anchored (aligned with the right-side column).
         self.lbl_progress = QLabel("0/0")
         self.lbl_progress.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.progress = QProgressBar()
         self.progress.setRange(0, 100)
         self.progress.setValue(0)
+
+        progress_wrap = QWidget()
+        progress_wrap.setObjectName("progressWrap")
+        progress_layout = QHBoxLayout(progress_wrap)
+        progress_layout.setContentsMargins(0, 0, 0, 0)
+        progress_layout.setSpacing(10)
+        progress_layout.addWidget(self.lbl_progress)
+        progress_layout.addWidget(self.progress)
+        progress_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        # Keep a stable width so the right edge of the progress block reads as a
+        # column aligned with the cover panel.
+        progress_wrap.setMinimumWidth(cover_w)
+
         status.addWidget(self.lbl_status)
         status.addStretch(1)
-        status.addWidget(self.lbl_progress)
-        status.addWidget(self.progress)
+        status.addWidget(progress_wrap)
         left_panel.addLayout(status)
 
         # Give the left panel the expandable width so Zone B can read as centered.
@@ -287,7 +349,12 @@ class MainWindow(QMainWindow):
         right_panel.addWidget(self.lbl_engine)
         right_panel.addStretch(1)
 
-        top_panel.addLayout(right_panel)
+        # Keep the far-right top column width aligned with the cover column width
+        # below, so the progress block can be anchored against that boundary.
+        right_panel_widget = QWidget()
+        right_panel_widget.setFixedWidth(cover_w)
+        right_panel_widget.setLayout(right_panel)
+        top_panel.addWidget(right_panel_widget)
 
         root.addLayout(top_panel)
 
@@ -311,7 +378,7 @@ class MainWindow(QMainWindow):
         self.cover = QLabel("No cover")
         self.cover.setAlignment(Qt.AlignCenter)
         # Make cover prominently visible (approx 1.5x previous size).
-        self.cover.setFixedSize(225, 330)
+        self.cover.setFixedSize(cover_w, cover_h)
         self.cover.setScaledContents(False)
         self.cover.setObjectName("cover")
         cover_panel.addWidget(self.cover)

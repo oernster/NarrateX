@@ -107,6 +107,16 @@ def toggle_play_pause(controller) -> None:
     """
 
     st = getattr(controller.narration_service, "state", None)
-    if isinstance(st, NarrationState) and st.status == NarrationStatus.PLAYING:
-        return pause(controller)
+    if isinstance(st, NarrationState):
+        # Transport should be pause-able across the whole active pipeline.
+        # This avoids a "dead click" when state momentarily reports SYNTHESIZING
+        # while audio is still playing (prefetch can race UI interaction).
+        pauseable_statuses = {
+            NarrationStatus.LOADING,
+            NarrationStatus.CHUNKING,
+            NarrationStatus.SYNTHESIZING,
+            NarrationStatus.PLAYING,
+        }
+        if st.status in pauseable_statuses:
+            return pause(controller)
     return play(controller)
