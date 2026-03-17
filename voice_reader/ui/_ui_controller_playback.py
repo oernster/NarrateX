@@ -97,3 +97,16 @@ def pause(controller) -> None:
 
 def stop(controller) -> None:
     controller.narration_service.stop()
+
+
+def toggle_play_pause(controller) -> None:
+    """Unified Play/Pause button semantics.
+
+    Presentation-layer consolidation: reuse the existing `play()` / `pause()`
+    handlers and decide which to invoke based on the current narration state.
+    """
+
+    st = getattr(controller.narration_service, "state", None)
+    if isinstance(st, NarrationState) and st.status == NarrationStatus.PLAYING:
+        return pause(controller)
+    return play(controller)

@@ -45,6 +45,7 @@ from voice_reader.ui._ui_controller_playback import (
     set_speed,
     set_volume,
     stop,
+    toggle_play_pause,
 )
 from voice_reader.ui._ui_controller_state import apply_state, on_state
 from voice_reader.ui.main_window import MainWindow
@@ -224,8 +225,15 @@ class UiController(QObject):
 
     def _connect_signals(self) -> None:
         self.window.select_book_clicked.connect(self.select_book)
-        self.window.play_clicked.connect(self.play)
-        self.window.pause_clicked.connect(self.pause)
+
+        # Playback transport:
+        # - new UI uses a single play/pause toggle
+        # - keep legacy separate play/pause signals for backwards compatibility
+        if hasattr(self.window, "play_pause_clicked"):
+            try:
+                self.window.play_pause_clicked.connect(self.toggle_play_pause)
+            except Exception:
+                pass
         self.window.stop_clicked.connect(self.stop)
 
         if hasattr(self.window, "previous_chapter_clicked"):
@@ -273,6 +281,9 @@ class UiController(QObject):
 
     def stop(self) -> None:
         return stop(self)
+
+    def toggle_play_pause(self) -> None:
+        return toggle_play_pause(self)
 
     def open_bookmarks_dialog(self) -> None:
         return open_bookmarks_dialog(self)

@@ -111,7 +111,7 @@ def test_play_when_paused_calls_resume(qapp) -> None:
         engine_name="engine",
     )
 
-    c.play()
+    c.toggle_play_pause()
     assert narration.resume_calls == 1
     assert narration.stop_calls == 0
     assert narration.prepare_calls == 0
@@ -143,7 +143,7 @@ def test_play_when_paused_and_voice_changed_restarts(qapp) -> None:
     )
 
     # Start with default selection: system.
-    c.play()
+    c.toggle_play_pause()
     assert narration.prepare_calls == 1
     assert narration.start_calls == 1
 
@@ -159,7 +159,7 @@ def test_play_when_paused_and_voice_changed_restarts(qapp) -> None:
     # User selects a different voice while paused.
     # Find a non-system voice (sorted order should be deterministic).
     w.voice_combo.setCurrentIndex(1)
-    c.play()
+    c.toggle_play_pause()
     assert narration.stop_calls == 1
     assert narration.resume_calls == 0
     # And it should start new narration.
@@ -220,7 +220,38 @@ def test_play_when_idle_prepares_and_starts(qapp) -> None:
         engine_name="engine",
     )
 
-    c.play()
+    c.toggle_play_pause()
     assert narration.prepare_calls == 1
     assert narration.start_calls == 1
+    assert narration.resume_calls == 0
+
+
+def test_toggle_when_playing_calls_pause(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    narration = FakeNarration(
+        listeners=[],
+        state=NarrationState(
+            status=NarrationStatus.PLAYING,
+            current_chunk_id=0,
+            total_chunks=10,
+            progress=0.1,
+            message="Playing",
+        ),
+    )
+    voice_service = VoiceProfileService(repo=FakeVoiceRepo())
+    c = UiController(
+        window=w,
+        narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo()),  # type: ignore[arg-type]
+        voice_service=voice_service,
+        device="cpu",
+        engine_name="engine",
+    )
+
+    c.toggle_play_pause()
+    # FakeNarration.pause() is a no-op but should not trigger start/prepare/resume.
+    assert narration.prepare_calls == 0
+    assert narration.start_calls == 0
     assert narration.resume_calls == 0
