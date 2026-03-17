@@ -116,6 +116,77 @@ def test_go_to_section_calls_prepare_with_force_start_char(qapp) -> None:
     assert call["persist_resume"] is False
 
 
+def test_sections_go_to_prefers_body_heading_when_toc_duplicates_exist(qapp) -> None:
+    from types import SimpleNamespace
+
+    from PySide6.QtWidgets import QApplication
+
+    del qapp
+    w = MainWindow()
+    w.show()
+    QApplication.processEvents()
+
+    text = (
+        "Table of Contents\n\n"
+        "Chapter 1\n"
+        "Chapter 2\n"
+        "Chapter 3\n\n"
+        "Prologue\n\n"
+        "Chapter 1\nBody\n\n"
+        "Chapter 2\nBody\n\n"
+        "Chapter 3\nBody\n\n"
+    )
+
+    narration = _FakeNarration(
+        listeners=[],
+        state=NarrationState(
+            status=NarrationStatus.IDLE,
+            current_chunk_id=None,
+            total_chunks=None,
+            progress=0.0,
+        ),
+        prepare_calls=[],
+    )
+    narration._book = type("B", (), {"normalized_text": text, "title": "T"})()
+
+    controller = SimpleNamespace(
+        window=w,
+        narration_service=narration,
+        structural_bookmark_service=StructuralBookmarkService(),
+        voice_service=VoiceProfileService(repo=_FakeVoiceRepo()),
+        _voices=[VoiceProfile(name="bf_emma", reference_audio_paths=[])],
+        _last_prepared_voice_id=None,
+        _chapters=[],
+        _sections_dialog=None,
+        _selected_voice=lambda: VoiceProfile(name="bf_emma", reference_audio_paths=[]),
+    )
+
+    open_structural_bookmarks_dialog(controller)
+    QApplication.processEvents()
+
+    dlg = getattr(controller, "_sections_dialog", None)
+    assert dlg is not None
+
+    # Select the Chapter 3 item.
+    target_row = None
+    for i in range(dlg.list.count()):
+        item = dlg.list.item(i)
+        if item is not None and item.text() == "Chapter 3":
+            target_row = i
+            break
+
+    assert target_row is not None
+    dlg.list.setCurrentRow(int(target_row))
+    dlg.btn_goto.click()
+
+    assert narration.prepare_calls
+    call = narration.prepare_calls[-1]
+
+    expected_offset = text.index("\nChapter 3\nBody") + 1
+    assert call["start_char_offset"] == expected_offset
+    assert call["force_start_char"] == expected_offset
+
+
 def test_go_to_section_falls_back_to_chunk_index_when_offset_missing(qapp) -> None:
     from types import SimpleNamespace
 
