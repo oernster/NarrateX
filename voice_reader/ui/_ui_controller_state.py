@@ -85,6 +85,14 @@ def apply_state(controller, state: object) -> None:
     if start is None or end is None:
         start = state.highlight_start
         end = state.highlight_end
+
+    # Drive the chapter spine playhead from the audible start position.
+    # Keep the last seen playhead even when paused/stopped; only clear on book switch.
+    try:
+        if hasattr(controller.window, "chapter_spine"):
+            controller.window.chapter_spine.set_playhead_char_offset(start)
+    except Exception:
+        pass
     try:
         controller.window.highlight_range(start, end)
     except Exception:

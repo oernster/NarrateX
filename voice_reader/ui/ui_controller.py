@@ -670,6 +670,8 @@ class UiController(QObject):
             if hasattr(self.window, "chapter_spine"):
                 self.window.chapter_spine.set_chapters(self._chapters)
                 self.window.chapter_spine.set_current_chapter(None)
+                # Avoid showing a stale playhead from the previously opened book.
+                self.window.chapter_spine.set_playhead_char_offset(None)
         except Exception:
             pass
         apply_chapter_controls(self, current_char_offset=int(start_char_for_ui))

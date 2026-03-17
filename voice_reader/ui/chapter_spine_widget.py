@@ -26,9 +26,12 @@ class _SpineStyle:
     rail_alpha: int = 110
     marker_alpha: int = 160
     marker_highlight_alpha: int = 255
+    playhead_color: QColor = field(default_factory=lambda: QColor("#f97316"))
+    playhead_alpha: int = 235
     rail_width: int = 2
     marker_width: int = 2
     marker_highlight_width: int = 3
+    playhead_width: int = 3
     marker_len: int = 10
     padding: int = 8
 
@@ -39,6 +42,7 @@ class ChapterSpineWidget(QWidget):
         self._style = _SpineStyle()
         self._chapters: list[Chapter] = []
         self._current: Chapter | None = None
+        self._playhead_char_offset: int | None = None
 
         self.setFixedWidth(22)
         self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
@@ -49,6 +53,19 @@ class ChapterSpineWidget(QWidget):
 
     def set_current_chapter(self, chapter: Chapter | None) -> None:
         self._current = chapter
+        self.update()
+
+    def set_playhead_char_offset(self, char_offset: int | None) -> None:
+        """Set the live playback position (char offset) for a horizontal playhead.
+
+        This is intentionally independent from the "current chapter" marker:
+        - current chapter snaps to the nearest chapter boundary
+        - playhead can move continuously during playback
+        
+        If called with None, the playhead is cleared.
+        """
+
+        self._playhead_char_offset = None if char_offset is None else int(char_offset)
         self.update()
 
     def _set_style_for_tests(self, *, padding: int | None = None) -> None:
@@ -102,6 +119,19 @@ class ChapterSpineWidget(QWidget):
             p.setPen(QPen(col, width))
             p.drawLine(x, int(y), x + int(self._style.marker_len), int(y))
 
+        # Playhead (live playback position): contrasting horizontal line.
+        # Draw last so it remains visible even when aligned with a chapter marker.
+        if self._playhead_char_offset is not None:
+            y = self._y_for_char_offset(
+                top=top,
+                bottom=bottom,
+                char_offset=int(self._playhead_char_offset),
+            )
+            col = QColor(self._style.playhead_color)
+            col.setAlpha(int(self._style.playhead_alpha))
+            p.setPen(QPen(col, int(self._style.playhead_width)))
+            p.drawLine(x, int(y), x + int(self._style.marker_len), int(y))
+
     def _y_positions(self, *, top: int, bottom: int) -> list[int]:
         n = len(self._chapters)
         if n <= 1:
@@ -118,3 +148,27 @@ class ChapterSpineWidget(QWidget):
             t = float(off - lo) / float(span)
             ys.append(int(round(top + t * height)))
         return ys
+
+    def _y_for_char_offset(self, *, top: int, bottom: int, char_offset: int) -> int:
+        """Map an absolute char offset into the spine's vertical rail geometry.
+
+        We normalize using the min/max chapter offsets. This keeps the playhead in
+        the same "chapter distribution" space as the markers, and clamps outside
+        the first/last chapter.
+        """
+
+        if not self._chapters or len(self._chapters) <= 1:
+            return int((top + bottom) // 2)
+
+        offsets = [int(c.char_offset) for c in self._chapters]
+        lo = min(offsets)
+        hi = max(offsets)
+        span = max(1, hi - lo)
+        height = max(1, bottom - top)
+
+        t = float(int(char_offset) - lo) / float(span)
+        if t < 0.0:
+            t = 0.0
+        elif t > 1.0:
+            t = 1.0
+        return int(round(top + t * height))
