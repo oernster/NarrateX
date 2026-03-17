@@ -10,6 +10,10 @@ from voice_reader.application.services.structural_bookmark_service import (
     scan_structural_headings,
 )
 
+from voice_reader.domain.services.chunking_service import ChunkingService
+from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
+from voice_reader.domain.services.reading_start_service import ReadingStartService
+
 
 def test_includes_chapter_headings() -> None:
     text = "\n\nChapter 1: Start\n\nA real paragraph.\n"
@@ -213,4 +217,113 @@ def test_no_safe_occurrence_means_no_bookmark() -> None:
     svc = StructuralBookmarkService()
     out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
     assert all(b.label != "Chapter 7" for b in out)
+
+
+def test_excludes_chapter_like_toc_entries_before_reading_start() -> None:
+    # TOC has clean "Chapter N" lines; body has the real chapter.
+    text = (
+        "Table of Contents\n\n"
+        "Chapter 1\n"
+        "Chapter 2\n\n"
+        "Chapter 1\n\n"
+        "Body starts here.\n"
+    )
+    nav = NavigationChunkService(
+        reading_start_detector=ReadingStartService(),
+        chunking_service=ChunkingService(min_chars=10, max_chars=200),
+    )
+    chunks, start = nav.build_chunks(book_text=text)
+    min_off = int(start.start_char)
+
+    svc = StructuralBookmarkService()
+    out = svc.build_for_loaded_book(
+        book_id="b1",
+        normalized_text=text,
+        chunks=chunks,
+        min_char_offset=min_off,
+    )
+
+    # Chapter 2 exists only in TOC: should be excluded.
+    assert all(b.label != "Chapter 2" for b in out)
+    # Chapter 1 should exist and point at/after the boundary.
+    c1 = [b for b in out if b.label == "Chapter 1"][0]
+    assert c1.char_offset >= min_off
+
+
+def test_prefers_post_boundary_duplicate_over_early_toc_duplicate() -> None:
+    text = (
+        "Table of Contents\n\n"
+        "Chapter 3\n\n"
+        "Prologue\n\n"
+        "Prologue body.\n\n"
+        "Chapter 3\n\n"
+        "Body 3.\n"
+    )
+
+    nav = NavigationChunkService(
+        reading_start_detector=ReadingStartService(),
+        chunking_service=ChunkingService(min_chars=10, max_chars=200),
+    )
+    chunks, _start = nav.build_chunks(book_text=text)
+
+    # Set boundary between the TOC occurrence and the real body occurrence.
+    min_off = text.rindex("\nChapter 3\n\nBody 3") + 1
+
+    svc = StructuralBookmarkService()
+    out = svc.build_for_loaded_book(
+        book_id="b1",
+        normalized_text=text,
+        chunks=chunks,
+        min_char_offset=min_off,
+    )
+    b3 = [b for b in out if b.label == "Chapter 3"][0]
+    assert b3.char_offset >= min_off
+
+
+def test_keeps_real_preface_or_prologue_when_it_is_after_boundary_or_is_the_boundary() -> None:
+    text = "Preface\n\nReal preface paragraph.\n\nChapter 1\n\nBody.\n"
+    nav = NavigationChunkService(
+        reading_start_detector=ReadingStartService(),
+        chunking_service=ChunkingService(min_chars=10, max_chars=200),
+    )
+    chunks, start = nav.build_chunks(book_text=text)
+
+    # Boundary is the narration start (first narratable paragraph).
+    min_off = int(start.start_char)
+
+    svc = StructuralBookmarkService()
+    out = svc.build_for_loaded_book(
+        book_id="b1",
+        normalized_text=text,
+        chunks=chunks,
+        min_char_offset=min_off,
+    )
+    labels = [b.label for b in out]
+    assert "Preface" in labels
+    pre = [b for b in out if b.label == "Preface"][0]
+    assert pre.char_offset >= min_off
+
+
+def test_filters_resolved_chunk_index_candidates_before_boundary() -> None:
+    # Synthetic case: a chapter candidate comes via chunk_index pointing at a
+    # pre-boundary chunk (e.g. front matter). If the resolved jump target ends
+    # before the boundary, the bookmark must be dropped.
+    text = "Chapter 1\n\nPara one.\n\n"
+    chunks = ChunkingService(min_chars=5, max_chars=50).chunk_text(text)
+    assert len(chunks) >= 2
+
+    # Candidate points to the heading chunk.
+    md = type("Ch", (), {"title": "Chapter 1", "char_offset": None, "chunk_index": 0})()
+    # Boundary is at the start of the paragraph chunk.
+    min_off = int(chunks[1].start_char)
+
+    svc = StructuralBookmarkService()
+    out = svc.build_for_loaded_book(
+        book_id="b1",
+        normalized_text=text,
+        chapter_candidates=[md],
+        chunks=chunks,
+        min_char_offset=min_off,
+    )
+    assert all(b.label != "Chapter 1" for b in out)
 

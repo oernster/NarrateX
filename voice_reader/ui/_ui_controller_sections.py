@@ -6,6 +6,8 @@ import logging
 
 from PySide6.QtWidgets import QMessageBox
 
+from voice_reader.domain.services.reading_start_service import ReadingStartService
+
 from voice_reader.ui.structural_bookmarks_dialog import (
     StructuralBookmarkListItem,
     StructuralBookmarksDialog,
@@ -61,6 +63,23 @@ def open_structural_bookmarks_dialog(controller) -> None:
     except Exception:
         chunks = None
 
+    # Compute a readable-start boundary in the same coordinate system as
+    # normalized_text. This prevents section anchors from binding to ToC/front
+    # matter copies of headings.
+    min_char_offset = None
+    try:
+        nav = getattr(controller, "_navigation_chunk_service", None)  # noqa: SLF001
+        if nav is not None:
+            _chunks0, start = nav.build_chunks(book_text=normalized_text)
+            min_char_offset = int(getattr(start, "start_char", 0))
+            # Prefer the chunk list used for indexing/navigation semantics.
+            chunks = list(_chunks0)
+        else:
+            start = ReadingStartService().detect_start(normalized_text)
+            min_char_offset = int(getattr(start, "start_char", 0))
+    except Exception:
+        min_char_offset = None
+
     bookmarks = []
     try:
         bookmarks = list(
@@ -69,6 +88,7 @@ def open_structural_bookmarks_dialog(controller) -> None:
                 normalized_text=normalized_text,
                 chapter_candidates=chapter_candidates,
                 chunks=chunks,
+                min_char_offset=min_char_offset,
             )
         )
     except Exception:
@@ -116,11 +136,23 @@ def open_structural_bookmarks_dialog(controller) -> None:
             pass
 
         if it.char_offset is not None:
+            # Sections are reading-navigation: keep the same safety semantics as
+            # normal narration start detection.
+            target = int(it.char_offset)
+            boundary = min_char_offset
+            force = target
+            if boundary is not None and target < int(boundary):
+                # Defensive guard: never force narration into front matter.
+                # If this regresses, the structural bookmark service should have
+                # prevented it, but this guard avoids user-facing breakage.
+                target = int(boundary)
+                force = None
+
             controller.narration_service.prepare(
                 voice=voice,
-                start_char_offset=int(it.char_offset),
-                force_start_char=int(it.char_offset),
-                skip_essay_index=False,
+                start_char_offset=int(target),
+                force_start_char=None if force is None else int(force),
+                skip_essay_index=True,
                 persist_resume=False,
             )
         else:
