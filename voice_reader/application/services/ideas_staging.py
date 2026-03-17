@@ -67,4 +67,3 @@ def safe_unlink(path: str | Path | None) -> None:
         Path(path).unlink(missing_ok=True)
     except Exception:  # pragma: no cover
         return
-

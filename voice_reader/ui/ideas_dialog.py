@@ -139,4 +139,3 @@ class IdeasDialog(QDialog):
                 box.setWindowTitle("Ideas")
                 box.setText(f"Failed jumping to idea: {exc}")
                 box.open()
-

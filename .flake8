@@ -17,6 +17,7 @@ exclude =
     .venv,
     venv,
     venv*,
+    share,
     build,
     dist,
     dist-pyinstaller

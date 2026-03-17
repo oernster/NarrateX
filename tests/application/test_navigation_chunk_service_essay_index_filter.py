@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 
-from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
+from voice_reader.application.services.navigation_chunk_service import (
+    NavigationChunkService,
+)
 from voice_reader.domain.entities.text_chunk import TextChunk
 from voice_reader.domain.services.chunking_service import ChunkingService
-from voice_reader.domain.services.reading_start_service import ReadingStart, ReadingStartService
+from voice_reader.domain.services.reading_start_service import (
+    ReadingStart,
+    ReadingStartService,
+)
 
 
 class _FixedStartDetector:
@@ -223,8 +228,10 @@ def test_prologue_then_skip_essay_titles_then_chapter_1() -> None:
 
     # 1) Start must be at Prologue prose, not at Contents/ToC.
     assert start.reason == "Detected Prologue"
-    assert book_text[start.start_char :].lstrip().startswith(
-        "This is the first sentence of the prologue."
+    assert (
+        book_text[start.start_char :]
+        .lstrip()
+        .startswith("This is the first sentence of the prologue.")
     )
 
     # 2) The returned chunk list must include Prologue prose.
@@ -256,4 +263,3 @@ def test_private_index_line_detector_allows_mixed_case_break() -> None:
     )
     span = svc._detect_essay_index_span(slice_text=book_text)  # type: ignore[attr-defined]
     assert span is not None
-

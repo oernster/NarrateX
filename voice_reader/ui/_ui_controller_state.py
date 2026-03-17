@@ -32,7 +32,9 @@ def apply_state(controller, state: object) -> None:
                 NarrationStatus.SYNTHESIZING,
                 NarrationStatus.PLAYING,
             }
-            controller.window.set_transport_playing(is_playing=state.status in active_statuses)
+            controller.window.set_transport_playing(
+                is_playing=state.status in active_statuses
+            )
     except Exception:
         pass
 

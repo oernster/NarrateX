@@ -61,7 +61,7 @@ class ChapterSpineWidget(QWidget):
         This is intentionally independent from the "current chapter" marker:
         - current chapter snaps to the nearest chapter boundary
         - playhead can move continuously during playback
-        
+
         If called with None, the playhead is cleared.
         """
 

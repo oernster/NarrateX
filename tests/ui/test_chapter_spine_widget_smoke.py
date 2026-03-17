@@ -50,9 +50,13 @@ def test_chapter_spine_widget_playhead_clamps_to_range(qapp) -> None:
     )
 
     # Below first chapter -> top.
-    assert w._y_for_char_offset(top=10, bottom=110, char_offset=-50) == 10  # noqa: SLF001
+    assert (
+        w._y_for_char_offset(top=10, bottom=110, char_offset=-50) == 10
+    )  # noqa: SLF001
     # Above last chapter -> bottom.
-    assert w._y_for_char_offset(top=10, bottom=110, char_offset=50_000) == 110  # noqa: SLF001
+    assert (
+        w._y_for_char_offset(top=10, bottom=110, char_offset=50_000) == 110
+    )  # noqa: SLF001
 
 
 def test_chapter_spine_widget_y_for_char_offset_single_or_empty_returns_midpoint(

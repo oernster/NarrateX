@@ -15,4 +15,3 @@ class FakeIdeasRepo:
 
     def save_doc_atomic(self, *, book_id: str, doc: dict) -> None:
         del book_id, doc
-

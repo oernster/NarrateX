@@ -1,4 +1,4 @@
-"""Factory for creating the TTS engine.
+"""Infrastructure factory for creating concrete TTS engines.
 
 This project is intentionally **Kokoro-only**.
 
@@ -36,9 +36,10 @@ class TTSEngineFactory:
             raise RuntimeError(
                 "Kokoro is not available (import failed). "
                 f"Missing dependency: {missing!r}. "
-                "This app supports Kokoro voices only. Ensure Kokoro and its dependencies "
-                "are installed, e.g. `pip install kokoro soundfile spacy` and install the "
-                "spaCy model `en_core_web_sm`."
+                "This app supports Kokoro voices only.\n"
+                "Ensure Kokoro and its dependencies are installed, e.g.\n"
+                "  pip install kokoro soundfile spacy\n"
+                "Then install the spaCy model: en_core_web_sm."
             ) from exc
         except Exception as exc:
             raise RuntimeError(

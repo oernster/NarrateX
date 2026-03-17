@@ -56,8 +56,13 @@ def run_worker(*, out_q, payload: dict) -> None:
         def _dbg(msg: str, *args) -> None:
             if not debug:
                 return
-            # Keep it picklable and lightweight: send debug lines through the same queue.
-            out_q.put({"type": "debug", "message": (msg % args) if args else msg})
+            # Keep it picklable/lightweight: send debug lines through the same queue.
+            out_q.put(
+                {
+                    "type": "debug",
+                    "message": (msg % args) if args else msg,
+                }
+            )
 
         book_id = str(payload.get("book_id") or "").strip()
         if not book_id:
@@ -77,7 +82,9 @@ def run_worker(*, out_q, payload: dict) -> None:
 
         _dbg("worker read text chars=%s", len(normalized_text))
 
-        fingerprint = hashlib.sha256(normalized_text.encode("utf-8", errors="replace")).hexdigest()
+        fingerprint = hashlib.sha256(
+            normalized_text.encode("utf-8", errors="replace")
+        ).hexdigest()
 
         # Streaming progress keeps UI responsive and provides user feedback.
         # Emit a few early ticks, then do the real work, then finish.
@@ -130,7 +137,11 @@ def run_worker(*, out_q, payload: dict) -> None:
         # a single event don't accidentally pick up debug.
         out_q.put({"type": "error", "message": repr(exc)})
 
-        if os.getenv("NARRATEX_IDEAS_DEBUG", "").strip().lower() in {"1", "true", "yes"}:
+        if os.getenv("NARRATEX_IDEAS_DEBUG", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }:
             out_q.put({"type": "debug", "message": f"worker error: {exc!r}"})
 
 
@@ -159,4 +170,3 @@ def _touch_progress_heuristics_for_coverage() -> None:  # pragma: no cover
             assert steps in {5, 8, 12, 20}
     except Exception:
         return
-

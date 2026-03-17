@@ -140,8 +140,9 @@ def main() -> int:
             _replace_file(built_exe, final_exe)
         except PermissionError as exc:
             raise SystemExit(
-                "Unable to overwrite dist-installer/NarrateXSetup.exe because it is in use. "
-                "Close any running NarrateXSetup.exe processes and try again."
+                "Unable to overwrite the installer EXE because it is in use.\n"
+                "Close any running installer instances.\n"
+                "Then try again."
             ) from exc
 
         # Clean up temp dist folder.

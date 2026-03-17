@@ -11,10 +11,10 @@ Index generation is out of scope for this phase.
 from __future__ import annotations
 
 import logging
-import os
 
 try:
-    # Module-level import so tests can monkeypatch voice_reader.ui._ui_controller_ideas.QTimer.
+    # Module-level import so tests can monkeypatch
+    # voice_reader.ui._ui_controller_ideas.QTimer.
     # (Importing inside _open_message_box bypasses monkeypatching.)
     from PySide6.QtCore import QTimer
 except Exception:  # pragma: no cover
@@ -23,23 +23,17 @@ except Exception:  # pragma: no cover
 from PySide6.QtWidgets import QMessageBox
 
 from voice_reader.ui.ideas_dialog import IdeaListItem, IdeasDialog, IdeasDialogActions
+from voice_reader.ui._ideas_navigation import go_to_idea
+from voice_reader.ui._message_box_utils import (
+    NO_BOOK_WIDTH_PAD,
+    open_nonblocking_message_box,
+)
 
 
-# Workaround for Windows packaged builds where the initial QMessageBox may be sized
-# too narrowly, causing the title bar to truncate (e.g. "I…" instead of "Ideas").
-#
-# We "cheat" by adding an *invisible* informativeText consisting of NBSPs whose
-# measured width roughly matches a sentence that we know produces a sensible
-# dialog width in other Ideas flows.
-_NO_BOOK_WIDTH_PAD_REF = "This runs in the background and won't interrupt playback."
-# Use 2x the reference length to bias the layout toward a wider initial dialog,
-# ensuring the title bar has enough horizontal room on Windows builds.
-_NO_BOOK_WIDTH_PAD = "\u00A0" * (len(_NO_BOOK_WIDTH_PAD_REF) * 2)
-
-
-def _in_tests() -> bool:
-    # pytest sets this environment variable for each test.
-    return bool(os.getenv("PYTEST_CURRENT_TEST"))
+def _touch_qtimer_for_flake8() -> None:  # pragma: no cover
+    # Explicitly touch the imported name so this module-level import (kept for
+    # monkeypatching in tests) is not flagged as unused by flake8.
+    _ = QTimer
 
 
 def _touch_qtimer_for_coverage() -> None:  # pragma: no cover
@@ -51,47 +45,6 @@ def _touch_qtimer_for_coverage() -> None:  # pragma: no cover
         del QTimer
     except Exception:
         return
-
-
-def _widen_message_box(box: QMessageBox, *, min_width: int) -> None:
-    """Best-effort: make QMessageBox wide enough to avoid title truncation on Windows."""
-
-    try:
-        w = int(min_width)
-    except Exception:  # pragma: no cover
-        w = 420
-
-    try:
-        box.setMinimumWidth(w)
-        box.adjustSize()
-        box.resize(max(w, box.width()), box.height())
-    except Exception:  # pragma: no cover
-        pass
-
-
-def _open_message_box(box: QMessageBox, *, min_width: int) -> None:
-    """Open a non-blocking message box with a reliable width on Windows.
-
-    In some environments, QMessageBox recalculates its final size at/after show.
-    To avoid a very narrow initial window (which can truncate the title bar to
-    e.g. "I…"), we widen both before and immediately after opening.
-    """
-
-    _widen_message_box(box, min_width=min_width)
-    if _in_tests():
-        # Avoid using a QTimer in tests; it can make assertions racy.
-        box.open()
-        _widen_message_box(box, min_width=min_width)
-        return
-
-    # In real app runtime, defer another widen until after show/layout.
-    box.open()
-    try:
-        # QTimer may be None in stripped environments; treat as best-effort.
-        if QTimer is not None:
-            QTimer.singleShot(0, lambda: _widen_message_box(box, min_width=min_width))
-    except Exception:  # pragma: no cover
-        pass
 
 
 def open_ideas_dialog(controller) -> None:
@@ -109,19 +62,19 @@ def open_ideas_dialog(controller) -> None:
         box.setText("Load a book to map ideas.")
         try:
             # NBSP padding widens the dialog without showing any visible characters.
-            box.setInformativeText(_NO_BOOK_WIDTH_PAD)
+            box.setInformativeText(NO_BOOK_WIDTH_PAD)
         except Exception:  # pragma: no cover
             pass
-        _open_message_box(box, min_width=420)
+        open_nonblocking_message_box(box, min_width=420, qtimer=QTimer)
         return
 
     svc = getattr(controller, "idea_map_service", None)
-    # In normal app composition this exists; in older tests or partial wiring it may not.
+    # In normal app composition this exists; in older tests/wiring it may not.
     if svc is None:  # pragma: no cover
         box = QMessageBox(controller.window)
         box.setWindowTitle("Ideas")
         box.setText("Ideas are not available.")
-        _open_message_box(box, min_width=420)
+        open_nonblocking_message_box(box, min_width=420, qtimer=QTimer)
         return
 
     normalized_text = ""
@@ -141,18 +94,24 @@ def open_ideas_dialog(controller) -> None:
                 )
             )
         else:
-            has_index = bool(getattr(svc, "has_completed_index", lambda **_: False)(book_id=book_id))
+            has_index = bool(
+                getattr(svc, "has_completed_index", lambda **_: False)(book_id=book_id)
+            )
     except Exception:  # pragma: no cover
         has_index = False
 
     if not has_index:
         # If an indexing job is already running, show a calm status message.
         try:
-            running_id = getattr(controller, "_ideas_index_job_book_id", None)  # noqa: SLF001
+            running_id = getattr(
+                controller, "_ideas_index_job_book_id", None
+            )  # noqa: SLF001
         except Exception:  # pragma: no cover
             running_id = None
         try:
-            launch_inflight = bool(getattr(controller, "_ideas_launch_inflight", False))  # noqa: SLF001
+            launch_inflight = bool(
+                getattr(controller, "_ideas_launch_inflight", False)
+            )  # noqa: SLF001
         except Exception:  # pragma: no cover
             launch_inflight = False
 
@@ -171,7 +130,9 @@ def open_ideas_dialog(controller) -> None:
         # more informative prompt.
         status_hint = None
         try:
-            persisted = getattr(svc, "load_index_doc", lambda **_: None)(book_id=book_id)
+            persisted = getattr(svc, "load_index_doc", lambda **_: None)(
+                book_id=book_id
+            )
             if isinstance(persisted, dict):
                 st = persisted.get("status")
                 if isinstance(st, dict):
@@ -183,12 +144,22 @@ def open_ideas_dialog(controller) -> None:
                         # loaded text fingerprint, treat it as stale.
                         try:
                             book = persisted.get("book")
-                            if isinstance(book, dict) and hasattr(svc, "fingerprint_sha256"):
-                                persisted_fp = str(book.get("fingerprint_sha256", "") or "").strip()
-                                expected_fp = str(
-                                    svc.fingerprint_sha256(normalized_text=normalized_text)
+                            if isinstance(book, dict) and hasattr(
+                                svc, "fingerprint_sha256"
+                            ):
+                                persisted_fp = str(
+                                    book.get("fingerprint_sha256", "") or ""
                                 ).strip()
-                                if persisted_fp and expected_fp and persisted_fp != expected_fp:
+                                expected_fp = str(
+                                    svc.fingerprint_sha256(
+                                        normalized_text=normalized_text
+                                    )
+                                ).strip()
+                                if (
+                                    persisted_fp
+                                    and expected_fp
+                                    and persisted_fp != expected_fp
+                                ):
                                     status_hint = "stale"
                         except Exception:  # pragma: no cover
                             pass
@@ -200,7 +171,9 @@ def open_ideas_dialog(controller) -> None:
         box.setWindowTitle("Ideas")
         extra = ""
         if status_hint == "running":
-            extra = "\n\nPrevious mapping didn’t finish (for example, the app was closed)."
+            extra = (
+                "\n\nPrevious mapping didn’t finish (for example, the app was closed)."
+            )
         elif status_hint == "error":
             extra = "\n\nPrevious mapping failed."
         elif status_hint == "cancelled":
@@ -208,9 +181,11 @@ def open_ideas_dialog(controller) -> None:
         elif status_hint == "stale":
             extra = "\n\nThis idea map is out of date for the currently loaded book."
 
-        box.setText(
-            "Map this book now?\n\nThis runs in the background and won’t interrupt playback." + extra
+        prompt = (
+            "Map this book now?\n\n"
+            "This runs in the background and won’t interrupt playback."
         )
+        box.setText(prompt + extra)
         box.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         try:
             ok_btn = box.button(QMessageBox.Ok)
@@ -230,7 +205,7 @@ def open_ideas_dialog(controller) -> None:
             box.finished.connect(_on_done)
         except Exception:  # pragma: no cover
             pass
-        _open_message_box(box, min_width=520)
+        open_nonblocking_message_box(box, min_width=520, qtimer=QTimer)
         return
 
     doc = getattr(svc, "load_index_doc", lambda **_: None)(book_id=book_id)
@@ -238,7 +213,7 @@ def open_ideas_dialog(controller) -> None:
         box = QMessageBox(controller.window)
         box.setWindowTitle("Ideas")
         box.setText("Failed loading idea map.")
-        _open_message_box(box, min_width=420)
+        open_nonblocking_message_box(box, min_width=420, qtimer=QTimer)
         return
 
     # Normalize doc lists (tolerant to older/invalid docs).
@@ -280,181 +255,15 @@ def open_ideas_dialog(controller) -> None:
             nodes_by_id[nid] = n
 
     def _go_to(it: IdeaListItem) -> None:
-        voice = controller._selected_voice()  # noqa: SLF001
-        if voice is None:
-            return
-
-        node = nodes_by_id.get(it.node_id) or {}
-        aid = str(node.get("primary_anchor_id", "")).strip()
-        anchor = anchors_by_id.get(aid) or {}
-
-        # Prefer stable absolute char offsets for navigation.
-        # Persisted chunk_index is not stable across runtime candidate filtering.
-        try:
-            off_raw = anchor.get("char_offset", None)
-            off = int(off_raw)  # type: ignore[arg-type]
-        except Exception:
-            off = None
-
-        idx: int | None = None
-        if off is None:
-            try:
-                idx_raw = anchor.get("chunk_index", None)
-                idx = int(idx_raw)  # type: ignore[arg-type]
-            except Exception:
-                return
-
-        try:
-            log.info(
-                "Ideas GoTo: book_id=%s node_id=%s label=%r anchor_id=%s char_offset=%s chunk_index=%s voice=%s",
-                book_id,
-                it.node_id,
-                it.label,
-                aid or None,
-                off,
-                idx,
-                getattr(voice, "name", None),
-            )
-        except Exception:  # pragma: no cover
-            pass
-
-        controller._last_prepared_voice_id = voice.name  # noqa: SLF001
-
-        # Option 2 semantics:
-        # - Do NOT stop immediately.
-        # - Request a graceful stop at the next chunk boundary.
-        # - If it takes too long, fall back to an interrupting stop().
-        # - Restart from the target offset once the narration thread is dead.
-        def _thread_alive() -> bool:
-            try:
-                t = getattr(controller.narration_service, "_play_thread", None)
-                return bool(t is not None and t.is_alive())
-            except Exception:
-                return False
-
-        # Remember the most recent queued jump; last-click wins.
-        token = object()
-        try:
-            controller._ideas_goto_token = token  # type: ignore[attr-defined]  # noqa: SLF001
-        except Exception:  # pragma: no cover
-            pass
-
-        def _still_latest() -> bool:
-            try:
-                return getattr(controller, "_ideas_goto_token", None) is token  # noqa: SLF001
-            except Exception:
-                return True
-
-        def _set_wait_ui(message: str | None) -> None:
-            try:
-                if hasattr(controller.window, "lbl_status") and message:
-                    controller.window.lbl_status.setText(str(message))
-            except Exception:
-                pass
-            try:
-                if hasattr(controller.window, "progress"):
-                    if message:
-                        controller.window.progress.setRange(0, 0)
-                    else:
-                        controller.window.progress.setRange(0, 100)
-            except Exception:
-                pass
-
-        def _prepare_and_start() -> None:
-            if not _still_latest():
-                return
-            try:
-                # Stop right before we restart, so we don't fight the audio streamer.
-                try:
-                    controller.narration_service.stop(persist_resume=False)
-                except Exception:  # pragma: no cover
-                    try:
-                        log.exception("Ideas GoTo: stop() failed")
-                    except Exception:
-                        pass
-
-                if off is not None:
-                    # IMPORTANT: use force_start_char so chunking begins at the target.
-                    controller.narration_service.prepare(
-                        voice=voice,
-                        start_char_offset=int(off),
-                        force_start_char=int(off),
-                        skip_essay_index=False,
-                        persist_resume=False,
-                    )
-                else:
-                    if idx is None:  # pragma: no cover
-                        return
-                    controller.narration_service.prepare(
-                        voice=voice,
-                        start_playback_index=int(idx),
-                    )
-
-                log.info("Ideas GoTo: prepare complete; starting playback")
-                controller.narration_service.start()
-            except Exception:  # pragma: no cover
-                try:
-                    log.exception("Ideas GoTo: prepare/start failed")
-                except Exception:
-                    pass
-                return
-
-            _set_wait_ui(None)
-
-            try:
-                if getattr(controller, "_ideas_dialog", None) is not None:
-                    controller._ideas_dialog.close()  # noqa: SLF001
-            except Exception:  # pragma: no cover
-                pass
-
-        def _wait_then_start(*, ticks: int, force_stop_at: int) -> None:
-            if not _still_latest():
-                return
-
-            if not _thread_alive():
-                _prepare_and_start()
-                return
-
-            # Request graceful stop once at the beginning.
-            if int(ticks) == 0:
-                try:
-                    if hasattr(controller.narration_service, "request_stop_after_current_chunk"):
-                        controller.narration_service.request_stop_after_current_chunk()
-                except Exception:  # pragma: no cover
-                    pass
-
-            # After a grace period, fall back to an interrupting stop.
-            if int(ticks) >= int(force_stop_at):
-                try:
-                    log.warning("Ideas GoTo: grace period elapsed; forcing stop()")
-                except Exception:  # pragma: no cover
-                    pass
-                try:
-                    controller.narration_service.stop(persist_resume=False)
-                except Exception:  # pragma: no cover
-                    pass
-
-            try:
-                log.info(
-                    "Ideas GoTo: waiting for stop (ticks=%s force_stop_at=%s)",
-                    int(ticks),
-                    int(force_stop_at),
-                )
-            except Exception:  # pragma: no cover
-                pass
-
-            _set_wait_ui(f"Please wait… jumping to '{it.label}'")
-
-            if _in_tests() or QTimer is None:
-                return
-
-            QTimer.singleShot(
-                200,
-                lambda: _wait_then_start(ticks=int(ticks) + 1, force_stop_at=int(force_stop_at)),
-            )
-
-        _wait_then_start(ticks=0, force_stop_at=10)
-        # Keep the dialog open while waiting so the user can see what's happening.
+        go_to_idea(
+            controller,
+            book_id=book_id,
+            item=it,
+            nodes_by_id=nodes_by_id,
+            anchors_by_id=anchors_by_id,
+            log=log,
+            qtimer=QTimer,
+        )
 
     actions = IdeasDialogActions(list_items=_list_items, go_to=_go_to)
 
@@ -484,4 +293,3 @@ def _touch_coverage() -> None:  # pragma: no cover
     """Reserved for future UI wiring changes."""
 
     return
-

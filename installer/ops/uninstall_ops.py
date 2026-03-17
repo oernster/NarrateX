@@ -5,7 +5,6 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -113,7 +112,8 @@ def _schedule_delete_after_exit(install_dir: Path) -> None:
         "-Command",
         (
             "Start-Sleep -Seconds 2; "
-            f"Remove-Item -LiteralPath '{escaped}' -Recurse -Force -ErrorAction SilentlyContinue"
+            f"Remove-Item -LiteralPath '{escaped}' -Recurse -Force "
+            "-ErrorAction SilentlyContinue"
         ),
     ]
 

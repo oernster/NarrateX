@@ -12,7 +12,6 @@ from dataclasses import dataclass
 
 from voice_reader.domain.interfaces.idea_index_repository import IdeaIndexRepository
 
-
 _SUPPORTED_SCHEMA_VERSION = 1
 
 
@@ -48,7 +47,9 @@ class IdeaMapService:
 
         return str(status.get("state", "")) == "completed"
 
-    def has_completed_index_for_text(self, *, book_id: str, normalized_text: str) -> bool:
+    def has_completed_index_for_text(
+        self, *, book_id: str, normalized_text: str
+    ) -> bool:
         """Return True if a completed index exists and matches the book content.
 
         Phase 5 adds fingerprint-based caching/invalidation: if the persisted
@@ -82,4 +83,3 @@ class IdeaMapService:
         """Load the raw persisted index doc for the given book."""
 
         return self.repo.load_doc(book_id=book_id)
-

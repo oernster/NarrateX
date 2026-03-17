@@ -67,7 +67,9 @@ class _FakeVoiceRepo:
         return [VoiceProfile(name="bf_emma", reference_audio_paths=[])]
 
 
-def test_start_ideas_indexing_is_nonblocking_and_play_can_run_immediately(qapp, monkeypatch):
+def test_start_ideas_indexing_is_nonblocking_and_play_can_run_immediately(
+    qapp, monkeypatch
+):
     """Regression: requesting mapping must not block Play.
 
     This test proves the UI-facing method doesn't synchronously call the manager.
@@ -119,6 +121,7 @@ def test_start_ideas_indexing_is_nonblocking_and_play_can_run_immediately(qapp, 
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     # Should return without synchronously spawning/starting the manager.
@@ -132,4 +135,3 @@ def test_start_ideas_indexing_is_nonblocking_and_play_can_run_immediately(qapp, 
 
     # Restore for safety (even though monkeypatch would revert).
     monkeypatch.setattr(threading.Thread, "start", original_start)
-

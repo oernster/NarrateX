@@ -90,6 +90,7 @@ def test_bookmark_add_is_noop_when_duplicate_position(qapp) -> None:
         voice_service=voice_service,
         device="cpu",
         engine_name="engine",
+        cover_extractor=None,
     )
 
     c.open_bookmarks_dialog()

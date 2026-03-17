@@ -51,4 +51,3 @@ class JSONIdeaIndexRepository(IdeaIndexRepository):
         tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_text(json.dumps(doc, indent=2, sort_keys=False), encoding="utf-8")
         tmp.replace(path)
-

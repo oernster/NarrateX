@@ -4,7 +4,10 @@ import time
 import queue
 from dataclasses import dataclass
 
-from voice_reader.application.services.idea_indexing_manager import IdeaIndexJob, IdeaIndexingManager
+from voice_reader.application.services.idea_indexing_manager import (
+    IdeaIndexJob,
+    IdeaIndexingManager,
+)
 
 
 @dataclass
@@ -151,7 +154,9 @@ def test_manager_poll_persists_progress_and_error_without_spawning() -> None:
             {"type": "error", "message": "boom"},
         ]
     )
-    mgr._jobs["b1"] = IdeaIndexJob(book_id="b1", process=p, out_q=q, started_at="t")  # noqa: SLF001
+    mgr._jobs["b1"] = IdeaIndexJob(
+        book_id="b1", process=p, out_q=q, started_at="t"
+    )  # noqa: SLF001
 
     events = mgr.poll(book_id="b1")
     assert len(events) == 2
@@ -176,7 +181,9 @@ def test_manager_poll_debug_logging_branch_does_not_crash() -> None:
         def is_alive(self):
             return True
 
-    mgr._jobs["b1"] = IdeaIndexJob(book_id="b1", process=_P(), out_q=_Q(), started_at="t")  # noqa: SLF001
+    mgr._jobs["b1"] = IdeaIndexJob(
+        book_id="b1", process=_P(), out_q=_Q(), started_at="t"
+    )  # noqa: SLF001
     assert mgr.poll(book_id="b1") == []
 
 
@@ -226,4 +233,3 @@ def test_manager_cancel_is_noop_when_no_job() -> None:
 
     mgr.cancel(book_id="missing")
     assert repo.docs == {}
-

@@ -24,8 +24,9 @@ Status note: the codebase is now **Kokoro-only** (no Coqui XTTS, no pyttsx3 fall
   - DTOs: [`NarrationState`](voice_reader/application/dto/narration_state.py:21), [`NarrationStatus`](voice_reader/application/dto/narration_state.py:9)
   - Services:
     - [`NarrationService`](voice_reader/application/services/narration_service.py:36): core orchestration
-    - [`TTSEngineFactory`](voice_reader/application/services/tts_engine_factory.py:24): Kokoro engine creation + fail-fast import checks for packaged builds
     - [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15): lists voices via repo
+  - Interfaces (ports):
+    - [`CoverExtractor`](voice_reader/application/interfaces/cover_extractor.py:1): cover extraction port injected into UI
 
 - Domain layer: [`voice_reader/domain`](voice_reader/domain:1)
   - Entities: [`Book`](voice_reader/domain/entities/book.py:1), [`TextChunk`](voice_reader/domain/entities/text_chunk.py:1), [`VoiceProfile`](voice_reader/domain/entities/voice_profile.py:1)
@@ -50,6 +51,7 @@ Status note: the codebase is now **Kokoro-only** (no Coqui XTTS, no pyttsx3 fall
     - [`FilesystemCacheRepository`](voice_reader/infrastructure/cache/filesystem_cache.py:12) via [`FilesystemCacheRepository.audio_path()`](voice_reader/infrastructure/cache/filesystem_cache.py:15)
   - TTS engines:
     - [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30) via [`KokoroEngine.synthesize_to_file()`](voice_reader/infrastructure/tts/kokoro_engine.py:71)
+    - [`TTSEngineFactory`](voice_reader/infrastructure/tts/tts_engine_factory.py:1): Kokoro engine creation + fail-fast import checks for packaged builds
     - Voice profiles: built-in Kokoro voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19)
   - Audio playback:
     - [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72) via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/audio_streamer.py:111)
@@ -68,6 +70,8 @@ The intent is “clean architecture” style dependency flow:
 - Application depends on Domain.
 - Infrastructure depends on Domain (implements its protocols).
 - The entrypoint wires concrete infrastructure implementations into application services.
+
+Hard-enforced constraints (tests): see [`ARCHITECTURE_CONSTRAINTS.md`](ARCHITECTURE_CONSTRAINTS.md:1).
 
 ```mermaid
 flowchart TD
@@ -95,9 +99,9 @@ Startup is in [`main()`](app.py:55):
 3. Instantiate infrastructure adapters:
    - books: [`CalibreConverter`](voice_reader/infrastructure/books/converter.py:18), [`BookParser`](voice_reader/infrastructure/books/parser.py:20), [`LocalBookRepository`](voice_reader/infrastructure/books/repository.py:16)
    - cache: [`FilesystemCacheRepository`](voice_reader/infrastructure/cache/filesystem_cache.py:12)
-   - voices: Kokoro built-in voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19) + [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15)
-   - tts: Kokoro engine via [`TTSEngineFactory.create()`](voice_reader/application/services/tts_engine_factory.py:27)
-   - audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72)
+- voices: Kokoro built-in voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19) + [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15)
+- tts: Kokoro engine via [`TTSEngineFactory.create()`](voice_reader/infrastructure/tts/tts_engine_factory.py:27)
+- audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72)
 4. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py:36)
 5. Create UI: [`MainWindow`](voice_reader/ui/main_window.py:38) + [`UiController`](voice_reader/ui/ui_controller.py:21)
 
@@ -117,6 +121,10 @@ Cover extraction is best-effort and UI-facing:
 - [`UiController.select_book()`](voice_reader/ui/ui_controller.py:77) calls [`CoverExtractor.extract_cover_bytes()`](voice_reader/infrastructure/books/cover_extractor.py:26)
 - [`MainWindow.set_cover_image()`](voice_reader/ui/main_window.py:307) decodes the returned bytes into a `QImage` and renders a scaled `QPixmap`
 
+Important layering note:
+
+- UI does **not** import Infrastructure directly. [`UiController`](voice_reader/ui/ui_controller.py:21) depends on the application port [`CoverExtractor`](voice_reader/application/interfaces/cover_extractor.py:1) and receives a concrete implementation via the composition root in [`main()`](app.py:177).
+
 Cover extraction strategy (ordered):
 
 1. Prefer Calibre-style sidecar `cover.jpg`/`cover.png` next to the book
@@ -125,7 +133,7 @@ Cover extraction strategy (ordered):
    - PDF: first page raster via PyMuPDF
 3. If Kindle format: attempt conversion to EPUB via Calibre and then extract from EPUB
 
-Implementation details are documented in [`CoverExtractor.extract_cover_bytes()`](voice_reader/infrastructure/books/cover_extractor.py:26).
+Implementation details are documented in [`CoverExtractor.extract_cover_bytes()`](voice_reader/infrastructure/books/cover_extractor.py:34) and the strategy modules under [`voice_reader/infrastructure/books/cover`](voice_reader/infrastructure/books/cover:1).
 
 ### 3) Preparing narration (chunking + start detection)
 
@@ -173,7 +181,7 @@ Notable performance and UX choices:
 
 The app is **Kokoro-only**.
 
-- The runtime always uses [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30), created by [`TTSEngineFactory.create()`](voice_reader/application/services/tts_engine_factory.py:27).
+- The runtime always uses [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30), created by [`TTSEngineFactory.create()`](voice_reader/infrastructure/tts/tts_engine_factory.py:27).
 - Voice choices come from [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19) and are shown with friendly labels by [`UiController._voice_label()`](voice_reader/ui/ui_controller.py:135).
 - Voice profiles are Kokoro voice IDs (e.g. `bf_emma`, `am_michael`) and do not require reference audio.
 

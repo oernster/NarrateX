@@ -120,7 +120,9 @@ def test_has_completed_index_for_text_true_when_fingerprint_matches() -> None:
             }
         )  # type: ignore[arg-type]
     )
-    assert svc.has_completed_index_for_text(book_id="b1", normalized_text="hello") is True
+    assert (
+        svc.has_completed_index_for_text(book_id="b1", normalized_text="hello") is True
+    )
 
 
 def test_has_completed_index_for_text_false_when_fingerprint_mismatch() -> None:
@@ -142,4 +144,3 @@ def test_load_index_doc_roundtrips_repo_value() -> None:
     doc = {"schema_version": 1, "status": {"state": "completed"}}
     svc = IdeaMapService(repo=_FakeRepo(doc=doc))  # type: ignore[arg-type]
     assert svc.load_index_doc(book_id="b1") == doc
-

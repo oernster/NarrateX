@@ -16,8 +16,16 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from voice_reader.infrastructure.books.cover.epub import extract_epub_cover
+from voice_reader.infrastructure.books.cover.kindle import extract_kindle_via_conversion
+from voice_reader.infrastructure.books.cover.pdf import extract_pdf_cover
+from voice_reader.infrastructure.books.cover.sidecar import (
+    extract_sidecar_image_with_path,
+    resolve_calibre_sidecar_cover_path,
+)
+from voice_reader.infrastructure.books.cover._io_utils import safe_read_image_bytes
+
 _KINDLE_EXTS = {".mobi", ".azw", ".azw3", ".prc", ".kfx"}
-_IMAGE_EXTS = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp")
 _MAX_SIDECAR_BYTES = 12 * 1024 * 1024  # 12MB: avoid accidentally reading huge files
 
 
@@ -44,7 +52,7 @@ class CoverExtractor:
 
         # 1) Deterministic Calibre sidecar cover: exact cover.(jpg|jpeg|png|webp)
         # next to the selected book file.
-        det_path = self._resolve_calibre_sidecar_cover_path(source_path)
+        det_path = resolve_calibre_sidecar_cover_path(source_path)
         if det_path is not None:
             try:
                 abs_det = det_path.resolve()
@@ -58,7 +66,7 @@ class CoverExtractor:
             # For the deterministic Calibre cover path, prefer correctness over
             # the heuristic size-guard. Some real-world Calibre covers can be
             # large (high-res scans); skipping them leads to confusing fallbacks.
-            det_bytes = self._safe_read_image_bytes(det_path, max_bytes=None)
+            det_bytes = safe_read_image_bytes(det_path, max_bytes=None)
             if det_bytes:
                 log.info(
                     "Cover: using deterministic sidecar path=%s bytes=%s",
@@ -92,7 +100,9 @@ class CoverExtractor:
             )
 
         # 2) Generic sidecar fallback (heuristic)
-        sidecar_bytes, sidecar_path = self._extract_sidecar_image_with_path(source_path)
+        sidecar_bytes, sidecar_path = extract_sidecar_image_with_path(
+            source_path, max_bytes=_MAX_SIDECAR_BYTES
+        )
         if sidecar_bytes:
             if sidecar_path is not None:
                 try:
@@ -115,7 +125,7 @@ class CoverExtractor:
 
         ext = source_path.suffix.lower()
         if ext == ".epub":
-            data = self._extract_epub(source_path)
+            data = extract_epub_cover(source_path)
             if data:
                 log.info("Cover: using epub extraction bytes=%s", len(data))
                 self._maybe_dump_cover_bytes(
@@ -130,7 +140,7 @@ class CoverExtractor:
             )
             return data
         if ext == ".pdf":
-            data = self._extract_pdf(source_path)
+            data = extract_pdf_cover(source_path)
             if data:
                 log.info("Cover: using pdf extraction bytes=%s", len(data))
                 self._maybe_dump_cover_bytes(
@@ -145,7 +155,9 @@ class CoverExtractor:
             )
             return data
         if ext in _KINDLE_EXTS:
-            data = self._extract_kindle_via_conversion(source_path)
+            data = extract_kindle_via_conversion(
+                source_path, extract_epub_cover=extract_epub_cover
+            )
             if data:
                 log.info("Cover: using kindle conversion bytes=%s", len(data))
                 self._maybe_dump_cover_bytes(
@@ -218,298 +230,5 @@ class CoverExtractor:
                 strategy,
             )
 
-    def _resolve_calibre_sidecar_cover_path(self, source_path: Path) -> Path | None:
-        """Resolve an *exact* Calibre sidecar cover path.
-
-        This intentionally implements the boring, deterministic CalibreBooks shape:
-
-        - Look only in source_path.parent
-        - Prefer exact cover.jpg
-        - Then exact cover.jpeg
-        - Then exact cover.png
-        - Then exact cover.webp
-
-        No recursion; no heuristics.
-        """
-
-        folder = source_path.parent
-        if not folder.exists():
-            return None
-
-        for name in ("cover.jpg", "cover.jpeg", "cover.png", "cover.webp"):
-            candidate = folder / name
-            try:
-                if candidate.exists() and candidate.is_file():
-                    return candidate
-            except Exception:
-                # Permission errors or other IO surprises should not kill cover loading.
-                continue
-        return None
-
-    @staticmethod
-    def _safe_read_image_bytes(
-        p: Path, *, max_bytes: int | None = _MAX_SIDECAR_BYTES
-    ) -> bytes | None:
-        try:
-            if not p.exists() or not p.is_file():
-                return None
-            if max_bytes is not None:
-                try:
-                    if p.stat().st_size > max_bytes:
-                        return None
-                except Exception:
-                    # If we can't stat it, we also shouldn't try reading it.
-                    return None
-            return p.read_bytes()
-        except Exception:
-            return None
-
-    def _extract_sidecar_image(self, source_path: Path) -> bytes | None:
-        data, _ = self._extract_sidecar_image_with_path(source_path)
-        return data
-
-    def _extract_sidecar_image_with_path(
-        self, source_path: Path
-    ) -> tuple[bytes | None, Path | None]:
-        """Look for Calibre-style sidecar cover images in the same folder.
-
-        Many Calibre libraries store a `cover.jpg` adjacent to the ebook file
-        (especially for Kindle formats), rather than embedding a cover inside the
-        ebook.
-        """
-
-        folder = source_path.parent
-        if not folder.exists():
-            return None, None
-
-        _safe_read = self._safe_read_image_bytes
-
-        # 0) Exact cover.* should always win over any other heuristic.
-        for name in ("cover.jpg", "cover.jpeg", "cover.png", "cover.webp"):
-            candidate = folder / name
-            data = _safe_read(candidate)
-            if data:
-                return data, candidate
-
-        # 1) Common Calibre/Windows names.
-        preferred_stems = (
-            "cover",
-            "folder",
-            "front",
-        )
-        for stem in preferred_stems:
-            for ext in _IMAGE_EXTS:
-                candidate = folder / f"{stem}{ext}"
-                data = _safe_read(candidate)
-                if data:
-                    return data, candidate
-
-        # 2) Heuristic scan: any image file with "cover"/"folder" in name.
-        try:
-            candidates: list[Path] = []
-            for p in folder.iterdir():
-                if not p.is_file():
-                    continue
-                if p.suffix.lower() not in _IMAGE_EXTS:
-                    continue
-                name = p.name.lower()
-                if "cover" in name or "folder" in name:
-                    candidates.append(p)
-
-            def _rank(p: Path) -> tuple[int, str]:
-                n = p.name.lower()
-                if n.startswith("cover"):
-                    return (0, n)
-                if "cover" in n:
-                    return (1, n)
-                if n.startswith("folder"):
-                    return (2, n)
-                return (3, n)
-
-            for p in sorted(candidates, key=_rank):
-                data = _safe_read(p)
-                if data:
-                    return data, p
-        except Exception:
-            return None, None
-
-        return None, None
-
-    def _extract_epub(self, path: Path) -> bytes | None:
-        # NOTE:
-        # We intentionally use a ZIP-level parser rather than ebooklib metadata
-        # helpers. Some real-world EPUBs include cover images that ebooklib
-        # doesn't surface as ITEM_IMAGE, which results in “No cover” even though
-        # the file contains one.
-        try:
-            import re
-            import zipfile
-
-            with zipfile.ZipFile(path) as z:
-                names = z.namelist()
-
-                def _read(name: str) -> bytes | None:
-                    try:
-                        return z.read(name)
-                    except Exception:
-                        return None
-
-                def _normalize(path_str: str) -> str:
-                    parts: list[str] = []
-                    for part in path_str.replace("\\", "/").split("/"):
-                        if part in ("", "."):
-                            continue
-                        if part == "..":
-                            if parts:
-                                parts.pop()
-                            continue
-                        parts.append(part)
-                    return "/".join(parts)
-
-                # 1) Find a cover document (cover.xhtml/html).
-                cover_docs = [
-                    n
-                    for n in names
-                    if n.lower().endswith(("cover.xhtml", "cover.html", "cover.htm"))
-                ]
-                if not cover_docs:
-                    # Fallback: any xhtml/html with "cover" in the name.
-                    cover_docs = [
-                        n
-                        for n in names
-                        if "cover" in n.lower()
-                        and n.lower().endswith((".xhtml", ".html", ".htm"))
-                    ]
-
-                for doc_name in cover_docs:
-                    raw = _read(doc_name)
-                    if not raw:
-                        continue
-                    html = raw.decode("utf-8", errors="ignore")
-
-                    # Look for image references inside the cover doc.
-                    # IMPORTANT: cover.xhtml often includes a CSS <link href=...>
-                    # before the actual cover <image xlink:href=...>, so we must
-                    # prefer *image-like* targets.
-                    # Support both single and double quotes, plus unquoted forms.
-                    # We avoid full HTML parsing here by design.
-                    matches = re.findall(
-                        r"(?:xlink:href|src|href)\s*=\s*(?:\"([^\"]+)\"|'([^']+)'|([^\s>]+))",
-                        html,
-                        flags=re.IGNORECASE,
-                    )
-                    if not matches:
-                        continue
-
-                    flat: list[str] = []
-                    for m in matches:
-                        if isinstance(m, tuple):
-                            for part in m:
-                                if part:
-                                    flat.append(part)
-                        elif m:
-                            flat.append(m)
-                    if not flat:
-                        continue
-
-                    def _is_image_target(s: str) -> bool:
-                        s_l = s.lower().split("?", 1)[0].split("#", 1)[0]
-                        return s_l.endswith(
-                            (
-                                ".png",
-                                ".jpg",
-                                ".jpeg",
-                                ".gif",
-                                ".webp",
-                                ".bmp",
-                                ".svg",
-                            )
-                        )
-
-                    # Prefer explicit image refs, else fall back to first match.
-                    href = None
-                    for cand in flat:
-                        if _is_image_target(cand):
-                            href = cand
-                            break
-                    if href is None:
-                        href = flat[0]
-                    href = href.split("#", 1)[0]
-                    if not href:
-                        continue
-
-                    base_dir = "/".join(doc_name.split("/")[:-1])
-                    combined = f"{base_dir}/{href}" if base_dir else href
-                    candidate = _normalize(combined)
-
-                    # Try direct hit.
-                    data = _read(candidate)
-                    if data:
-                        return data
-
-                    # Try suffix match (zip entries may include a top-level folder).
-                    for n in names:
-                        if _normalize(n).endswith(candidate):
-                            data2 = _read(n)
-                            if data2:
-                                return data2
-
-                # 2) Heuristic: choose the first image-like asset.
-                image_names = [
-                    n
-                    for n in names
-                    if n.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".webp"))
-                ]
-                image_names.sort(key=lambda n: ("cover" not in n.lower(), n.lower()))
-                for n in image_names:
-                    data = _read(n)
-                    if data:
-                        return data
-                return None
-        except Exception:
-            return None
-
-    def _extract_kindle_via_conversion(self, path: Path) -> bytes | None:
-        """Convert Kindle formats to a temporary EPUB and reuse EPUB extraction.
-
-        This is best-effort and intentionally silent on failure; callers treat a
-        None return as "no cover".
-        """
-
-        try:
-            import subprocess
-            import tempfile
-
-            with tempfile.TemporaryDirectory(prefix="narratex-cover-") as tmp:
-                out_path = Path(tmp) / f"{path.stem}.epub"
-                cmd = ["ebook-convert", str(path), str(out_path)]
-                try:
-                    completed = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        check=False,
-                    )
-                except FileNotFoundError:
-                    return None
-
-                if completed.returncode != 0 or not out_path.exists():
-                    return None
-                return self._extract_epub(out_path)
-        except Exception:
-            return None
-
-    def _extract_pdf(self, path: Path) -> bytes | None:
-        # Render first page to PNG bytes.
-        try:
-            import fitz  # PyMuPDF
-
-            doc = fitz.open(str(path))
-            if doc.page_count <= 0:
-                return None
-            page = doc.load_page(0)
-            # Slight upscaling for a nicer thumbnail.
-            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
-            return pix.tobytes("png")
-        except Exception:
-            return None
+    # Implementation is split into strategy modules under
+    # voice_reader.infrastructure.books.cover.*

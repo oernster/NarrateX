@@ -15,10 +15,10 @@ def test_open_message_box_uses_qtimer_to_rewiden_after_open(monkeypatch, qapp) -
     """
 
     del qapp
-    from voice_reader.ui import _ui_controller_ideas
+    from voice_reader.ui import _message_box_utils
 
     # Force the runtime (non-test) branch.
-    monkeypatch.setattr(_ui_controller_ideas, "_in_tests", lambda: False)
+    monkeypatch.setattr(_message_box_utils, "_in_tests", lambda: False)
 
     calls = SimpleNamespace(widen=0, opened=0, singleshot=0)
 
@@ -26,7 +26,7 @@ def test_open_message_box_uses_qtimer_to_rewiden_after_open(monkeypatch, qapp) -
         del box, min_width
         calls.widen += 1
 
-    monkeypatch.setattr(_ui_controller_ideas, "_widen_message_box", _widen_stub)
+    monkeypatch.setattr(_message_box_utils, "_widen_message_box", _widen_stub)
 
     # Avoid actually showing a native dialog in tests.
     box = QMessageBox(MainWindow())
@@ -39,12 +39,9 @@ def test_open_message_box_uses_qtimer_to_rewiden_after_open(monkeypatch, qapp) -
             calls.singleshot += 1
             fn()
 
-    monkeypatch.setattr(_ui_controller_ideas, "QTimer", _Timer, raising=False)
-
-    _ui_controller_ideas._open_message_box(box, min_width=420)  # noqa: SLF001
+    _message_box_utils.open_nonblocking_message_box(box, min_width=420, qtimer=_Timer)
 
     assert calls.opened == 1
     assert calls.singleshot == 1
     # Once before open, once after open.
     assert calls.widen >= 2
-

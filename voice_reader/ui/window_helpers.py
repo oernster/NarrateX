@@ -73,7 +73,7 @@ def apply_main_window_theme(window) -> None:
                 color: {text};
             }}
             QPushButton[selectBookLocked="true"]:disabled {{
-                /* Keep it readable while disabled; the border is the primary affordance. */
+                /* Keep it readable while disabled; border is the primary affordance. */
                 color: #cbd5e1;
             }}
 
@@ -129,7 +129,7 @@ def apply_main_window_theme(window) -> None:
             }}
 
             /* Search removed (was tied to Ideas mapping). */
- 
+
             QProgressBar {{
                 background: {panel};
                 border: 1px solid #1f2937;

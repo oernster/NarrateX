@@ -21,7 +21,9 @@ def test_configure_logging_does_not_crash() -> None:
     configure_logging(logging.INFO)
 
 
-def test_configure_logging_supports_optional_file_handler(monkeypatch, tmp_path: Path) -> None:
+def test_configure_logging_supports_optional_file_handler(
+    monkeypatch, tmp_path: Path
+) -> None:
     """Cover the packaged-build debug log handler path."""
 
     import sys
@@ -57,7 +59,9 @@ def test_configure_logging_falls_back_to_cwd_when_argv_resolve_fails(
     assert (tmp_path / "NarrateX.debug.log.txt").exists()
 
 
-def test_configure_logging_ignores_filehandler_failure(monkeypatch, tmp_path: Path) -> None:
+def test_configure_logging_ignores_filehandler_failure(
+    monkeypatch, tmp_path: Path
+) -> None:
     """Coverage: exercise FileHandler exception swallow (never fail startup)."""
 
     import sys

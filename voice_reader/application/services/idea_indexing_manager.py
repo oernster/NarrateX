@@ -69,9 +69,11 @@ class IdeaIndexingManager:
         if existing is not None and existing.process.is_alive():
             return existing
 
-        # Debug visibility for packaged builds where spawn/process creation can fail silently.
+        # Debug visibility for packaged builds where spawn/process creation can fail.
         logging.getLogger(self.__class__.__name__).info(
-            "Ideas: start_indexing book_id=%s text_path=%s", book_id, str(text_path)
+            "Ideas: start_indexing book_id=%s text_path=%s",
+            book_id,
+            str(text_path),
         )
 
         started_at = _utc_now_iso()
@@ -237,4 +239,3 @@ class IdeaIndexingManager:
             safe_unlink(job.input_text_path)
 
         return events
-

@@ -90,16 +90,14 @@ def _run(cmd: list[str]) -> None:
                         (last_line[:140] + "…") if len(last_line) > 140 else last_line
                     )
                     pct = int(((phase_index + 1) / len(phases)) * 100)
+                    total_phases = len(phases)
+                    idx = f"{phase_index + 1}/{total_phases}"
+                    prefix = f"[build] {phase_name} ({idx} ~{pct}%)"
+                    prefix = f"{prefix} elapsed={elapsed_s}s"
                     if tail:
-                        print(
-                            f"[build] {phase_name} ({phase_index + 1}/{len(phases)} ~{pct}%) "
-                            f"elapsed={elapsed_s}s | last: {tail}"
-                        )
+                        print(f"{prefix} | last: {tail}")
                     else:
-                        print(
-                            f"[build] {phase_name} ({phase_index + 1}/{len(phases)} ~{pct}%) "
-                            f"elapsed={elapsed_s}s"
-                        )
+                        print(prefix)
                     last_output_at = now
 
                 time.sleep(0.1)
@@ -135,11 +133,14 @@ def main() -> int:
                 p.unlink()
         except PermissionError as exc:
             raise SystemExit(
-                "Failed to clean previous build output. This usually means the EXE or one of its "
-                "files is still running/locked.\n\n"
+                "Failed to clean previous build output.\n"
+                "This usually means the EXE or one of its files is "
+                "still running/locked.\n\n"
                 f"Path: {p}\n\n"
-                "Close NarrateX.exe (and any Explorer preview/pinned taskbar instance), then try again. "
-                "If it still fails, delete dist-pyinstaller/ manually and re-run the build.\n\n"
+                "Close NarrateX.exe (and any Explorer preview/pinned instance).\n"
+                "Then try again.\n\n"
+                "If it still fails, delete dist-pyinstaller/ manually.\n"
+                "Then re-run the build.\n\n"
                 f"Original error: {exc!r}"
             ) from exc
         except Exception as exc:
@@ -150,9 +151,11 @@ def main() -> int:
     # Safety net: ensure our output dir is actually gone before building.
     if dist_root.exists():
         raise SystemExit(
-            "dist-pyinstaller/ still exists after cleanup. This strongly suggests a locked file "
-            "prevented deletion, and you may be running an old build.\n\n"
-            "Close NarrateX.exe and re-run python buildexe.py."
+            "dist-pyinstaller/ still exists after cleanup.\n"
+            "This strongly suggests a locked file prevented deletion.\n"
+            "You may be running an old build.\n\n"
+            "Close NarrateX.exe and re-run.\n"
+            "Command: python buildexe.py"
         )
 
     # Fast, reliable baseline: onedir build.

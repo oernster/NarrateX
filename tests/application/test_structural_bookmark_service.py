@@ -11,7 +11,9 @@ from voice_reader.application.services.structural_bookmark_service import (
 )
 
 from voice_reader.domain.services.chunking_service import ChunkingService
-from voice_reader.application.services.navigation_chunk_service import NavigationChunkService
+from voice_reader.application.services.navigation_chunk_service import (
+    NavigationChunkService,
+)
 from voice_reader.domain.services.reading_start_service import ReadingStartService
 
 
@@ -183,22 +185,23 @@ def test_body_start_cutoff_prefers_first_real_body_heading_after_front_matter() 
 
 
 def test_metadata_candidate_before_body_start_is_corrected_to_body_occurrence() -> None:
-    text = (
-        "Table of Contents\n\n"
-        "Chapter 3\n\n"
-        "Prologue\n\n"
-        "Chapter 3\nBody\n"
-    )
+    text = "Table of Contents\n\n" "Chapter 3\n\n" "Prologue\n\n" "Chapter 3\nBody\n"
 
     # Simulate metadata pointing at the TOC occurrence.
     md = type(
         "Ch",
         (),
-        {"title": "Chapter 3", "char_offset": text.index("Chapter 3"), "chunk_index": None},
+        {
+            "title": "Chapter 3",
+            "char_offset": text.index("Chapter 3"),
+            "chunk_index": None,
+        },
     )()
 
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text, chapter_candidates=[md])
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, chapter_candidates=[md]
+    )
     b3 = [b for b in out if b.label == "Chapter 3"][0]
     assert b3.char_offset == text.index("\nChapter 3\nBody") + 1
 
@@ -280,7 +283,9 @@ def test_prefers_post_boundary_duplicate_over_early_toc_duplicate() -> None:
     assert b3.char_offset >= min_off
 
 
-def test_keeps_real_preface_or_prologue_when_it_is_after_boundary_or_is_the_boundary() -> None:
+def test_keeps_real_preface_or_prologue_when_it_is_after_boundary_or_is_the_boundary() -> (
+    None
+):
     text = "Preface\n\nReal preface paragraph.\n\nChapter 1\n\nBody.\n"
     nav = NavigationChunkService(
         reading_start_detector=ReadingStartService(),
@@ -326,4 +331,3 @@ def test_filters_resolved_chunk_index_candidates_before_boundary() -> None:
         min_char_offset=min_off,
     )
     assert all(b.label != "Chapter 1" for b in out)
-

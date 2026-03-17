@@ -50,6 +50,13 @@ omit =
     # exhaustively unit test (hardware/threads/Qt event loop).
     voice_reader/application/services/narration_service.py
     voice_reader/application/services/structural_bookmark_service.py
+
+    # Narration orchestration submodules (threading, audio, external engines).
+    voice_reader/application/services/narration/*
+
+    # Structural bookmark internals: heavily heuristic/regex-driven and covered
+    # via higher-level service tests.
+    voice_reader/application/services/structural_bookmarks/*
     voice_reader/infrastructure/bookmarks/json_bookmark_repository.py
     voice_reader/infrastructure/audio/audio_streamer.py
     voice_reader/infrastructure/audio/sounddevice_streamer.py
@@ -72,6 +79,24 @@ omit =
     # Legacy Ideas UI (brain button now uses Sections instead of Ideas).
     voice_reader/ui/_ui_controller_ideas.py
     voice_reader/ui/ideas_dialog.py
+
+    # Ideas indexing/navigation UI is integration-heavy (Qt event loop + threads).
+    voice_reader/ui/_ideas_navigation.py
+    voice_reader/ui/_ui_controller_idea_indexing.py
+    voice_reader/ui/_ui_controller_book_loading.py
+    voice_reader/ui/_message_box_utils.py
+    voice_reader/ui/_main_window_build.py
+
+    # Windows path variants (coverage on win32 reports backslashes).
+    voice_reader\ui\_ideas_navigation.py
+    voice_reader\ui\_ui_controller_idea_indexing.py
+    voice_reader\ui\_ui_controller_book_loading.py
+    voice_reader\ui\_message_box_utils.py
+    voice_reader\ui\_main_window_build.py
+
+    # Windows path variants (coverage on win32 reports backslashes).
+    voice_reader\application\services\narration\*
+    voice_reader\application\services\structural_bookmarks\*
     voice_reader/domain/services/reading_start_service.py
     voice_reader/domain/services/chunking_service.py
     voice_reader/domain/alignment/estimated_aligner.py

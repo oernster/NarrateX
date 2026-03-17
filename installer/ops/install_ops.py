@@ -4,14 +4,12 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 import sys
-import tempfile
 import uuid
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable
 
 import logging
 
