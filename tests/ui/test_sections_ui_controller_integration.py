@@ -175,7 +175,7 @@ def test_sections_go_to_prefers_body_heading_when_toc_duplicates_exist(qapp) -> 
     target_row = None
     for i in range(dlg.list.count()):
         item = dlg.list.item(i)
-        if item is not None and item.text() == "Chapter 3":
+        if item is not None and item.text() == "📌 Chapter 3":
             target_row = i
             break
 

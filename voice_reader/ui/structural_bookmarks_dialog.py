@@ -26,6 +26,15 @@ def _in_tests() -> bool:
     return bool(os.getenv("PYTEST_CURRENT_TEST"))
 
 
+def _display_label(label: str) -> str:
+    s = str(label or "").strip()
+    if not s:
+        return "📌"
+    if s.startswith("📌"):
+        return s
+    return f"📌 {s}"
+
+
 @dataclass(frozen=True, slots=True)
 class StructuralBookmarkListItem:
     label: str
@@ -106,7 +115,7 @@ class StructuralBookmarksDialog(QDialog):
         self.list.clear()
         items = list(self._actions.list_items())
         for it in items:
-            lw = QListWidgetItem(it.label)
+            lw = QListWidgetItem(_display_label(it.label))
             lw.setData(Qt.UserRole, it)
             self.list.addItem(lw)
         if self.list.count() > 0:

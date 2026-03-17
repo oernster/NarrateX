@@ -34,7 +34,7 @@ def test_sections_dialog_renders_items_and_invokes_goto(qapp) -> None:
 
     assert dlg.windowTitle() == "Sections"
     assert dlg.list.count() == 1
-    assert dlg.list.item(0).text() == "Chapter 1: Start"
+    assert dlg.list.item(0).text() == "📌 Chapter 1: Start"
 
     dlg.list.setCurrentRow(0)
     dlg.btn_goto.click()

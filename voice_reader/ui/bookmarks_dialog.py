@@ -34,6 +34,15 @@ def _in_tests() -> bool:
     return bool(os.getenv("PYTEST_CURRENT_TEST"))
 
 
+def _display_label(label: str) -> str:
+    s = str(label or "").strip()
+    if not s:
+        return "📌"
+    if s.startswith("📌"):
+        return s
+    return f"📌 {s}"
+
+
 @dataclass(frozen=True, slots=True)
 class BookmarksDialogActions:
     list_bookmarks: Callable[[], Sequence[Bookmark]]
@@ -108,7 +117,7 @@ class BookmarksDialog(QDialog):
         self.list.clear()
         bookmarks = list(self._actions.list_bookmarks())
         for bm in bookmarks:
-            item = QListWidgetItem(bm.name)
+            item = QListWidgetItem(_display_label(bm.name))
             item.setData(Qt.UserRole, bm)
             self.list.addItem(item)
         if self.list.count() > 0:
