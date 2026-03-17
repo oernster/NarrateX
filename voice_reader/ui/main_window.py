@@ -40,12 +40,13 @@ class UiStrings:
     play: str = "▶ Play"
     pause: str = "Ⅱ Pause"
     stop: str = "■ Stop"
+    play_tooltip: str = "Play"
+    pause_tooltip: str = "Pause"
 
 
 class MainWindow(QMainWindow):
     select_book_clicked = Signal()
-    play_clicked = Signal()
-    pause_clicked = Signal()
+    play_pause_clicked = Signal()
     stop_clicked = Signal()
     bookmarks_clicked = Signal()
     ideas_clicked = Signal()
@@ -59,6 +60,11 @@ class MainWindow(QMainWindow):
     def __init__(self, strings: UiStrings | None = None) -> None:
         super().__init__()
         self._strings = strings or UiStrings()
+
+        # Transport UI is driven by narration state (see [`apply_state()`](voice_reader/ui/_ui_controller_state.py:19)).
+        # Keep local state so the Play/Pause toggle never visually flips ahead of
+        # the backend (e.g., during LOADING/CHUNKING/SYNTHESIZING).
+        self._transport_is_playing: bool = False
 
         self.setWindowTitle(APP_NAME)
         self.resize(1100, 700)
@@ -80,15 +86,38 @@ class MainWindow(QMainWindow):
         # Controls row
         controls = QHBoxLayout()
         controls.setSpacing(8)
+
+        # Slightly taller top-row controls to harmonize with the chapter-nav row.
+        top_row_min_h = 42
+
         self.btn_select_book = QPushButton(self._strings.select_book)
+        self.btn_select_book.setMinimumHeight(top_row_min_h)
         self.voice_combo = QComboBox()
         self.voice_combo.setMinimumWidth(220)
+        self.voice_combo.setMinimumHeight(top_row_min_h)
 
         self.speed_combo = QComboBox()
         self.speed_combo.setMinimumWidth(95)
+        self.speed_combo.setMinimumHeight(top_row_min_h)
         for s in ["0.75x", "1.00x", "1.25x", "1.50x", "2.00x"]:
             self.speed_combo.addItem(s)
         self.speed_combo.setCurrentText("1.00x")
+
+        # Primary playback control: one large circular Play/Pause toggle.
+        self.btn_play_pause = QToolButton()
+        self.btn_play_pause.setObjectName("playPauseButton")
+        self.btn_play_pause.setCheckable(True)
+        self.btn_play_pause.setAutoRaise(False)
+        self.btn_play_pause.setCursor(Qt.PointingHandCursor)
+        self.btn_play_pause.setToolTip("Play")
+        self.btn_play_pause.setText("▶")
+        self.btn_play_pause.setFixedSize(48, 48)
+        self.btn_play_pause.setFont(QFont("Segoe UI", 14))
+        self.btn_play_pause.clicked.connect(self._on_play_pause_clicked)
+
+        self.btn_stop = QPushButton(self._strings.stop)
+        self.btn_stop.setCursor(Qt.PointingHandCursor)
+        self.btn_stop.setMinimumHeight(top_row_min_h)
 
         # Volume control (session-only, editable during playback).
         self.lbl_volume_icon = QLabel("🔊")
@@ -98,50 +127,51 @@ class MainWindow(QMainWindow):
         self.volume_slider = QSlider(Qt.Horizontal)
         self.volume_slider.setRange(0, 100)
         self.volume_slider.setValue(100)
-        self.volume_slider.setFixedWidth(120)
+        self.volume_slider.setFixedWidth(140)
         self.volume_slider.setToolTip("Volume")
-
-        self.btn_play = QPushButton(self._strings.play)
-        self.btn_pause = QPushButton(self._strings.pause)
-        self.btn_stop = QPushButton(self._strings.stop)
-        for b in [self.btn_select_book, self.btn_play, self.btn_pause, self.btn_stop]:
-            b.setCursor(Qt.PointingHandCursor)
 
         self.btn_bookmarks = QToolButton()
         self.btn_bookmarks.setText("🔖")
         self.btn_bookmarks.setToolTip("Bookmarks")
         self.btn_bookmarks.setCursor(Qt.PointingHandCursor)
         self.btn_bookmarks.setAutoRaise(True)
-        self.btn_bookmarks.setFixedSize(34, 34)
-        self.btn_bookmarks.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_bookmarks.setFixedSize(38, 38)
+        self.btn_bookmarks.setFont(QFont("Segoe UI Emoji", 16))
         self.btn_bookmarks.setProperty("bookmarkButton", True)
+        self.btn_bookmarks.setProperty("topIconButton", True)
 
         self.btn_ideas = QToolButton()
         self.btn_ideas.setText("🧠")
         self.btn_ideas.setToolTip("Sections")
         self.btn_ideas.setCursor(Qt.PointingHandCursor)
         self.btn_ideas.setAutoRaise(True)
-        self.btn_ideas.setFixedSize(34, 34)
-        self.btn_ideas.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_ideas.setFixedSize(38, 38)
+        self.btn_ideas.setFont(QFont("Segoe UI Emoji", 16))
         self.btn_ideas.setProperty("topIconButton", True)
 
         # Search removed in Sections-only brain button design.
 
-        controls.addWidget(self.btn_select_book)
-        controls.addWidget(QLabel(self._strings.select_voice))
-        controls.addWidget(self.voice_combo)
-        controls.addWidget(QLabel("Speed"))
-        controls.addWidget(self.speed_combo)
+        # Zone A: setup/content selection (left)
+        zone_a = QHBoxLayout()
+        zone_a.setSpacing(8)
+        zone_a.addWidget(self.btn_select_book)
+        zone_a.addWidget(QLabel(self._strings.select_voice))
+        zone_a.addWidget(self.voice_combo)
+        zone_a.addWidget(QLabel("Speed"))
+        zone_a.addWidget(self.speed_combo)
 
-        controls.addWidget(self.lbl_volume_icon)
-        controls.addWidget(self.volume_slider)
+        # Zone B: primary playback (center)
+        zone_b = QHBoxLayout()
+        zone_b.setSpacing(8)
+        zone_b.addWidget(self.btn_play_pause)
+        zone_b.addWidget(self.btn_stop)
+        zone_b.addWidget(self.lbl_volume_icon)
+        zone_b.addWidget(self.volume_slider)
+
+        controls.addLayout(zone_a)
         controls.addStretch(1)
-
-        controls.addWidget(self.btn_play)
-        controls.addWidget(self.btn_pause)
-        controls.addWidget(self.btn_stop)
-        controls.addWidget(self.btn_bookmarks)
-        controls.addWidget(self.btn_ideas)
+        controls.addLayout(zone_b)
+        controls.addStretch(1)
         left_panel.addLayout(controls)
 
         # Chapter navigation row (larger buttons for visibility).
@@ -155,6 +185,16 @@ class MainWindow(QMainWindow):
             b.setMinimumHeight(42)
             b.setMinimumWidth(190)
             b.setFont(QFont("Segoe UI", 12))
+
+        # Harmonize top-row button height with chapter-nav row without making
+        # the UI feel oversized.
+        try:
+            self.btn_stop.setMinimumHeight(42)
+            self.btn_select_book.setMinimumHeight(42)
+            self.voice_combo.setMinimumHeight(42)
+            self.speed_combo.setMinimumHeight(42)
+        except Exception:
+            pass
 
         chapter_nav.addWidget(self.btn_prev_chapter)
         chapter_nav.addWidget(self.btn_next_chapter)
@@ -180,8 +220,8 @@ class MainWindow(QMainWindow):
         status.addWidget(self.progress)
         left_panel.addLayout(status)
 
-        top_panel.addLayout(left_panel)
-        top_panel.addStretch(1)
+        # Give the left panel the expandable width so Zone B can read as centered.
+        top_panel.addLayout(left_panel, stretch=1)
 
         # Right side: right-justified device/engine labels.
         right_panel = QVBoxLayout()
@@ -196,8 +236,8 @@ class MainWindow(QMainWindow):
         self.btn_ui_licence.setToolTip("UI licence")
         self.btn_ui_licence.setCursor(Qt.PointingHandCursor)
         self.btn_ui_licence.setAutoRaise(True)
-        self.btn_ui_licence.setFixedSize(34, 34)
-        self.btn_ui_licence.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_ui_licence.setFixedSize(38, 38)
+        self.btn_ui_licence.setFont(QFont("Segoe UI Emoji", 16))
         self.btn_ui_licence.setProperty("topIconButton", True)
         self.btn_ui_licence.clicked.connect(self._show_ui_licence_dialog)
 
@@ -207,8 +247,8 @@ class MainWindow(QMainWindow):
         self.btn_backend_licence.setToolTip("Backend licence")
         self.btn_backend_licence.setCursor(Qt.PointingHandCursor)
         self.btn_backend_licence.setAutoRaise(True)
-        self.btn_backend_licence.setFixedSize(34, 34)
-        self.btn_backend_licence.setFont(QFont("Segoe UI Emoji", 15))
+        self.btn_backend_licence.setFixedSize(38, 38)
+        self.btn_backend_licence.setFont(QFont("Segoe UI Emoji", 16))
         self.btn_backend_licence.setProperty("topIconButton", True)
         self.btn_backend_licence.clicked.connect(self._show_backend_licence_dialog)
 
@@ -220,15 +260,19 @@ class MainWindow(QMainWindow):
         self.btn_help.setToolTip(f"About {APP_NAME}")
         self.btn_help.setCursor(Qt.PointingHandCursor)
         self.btn_help.setAutoRaise(True)
-        self.btn_help.setFixedSize(34, 34)
-        self.btn_help.setFont(QFont("Segoe UI", 15))
+        self.btn_help.setFixedSize(38, 38)
+        self.btn_help.setFont(QFont("Segoe UI", 16))
         self.btn_help.setProperty("topIconButton", True)
         self.btn_help.clicked.connect(self.show_about_dialog)
 
         help_row = QHBoxLayout()
         help_row.setContentsMargins(0, 0, 0, 0)
-        help_row.setSpacing(4)
+        help_row.setSpacing(6)
         help_row.addStretch(1)
+
+        # Zone C: unified utility cluster (far right)
+        help_row.addWidget(self.btn_bookmarks)
+        help_row.addWidget(self.btn_ideas)
         help_row.addWidget(self.btn_ui_licence)
         help_row.addWidget(self.btn_backend_licence)
         help_row.addWidget(self.btn_help)
@@ -292,8 +336,6 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self) -> None:
         self.btn_select_book.clicked.connect(self.select_book_clicked.emit)
-        self.btn_play.clicked.connect(self.play_clicked.emit)
-        self.btn_pause.clicked.connect(self.pause_clicked.emit)
         self.btn_stop.clicked.connect(self.stop_clicked.emit)
         self.btn_bookmarks.clicked.connect(self.bookmarks_clicked.emit)
         self.btn_ideas.clicked.connect(self.ideas_clicked.emit)
@@ -305,6 +347,20 @@ class MainWindow(QMainWindow):
         # Keep volume icon consistent with current slider position.
         self.volume_slider.valueChanged.connect(self._update_volume_icon)
 
+    def _on_play_pause_clicked(self, checked: bool) -> None:
+        """Emit unified Play/Pause without visually flipping ahead of state.
+
+        QToolButton is checkable for styling, but we keep the checked state driven
+        by narration state updates.
+        """
+
+        del checked
+        try:
+            self.btn_play_pause.setChecked(bool(self._transport_is_playing))
+        except Exception:
+            pass
+        self.play_pause_clicked.emit()
+
     def _update_volume_icon(self, value: int) -> None:
         v = int(value)
         if v <= 0:
@@ -314,6 +370,19 @@ class MainWindow(QMainWindow):
         else:
             icon = "🔊"
         self.lbl_volume_icon.setText(icon)
+
+    def set_transport_playing(self, *, is_playing: bool) -> None:
+        """Update the Play/Pause toggle button to reflect playback state."""
+
+        self._transport_is_playing = bool(is_playing)
+        try:
+            self.btn_play_pause.setChecked(bool(is_playing))
+            self.btn_play_pause.setText("Ⅱ" if is_playing else "▶")
+            self.btn_play_pause.setToolTip(
+                self._strings.pause_tooltip if is_playing else self._strings.play_tooltip
+            )
+        except Exception:
+            pass
 
     def set_chapter_controls_enabled(self, *, previous: bool, next_: bool) -> None:
         self.btn_prev_chapter.setEnabled(bool(previous))

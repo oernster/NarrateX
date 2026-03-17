@@ -53,3 +53,22 @@ def test_chapter_spine_widget_playhead_clamps_to_range(qapp) -> None:
     assert w._y_for_char_offset(top=10, bottom=110, char_offset=-50) == 10  # noqa: SLF001
     # Above last chapter -> bottom.
     assert w._y_for_char_offset(top=10, bottom=110, char_offset=50_000) == 110  # noqa: SLF001
+
+
+def test_chapter_spine_widget_y_for_char_offset_single_or_empty_returns_midpoint(
+    qapp,
+) -> None:
+    """Cover the small edge branch in [`ChapterSpineWidget._y_for_char_offset()`](voice_reader/ui/chapter_spine_widget.py:152)."""
+
+    del qapp
+    from voice_reader.ui.chapter_spine_widget import ChapterSpineWidget
+    from voice_reader.domain.entities.chapter import Chapter
+
+    w = ChapterSpineWidget()
+
+    # No chapters.
+    assert w._y_for_char_offset(top=10, bottom=110, char_offset=0) == 60  # noqa: SLF001
+
+    # One chapter.
+    w.set_chapters([Chapter(title="Only", char_offset=0, chunk_index=0)])
+    assert w._y_for_char_offset(top=10, bottom=110, char_offset=0) == 60  # noqa: SLF001

@@ -17,6 +17,7 @@ def apply_main_window_theme(window) -> None:
 
     # Dark theme with purple accents.
     purple = "#8b5cf6"
+    blue = "#2563eb"
     bg = "#0b0f17"
     panel = "#121826"
     text = "#e5e7eb"
@@ -91,6 +92,26 @@ def apply_main_window_theme(window) -> None:
             }}
             QToolButton#helpButton {{
                 color: #3b82f6;
+            }}
+
+            /* Primary transport control: single circular play/pause toggle. */
+            QToolButton#playPauseButton {{
+                background: #0b1220;
+                border: 2px solid rgba(59, 130, 246, 0.55);
+                border-radius: 24px;
+                padding: 0px;
+                color: {text};
+            }}
+            QToolButton#playPauseButton:hover {{
+                border-color: rgba(59, 130, 246, 0.95);
+                background: #0d172a;
+            }}
+            QToolButton#playPauseButton:pressed {{
+                background: #0a1020;
+            }}
+            QToolButton#playPauseButton:checked {{
+                /* Slightly stronger ring when actively playing. */
+                border-color: {blue};
             }}
 
             /* Search removed (was tied to Ideas mapping). */

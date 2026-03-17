@@ -20,6 +20,22 @@ def apply_state(controller, state: object) -> None:
     if not isinstance(state, NarrationState):
         return
 
+    # Drive unified Play/Pause transport button (presentation only).
+    try:
+        if hasattr(controller.window, "set_transport_playing"):
+            # Note: NarrationService can emit SYNTHESIZING updates while audio is
+            # actively playing (prefetch running ahead). For transport affordances,
+            # treat the whole active pipeline as "pause-able".
+            active_statuses = {
+                NarrationStatus.LOADING,
+                NarrationStatus.CHUNKING,
+                NarrationStatus.SYNTHESIZING,
+                NarrationStatus.PLAYING,
+            }
+            controller.window.set_transport_playing(is_playing=state.status in active_statuses)
+    except Exception:
+        pass
+
     # Book switching must be disabled during active playback/preparation.
     # Re-enable on PAUSED/STOPPED/IDLE/ERROR.
     book_select_locked_statuses = {

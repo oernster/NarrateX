@@ -35,6 +35,14 @@ def test_main_window_help_and_about_smoke(qapp) -> None:
     w.show_about_dialog()
 
 
+def test_main_window_play_pause_button_exists(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    assert hasattr(w, "btn_play_pause")
+    assert w.btn_play_pause.objectName() == "playPauseButton"
+    assert w.btn_play_pause.toolTip() in {"Play", "Pause"}
+
+
 def test_main_window_sections_button_exists(qapp) -> None:
     del qapp
     w = MainWindow()
