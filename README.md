@@ -50,6 +50,12 @@ python -m pip install -r requirements.txt
 python app.py
 ```
 
+### Startup behaviour
+
+- Splash screen: enabled by default. Disable with `NARRATEX_DISABLE_SPLASH=1`.
+- Single-instance: enabled by default. To allow multiple instances (dev/testing),
+  set `NARRATEX_ALLOW_MULTIINSTANCE=1`.
+
 ## Tests / Coverage
 
 This repo enforces **100% test coverage** for the configured runtime scope.

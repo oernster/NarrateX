@@ -40,6 +40,9 @@ class _FakeQApplication:
         self.aboutToQuit.emit()
         return 0
 
+    def processEvents(self) -> None:
+        return
+
 
 class _FakeQIcon:
     """A fake QIcon that fails for .ico but succeeds for .png."""

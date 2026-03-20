@@ -13,40 +13,48 @@ from pathlib import Path
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
-from voice_reader.application.services.narration_service import NarrationService
-from voice_reader.application.services.bookmark_service import BookmarkService
-from voice_reader.application.services.idea_map_service import IdeaMapService
-from voice_reader.application.services.idea_indexing_manager import IdeaIndexingManager
-from voice_reader.application.services.structural_bookmark_service import (
-    StructuralBookmarkService,
-)
-from voice_reader.infrastructure.tts.tts_engine_factory import TTSEngineFactory
-from voice_reader.infrastructure.books.cover_extractor import CoverExtractor
-from voice_reader.application.services.voice_profile_service import VoiceProfileService
-from voice_reader.domain.services.chunking_service import ChunkingService
-from voice_reader.infrastructure.audio.audio_streamer import SoundDeviceAudioStreamer
-from voice_reader.infrastructure.books.converter import CalibreConverter
-from voice_reader.infrastructure.books.parser import BookParser
-from voice_reader.infrastructure.books.repository import LocalBookRepository
-from voice_reader.infrastructure.cache.filesystem_cache import FilesystemCacheRepository
-from voice_reader.infrastructure.bookmarks.json_bookmark_repository import (
-    JSONBookmarkRepository,
-)
-from voice_reader.infrastructure.ideas.json_idea_index_repository import (
-    JSONIdeaIndexRepository,
-)
-from voice_reader.infrastructure.preferences.json_preferences_repository import (
-    JSONPreferencesRepository,
-)
-from voice_reader.infrastructure.tts.voice_profile_repository import (
-    KokoroVoiceProfileRepository,
-)
 from voice_reader.shared.config import Config
 from voice_reader.shared.external_runtime import configure_packaged_runtime
 from voice_reader.shared.logging_utils import configure_logging
-from voice_reader.ui.main_window import MainWindow
-from voice_reader.ui.ui_controller import UiController
+from voice_reader.shared.startup_diagnostics import (
+    append_startup_log as _append_startup_log,
+    ensure_stdio as _ensure_stdio,
+    preflight_imports as _preflight_imports,
+    program_base_dir as _program_base_dir,
+)
+from voice_reader.shared.startup_ui import default_lock_dir, maybe_show_splash
+from voice_reader.bootstrap import resolve_app_wiring
 from voice_reader.version import APP_APPUSERMODELID, APP_NAME
+
+
+# --- Test hooks / lazy import placeholders ---
+#
+# Several unit tests monkeypatch these names on the `app` module to avoid heavy
+# imports. Keep them defined at module import time so monkeypatching remains
+# stable even though the real imports happen lazily inside `main()`.
+for _sym in [
+    "MainWindow",
+    "UiController",
+    "NarrationService",
+    "BookmarkService",
+    "IdeaMapService",
+    "IdeaIndexingManager",
+    "StructuralBookmarkService",
+    "TTSEngineFactory",
+    "CoverExtractor",
+    "VoiceProfileService",
+    "ChunkingService",
+    "SoundDeviceAudioStreamer",
+    "CalibreConverter",
+    "BookParser",
+    "LocalBookRepository",
+    "FilesystemCacheRepository",
+    "JSONBookmarkRepository",
+    "JSONIdeaIndexRepository",
+    "JSONPreferencesRepository",
+    "KokoroVoiceProfileRepository",
+]:
+    globals().setdefault(_sym, None)
 
 
 def _env_truthy(name: str) -> bool:
@@ -55,42 +63,6 @@ def _env_truthy(name: str) -> bool:
     except Exception:
         return False
     return v.strip().lower() in {"1", "true", "yes", "y", "on"}
-
-
-def _preflight_imports(*, heavy: bool) -> tuple[int, str]:
-    """Return (rc, report).
-
-    rc is 0 when all imports succeed, otherwise 2.
-    """
-
-    # Keep this list small and stable. The goal is to validate the packaged
-    # runtime has the critical wheels available, not to fully initialize them.
-    modules = [
-        # Basic stdlib/bootstrap sanity.
-        "site",
-        # Historically flaky in some packaging environments.
-        "regex",
-    ]
-    if heavy:
-        modules.extend(["spacy", "thinc", "torch", "transformers", "kokoro"])
-
-    failures: list[str] = []
-    for name in modules:
-        try:
-            importlib.import_module(name)
-        except Exception as exc:  # noqa: BLE001
-            failures.append(f"IMPORT {name}: {exc!r}")
-            # Optional extra context: dist metadata version lookup.
-            try:
-                ver = importlib.metadata.version(name)
-                failures.append(f"DIST {name}: {ver}")
-            except Exception as exc2:  # noqa: BLE001
-                failures.append(f"DIST {name}: {exc2!r}")
-
-    if failures:
-        return 2, "\n".join(failures)
-
-    return 0, "OK"
 
 
 def exe_dir() -> Path:
@@ -129,49 +101,28 @@ def find_runtime_icon() -> Path | None:
 
 
 def program_base_dir() -> Path:
-    try:
-        return Path(sys.argv[0]).resolve().parent
-    except Exception:
-        return Path.cwd()
+    return _program_base_dir(argv0=(sys.argv[0] if sys.argv else ""), cwd=Path.cwd)
 
 
 def append_startup_log(filename: str, text: str) -> None:
-    try:
-        path = program_base_dir() / filename
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "a", encoding="utf-8", errors="replace") as f:
-            f.write(text.rstrip("\n") + "\n")
-    except Exception:
-        pass
+    return _append_startup_log(
+        base_dir=program_base_dir(),
+        filename=filename,
+        text=text,
+        open_fn=open,
+    )
 
 
 def ensure_stdio() -> None:
-    """Ensure stdout/stderr exist for GUI builds."""
     base = program_base_dir()
-
-    if sys.stdout is None:
-        try:
-            sys.stdout = open(
-                base / "NarrateX.runtime.out.txt",
-                "a",
-                buffering=1,
-                encoding="utf-8",
-                errors="replace",
-            )
-        except Exception:
-            pass
-
-    if sys.stderr is None:
-        try:
-            sys.stderr = open(
-                base / "NarrateX.runtime.err.txt",
-                "a",
-                buffering=1,
-                encoding="utf-8",
-                errors="replace",
-            )
-        except Exception:
-            pass
+    out, err = _ensure_stdio(
+        base_dir=base,
+        stdout=sys.stdout,
+        stderr=sys.stderr,
+        open_fn=open,
+    )
+    sys.stdout = out
+    sys.stderr = err
 
 
 def main() -> int:
@@ -204,69 +155,14 @@ def main() -> int:
         # runtime environment quickly.
         if _env_truthy("NARRATEX_PREFLIGHT"):
             heavy = _env_truthy("NARRATEX_PREFLIGHT_HEAVY")
-            rc, report = _preflight_imports(heavy=heavy)
+            rc, report = _preflight_imports(
+                heavy=heavy,
+                import_module=importlib.import_module,
+                dist_version=importlib.metadata.version,
+            )
             if rc != 0:
                 append_startup_log("NarrateX.startup.err.txt", report)
             return rc
-
-        project_root = Path(__file__).resolve().parent
-        config = Config.from_project_root(project_root)
-        config.ensure_directories()
-
-        preserve_cache = _env_truthy("NARRATEX_PRESERVE_CACHE")
-
-        if not preserve_cache:
-            try:
-                shutil.rmtree(config.paths.cache_dir, ignore_errors=True)
-                config.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            except Exception:
-                log.exception("Failed clearing cache")
-
-        device = "cpu"
-
-        converter = CalibreConverter(temp_books_dir=config.paths.temp_books_dir)
-        parser = BookParser()
-        book_repo = LocalBookRepository(converter=converter, parser=parser)
-
-        cache_repo = FilesystemCacheRepository(cache_dir=config.paths.cache_dir)
-
-        bookmark_repo = JSONBookmarkRepository(bookmarks_dir=config.paths.bookmarks_dir)
-        bookmark_service = BookmarkService(repo=bookmark_repo)
-
-        idea_repo = JSONIdeaIndexRepository(bookmarks_dir=config.paths.bookmarks_dir)
-        idea_map_service = IdeaMapService(repo=idea_repo)
-        idea_indexing_manager = IdeaIndexingManager(repo=idea_repo)
-
-        structural_bookmark_service = StructuralBookmarkService()
-
-        # Preferences persistence (small JSON file). Keep backwards-compatible
-        # with older test stubs that don't provide `preferences_path`.
-        try:
-            preferences_path = config.paths.preferences_path
-        except Exception:
-            # Default beside bookmarks_dir (same data_root).
-            preferences_path = config.paths.bookmarks_dir.parent / "preferences.json"
-
-        preferences_repo = JSONPreferencesRepository(path=preferences_path)
-        voice_repo = KokoroVoiceProfileRepository()
-        voice_service = VoiceProfileService(repo=voice_repo)
-
-        tts_engine = TTSEngineFactory().create()
-        audio_streamer = SoundDeviceAudioStreamer(target_buffer_seconds=15.0)
-
-        chunker = ChunkingService(min_chars=120, max_chars=220)
-
-        narration_service = NarrationService(
-            book_repo=book_repo,
-            cache_repo=cache_repo,
-            tts_engine=tts_engine,
-            audio_streamer=audio_streamer,
-            chunking_service=chunker,
-            device=device,
-            language=config.default_language,
-            bookmark_service=bookmark_service,
-            preferences_repo=preferences_repo,
-        )
 
         # ----- Qt startup -----
 
@@ -287,12 +183,140 @@ def main() -> int:
         if not icon.isNull() and hasattr(app, "setWindowIcon"):
             app.setWindowIcon(icon)
 
-        window = MainWindow()
+        # ----- Single instance guard -----
+
+        allow_multi = _env_truthy("NARRATEX_ALLOW_MULTIINSTANCE")
+
+        # Activation messages can arrive at any time (e.g. user clicks the taskbar
+        # icon while the app is already running). If the window already exists,
+        # raise/focus it immediately; otherwise defer until after creation.
+        window = None
+        pending_activate: bool = False
+
+        def _on_activate() -> None:
+            nonlocal pending_activate, window
+            if window is None:
+                pending_activate = True
+                return
+            # Local import keeps `app` tests simple (they monkeypatch this module
+            # heavily and expect only a subset of names to exist).
+            from voice_reader.shared.startup_ui import activate_window
+
+            try:
+                activate_window(window)
+            finally:
+                # Best-effort: help the WM/Qt process the activation.
+                try:
+                    app.processEvents()
+                except Exception:
+                    pass
+
+        instance_guard = None
+        is_primary = True
+        try:
+            lock_dir = default_lock_dir(app_name=APP_NAME)
+            from voice_reader.shared.startup_ui import setup_single_instance
+
+            instance_guard, is_primary = setup_single_instance(
+                app=app,
+                app_id=APP_APPUSERMODELID,
+                allow_multi=allow_multi,
+                lock_dir=lock_dir,
+                on_activate=_on_activate,
+            )
+        except Exception:
+            instance_guard = None
+            is_primary = True
+
+        if not is_primary and instance_guard is not None:
+            try:
+                instance_guard.notify_primary()
+            except Exception:
+                pass
+            return 0
+
+        # ----- Splash (show before heavy imports) -----
+
+        project_root = Path(__file__).resolve().parent
+        splash = maybe_show_splash(
+            app=app,
+            icon=icon,
+            project_root=project_root,
+            enabled=(not _env_truthy("NARRATEX_DISABLE_SPLASH")),
+        )
+
+        # ----- Heavy app wiring (after splash is visible) -----
+
+        resolve_app_wiring(globals())
+
+        def _g(name: str):  # noqa: ANN001
+            return globals()[name]
+
+        project_root = Path(__file__).resolve().parent
+        config = Config.from_project_root(project_root)
+        config.ensure_directories()
+
+        preserve_cache = _env_truthy("NARRATEX_PRESERVE_CACHE")
+
+        if not preserve_cache:
+            try:
+                shutil.rmtree(config.paths.cache_dir, ignore_errors=True)
+                config.paths.cache_dir.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                log.exception("Failed clearing cache")
+
+        device = "cpu"
+
+        converter = _g("CalibreConverter")(temp_books_dir=config.paths.temp_books_dir)
+        parser = _g("BookParser")()
+        book_repo = _g("LocalBookRepository")(converter=converter, parser=parser)
+
+        cache_repo = _g("FilesystemCacheRepository")(cache_dir=config.paths.cache_dir)
+
+        bookmark_repo = _g("JSONBookmarkRepository")(bookmarks_dir=config.paths.bookmarks_dir)
+        bookmark_service = _g("BookmarkService")(repo=bookmark_repo)
+
+        idea_repo = _g("JSONIdeaIndexRepository")(bookmarks_dir=config.paths.bookmarks_dir)
+        idea_map_service = _g("IdeaMapService")(repo=idea_repo)
+        idea_indexing_manager = _g("IdeaIndexingManager")(repo=idea_repo)
+
+        structural_bookmark_service = _g("StructuralBookmarkService")()
+
+        # Preferences persistence (small JSON file). Keep backwards-compatible
+        # with older test stubs that don't provide `preferences_path`.
+        try:
+            preferences_path = config.paths.preferences_path
+        except Exception:
+            # Default beside bookmarks_dir (same data_root).
+            preferences_path = config.paths.bookmarks_dir.parent / "preferences.json"
+
+        preferences_repo = _g("JSONPreferencesRepository")(path=preferences_path)
+        voice_repo = _g("KokoroVoiceProfileRepository")()
+        voice_service = _g("VoiceProfileService")(repo=voice_repo)
+
+        tts_engine = _g("TTSEngineFactory")().create()
+        audio_streamer = _g("SoundDeviceAudioStreamer")(target_buffer_seconds=15.0)
+
+        chunker = _g("ChunkingService")(min_chars=120, max_chars=220)
+
+        narration_service = _g("NarrationService")(
+            book_repo=book_repo,
+            cache_repo=cache_repo,
+            tts_engine=tts_engine,
+            audio_streamer=audio_streamer,
+            chunking_service=chunker,
+            device=device,
+            language=config.default_language,
+            bookmark_service=bookmark_service,
+            preferences_repo=preferences_repo,
+        )
+
+        window = _g("MainWindow")()
 
         if not icon.isNull() and hasattr(window, "setWindowIcon"):
             window.setWindowIcon(icon)
 
-        controller = UiController(
+        controller = _g("UiController")(
             window=window,
             narration_service=narration_service,
             bookmark_service=bookmark_service,
@@ -302,7 +326,7 @@ def main() -> int:
             voice_service=voice_service,
             device=device,
             engine_name=tts_engine.engine_name,
-            cover_extractor=CoverExtractor(),
+            cover_extractor=_g("CoverExtractor")(),
         )
 
         def on_quit() -> None:
@@ -325,6 +349,25 @@ def main() -> int:
             log.exception("Failed connecting aboutToQuit")
 
         window.show()
+
+        # Ensure the first paint happens before we hide the splash.
+        try:
+            app.processEvents()
+        except Exception:
+            pass
+
+        if splash is not None:
+            try:
+                fin = getattr(splash, "finish", None)
+                if callable(fin):
+                    fin(window)
+            except Exception:
+                pass
+
+        if pending_activate:
+            from voice_reader.shared.startup_ui import activate_window
+
+            activate_window(window)
 
         append_startup_log("NarrateX.startup.log.txt", "window shown")
 

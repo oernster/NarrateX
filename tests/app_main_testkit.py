@@ -25,6 +25,7 @@ class FakeQApplication:
         del argv
         self.aboutToQuit = about_to_quit or FakeSignal()
         self._exec_called = False
+        self._processed_events = 0
 
     def setApplicationName(self, _):  # noqa: ANN001
         return
@@ -38,6 +39,9 @@ class FakeQApplication:
     def setWindowIcon(self, _):  # noqa: ANN001
         return
 
+    def processEvents(self) -> None:
+        self._processed_events += 1
+
     def exec(self) -> int:
         self._exec_called = True
         # Simulate the app quitting immediately.
@@ -48,16 +52,38 @@ class FakeQApplication:
             pass
         return 0
 
+    @staticmethod
+    def instance():  # noqa: ANN001
+        return None
+
+
+class FakeSplash:
+    def __init__(self) -> None:
+        self.finished_with = None
+
+    def finish(self, window):  # noqa: ANN001
+        self.finished_with = window
+
 
 class FakeWindow:
     def __init__(self) -> None:
         self.shown = False
+        self.activated = 0
 
     def setWindowIcon(self, _):  # noqa: ANN001
         return
 
     def show(self) -> None:
         self.shown = True
+
+    def showNormal(self) -> None:
+        return
+
+    def raise_(self) -> None:
+        return
+
+    def activateWindow(self) -> None:
+        self.activated += 1
 
 
 class FakeUiController:
@@ -132,6 +158,8 @@ def patch_app_main_wiring(
 
     fake_qapp = qapp_instance or FakeQApplication([])
     monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
+
+    # Provide module-level names that app.main() imports lazily.
     monkeypatch.setattr(app, "MainWindow", FakeWindow)
     monkeypatch.setattr(app, "UiController", FakeUiController)
 
@@ -195,6 +223,10 @@ def patch_app_main_wiring(
     monkeypatch.setattr(
         app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=_stop)
     )
+
+    # Disable splash and multi-instance in tests unless a test opts in.
+    monkeypatch.setenv("NARRATEX_DISABLE_SPLASH", "1")
+    monkeypatch.setenv("NARRATEX_ALLOW_MULTIINSTANCE", "1")
 
     return MainWiringRig(
         rmtree_calls=rmtree_calls,
