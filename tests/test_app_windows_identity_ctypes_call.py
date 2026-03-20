@@ -39,6 +39,9 @@ class _FakeQApplication:
         self.aboutToQuit.emit()
         return 0
 
+    def processEvents(self) -> None:
+        return
+
 
 class _FakeShell32:
     def __init__(self) -> None:

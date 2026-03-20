@@ -128,6 +128,57 @@ def find_qt_window_icon_path(*, project_root: Path | None = None) -> Path | None
     return None
 
 
+def find_splash_image_path(*, project_root: Path | None = None) -> Path | None:
+    """Locate the NarrateX splash PNG.
+
+    We prefer a PNG because it is reliably loadable by Qt even when the ICO
+    plugin is missing in frozen builds.
+    """
+
+    candidates: list[Path] = []
+
+    # PyInstaller onefile extracts bundled data files to sys._MEIPASS.
+    try:
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(Path(meipass) / "narratex_256.png")
+    except Exception:
+        pass
+
+    if project_root is not None:
+        candidates.append(project_root / "narratex_256.png")
+
+    # Next to exe.
+    try:
+        candidates.append(Path(sys.executable).resolve().parent / "narratex_256.png")
+    except Exception:
+        pass
+
+    # In onedir PyInstaller builds, data files may end up under `_internal/`.
+    try:
+        candidates.append(
+            Path(sys.executable).resolve().parent / "_internal" / "narratex_256.png"
+        )
+    except Exception:
+        pass
+
+    # Repo layout fallback.
+    try:
+        candidates.append(Path(__file__).resolve().parents[2] / "narratex_256.png")
+    except Exception:
+        pass
+
+    candidates.append(Path.cwd() / "narratex_256.png")
+
+    for p in candidates:
+        try:
+            if p.exists() and p.is_file():
+                return p
+        except Exception:
+            continue
+    return None
+
+
 def iter_qt_window_icon_candidates(*, project_root: Path | None = None) -> list[Path]:
     """Return icon file candidates (in preference order) for Qt window/taskbar icons.
 

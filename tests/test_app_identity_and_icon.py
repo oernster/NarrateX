@@ -41,6 +41,9 @@ class _FakeQApplication:
         self.aboutToQuit.emit()
         return 0
 
+    def processEvents(self) -> None:
+        return
+
 
 def test_main_sets_application_display_name_when_supported(
     monkeypatch, tmp_path: Path
