@@ -35,6 +35,13 @@ def play(
             yield item
 
     def on_start(play_index: int) -> None:
+        # Mark that we have actually begun audible playback. This is used by
+        # exit-time persistence to avoid creating resume JSON for books the user
+        # never listened to.
+        try:
+            service._played_any_chunk = True  # noqa: SLF001
+        except Exception:  # pragma: no cover
+            pass
         service._current_play_index = int(play_index)  # noqa: SLF001
         if play_index < 0 or play_index >= playback_total:
             return

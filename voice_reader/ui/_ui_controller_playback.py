@@ -119,7 +119,6 @@ def play(controller) -> None:
                         start_char_offset=int(start_char_offset),
                         force_start_char=int(start_char_offset),
                         skip_essay_index=True,
-                        persist_resume=False,
                     )
                     controller.narration_service.start()
                     return

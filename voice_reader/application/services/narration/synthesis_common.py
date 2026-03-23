@@ -97,14 +97,21 @@ def set_synth_state(
     idx: int,
     total: int,
 ) -> None:
+    # Preserve the last known audible/highlight spans while synthesizing.
+    # Prefetch can race playback, and the UI should not lose the current playhead.
+    st = service.state
     service._set_state(
         NarrationState(
             status=NarrationStatus.SYNTHESIZING,
-            current_chunk_id=service.state.current_chunk_id,
+            current_chunk_id=st.current_chunk_id,
             prefetch_chunk_id=int(idx),
-            playback_chunk_id=service.state.current_chunk_id,
+            playback_chunk_id=st.playback_chunk_id,
             total_chunks=int(total),
             progress=int(idx) / max(int(total), 1),
             message=f"Preparing chunk {int(idx) + 1}/{int(total)}",
+            audible_start=st.audible_start,
+            audible_end=st.audible_end,
+            highlight_start=st.highlight_start,
+            highlight_end=st.highlight_end,
         )
     )

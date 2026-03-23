@@ -144,7 +144,8 @@ def test_play_when_idle_and_no_resume_prefers_first_section(monkeypatch, qapp) -
     assert len(calls) == 1
     assert calls[0]["start_char_offset"] == 123
     assert calls[0]["force_start_char"] == 123
-    assert calls[0]["persist_resume"] is False
+    # Default behavior: resume persistence remains enabled.
+    assert calls[0].get("persist_resume", True) is True
 
 
 def test_play_when_idle_and_resume_exists_keeps_resume_path(monkeypatch, qapp) -> None:

@@ -146,11 +146,21 @@ When the user hits Play:
 Preparation does:
 
 1. Choose a sensible narration start point.
-   - If a saved resume position exists for the book, narration starts from that resume chunk index (see [`BookmarkService.load_resume_position()`](voice_reader/application/services/bookmark_service.py:52)).
-   - If **no** resume position exists (first-time start), the UI prefers the *first* deterministic 🧠 Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py:31)). This aligns “start from scratch” playback with what the Sections dialog shows.
-   - If no Sections can be computed, the system falls back to narration start detection via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29).
+- If a saved resume position exists for the book, narration resumes using the stored absolute `char_offset`.
+  - The resume `char_offset` is mapped into the *current* playback candidate list using [`resolve_playback_index_for_char_offset()`](voice_reader/application/services/narration/prepare.py:13) inside [`prepare()`](voice_reader/application/services/narration/prepare.py:47).
+  - The stored `chunk_index` is treated as non-authoritative because chunking start/candidate filtering can change between runs.
+- If **no** resume position exists (first-time start), the UI prefers the *first* deterministic 🧠 Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py:31)). This aligns “start from scratch” playback with what the Sections dialog shows.
+  - If no Sections can be computed, the system falls back to narration start detection via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29).
 2. Chunk the (sliced) text via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
 3. Store chunk start/end character offsets so the UI can highlight the currently spoken chunk
+
+Resume persistence (auto-bookmarking) rules:
+
+- The app saves resume position during pause/stop/app-exit via [`maybe_save_resume_position()`](voice_reader/application/services/narration/persistence.py:13).
+- A resume JSON file is only created after playback has actually started at least one chunk.
+  - Primary signal: [`audio_playback.play()`](voice_reader/application/services/narration/audio_playback.py:18) sets `NarrationService._played_any_chunk = True` in its `on_chunk_start` callback (see [`on_start()`](voice_reader/application/services/narration/audio_playback.py:37)).
+  - Secondary signal: if the callback cannot fire (exit race / synthetic state), persistence also infers “played” from `NarrationState` fields.
+- On Windows, the JSON write is performed by [`JSONBookmarkRepository.save_resume_position()`](voice_reader/infrastructure/bookmarks/json_bookmark_repository.py:232) under the configured `bookmarks_dir` (see [`Config.from_project_root()`](voice_reader/shared/config.py:35)).
 
 ### 4) Synthesis, caching, and playback
 
