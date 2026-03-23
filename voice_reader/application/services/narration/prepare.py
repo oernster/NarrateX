@@ -67,8 +67,8 @@ def prepare(
 
     service._persist_resume = bool(persist_resume)  # noqa: SLF001
 
+    resume_char: int | None = None
     if start_playback_index is None and start_char_offset is None:
-        resume_idx: int | None = None
         if service.bookmark_service is not None:
             try:
                 rp = service.bookmark_service.load_resume_position(
@@ -77,8 +77,13 @@ def prepare(
             except Exception:
                 rp = None
             if rp is not None:
-                resume_idx = int(rp.chunk_index)
-        service._start_playback_index = max(0, int(resume_idx or 0))  # noqa: SLF001
+                # IMPORTANT: resume by absolute char_offset, not stored chunk_index.
+                # Chunk index is not stable when chunking start/filters change.
+                try:
+                    resume_char = int(getattr(rp, "char_offset", 0))
+                except Exception:
+                    resume_char = None
+        service._start_playback_index = 0  # noqa: SLF001
     elif start_playback_index is not None:
         service._start_playback_index = max(
             0, int(start_playback_index)
@@ -111,6 +116,16 @@ def prepare(
     )
 
     service._chunks = list(chunks)  # noqa: SLF001
+
+    # Apply resume offset after chunking so we can map into the current candidate set.
+    if resume_char is not None:
+        idx = resolve_playback_index_for_char_offset(
+            service,
+            char_offset=int(resume_char),
+            chunks=service._chunks,  # noqa: SLF001
+        )
+        if idx is not None:
+            service._start_playback_index = max(0, int(idx))  # noqa: SLF001
 
     # If we have an absolute start offset (e.g. Ideas Go To), we must ensure
     # playback begins from the first chunk containing/after that offset.

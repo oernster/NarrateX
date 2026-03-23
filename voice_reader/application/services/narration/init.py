@@ -39,6 +39,9 @@ def init_runtime_state(service: NarrationService) -> None:
     service._pause_event = threading.Event()  # noqa: SLF001
     service._current_play_index = -1  # noqa: SLF001
     service._start_playback_index = 0  # noqa: SLF001
+    # True once audio playback has actually started at least one chunk.
+    # Used to avoid creating resume JSON for books the user never listened to.
+    service._played_any_chunk = False  # noqa: SLF001
     service._playback_rate = PlaybackRate.default()  # noqa: SLF001
     service._volume = PlaybackVolume.default()  # noqa: SLF001
     service._persist_resume = True  # noqa: SLF001
