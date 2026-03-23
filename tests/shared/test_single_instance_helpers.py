@@ -20,4 +20,3 @@ def test_stable_server_name_changes_when_lock_path_changes(tmp_path: Path) -> No
         namespace="com.oliverernster.narratex", lock_path=tmp_path / "b.lock"
     )
     assert a != b
-

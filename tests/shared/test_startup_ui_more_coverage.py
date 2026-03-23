@@ -20,7 +20,11 @@ class _FakeApp:
 
 
 def test_is_mp_child_process_handles_exception(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(startup_ui.mp, "parent_process", lambda: (_ for _ in ()).throw(RuntimeError("x")))
+    monkeypatch.setattr(
+        startup_ui.mp,
+        "parent_process",
+        lambda: (_ for _ in ()).throw(RuntimeError("x")),
+    )
     assert startup_ui.is_mp_child_process() is False
 
 
@@ -79,7 +83,9 @@ def test_activate_window_swallow_exceptions() -> None:
     startup_ui.activate_window(_W())
 
 
-def test_default_lock_dir_uses_cwd_when_temp_missing(tmp_path: Path, monkeypatch) -> None:
+def test_default_lock_dir_uses_cwd_when_temp_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.delenv("TEMP", raising=False)
     monkeypatch.setattr(Path, "cwd", staticmethod(lambda: tmp_path))
     out = startup_ui.default_lock_dir(app_name="NarrateX")
@@ -105,7 +111,9 @@ def test_is_real_pyside_app_handles_attribute_errors() -> None:
     assert startup_ui.is_real_pyside_app(_Bad()) is False
 
 
-def test_setup_single_instance_skips_for_child_process(tmp_path: Path, monkeypatch) -> None:
+def test_setup_single_instance_skips_for_child_process(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(startup_ui, "is_mp_child_process", lambda: True)
     g, is_primary = startup_ui.setup_single_instance(
         app=_FakeApp(),
@@ -118,7 +126,9 @@ def test_setup_single_instance_skips_for_child_process(tmp_path: Path, monkeypat
     assert is_primary is True
 
 
-def test_setup_single_instance_resolves_paths_and_calls_guard(tmp_path: Path, monkeypatch) -> None:
+def test_setup_single_instance_resolves_paths_and_calls_guard(
+    tmp_path: Path, monkeypatch
+) -> None:
     called = {"n": 0}
 
     class _G:
@@ -144,7 +154,9 @@ def test_setup_single_instance_resolves_paths_and_calls_guard(tmp_path: Path, mo
     assert called["n"] == 1
 
 
-def test_maybe_show_splash_import_failure_returns_none(tmp_path: Path, monkeypatch) -> None:
+def test_maybe_show_splash_import_failure_returns_none(
+    tmp_path: Path, monkeypatch
+) -> None:
     # Force import failure branch.
     monkeypatch.setattr(startup_ui, "is_real_pyside_app", lambda app: True)
 
@@ -158,27 +170,36 @@ def test_maybe_show_splash_import_failure_returns_none(tmp_path: Path, monkeypat
 
     monkeypatch.setitem(sys.modules, "PySide6.QtGui", None)
     monkeypatch.setitem(sys.modules, "PySide6.QtWidgets", None)
-    assert startup_ui.maybe_show_splash(
-        app=_A(),
-        icon=None,
-        project_root=tmp_path,
-        enabled=True,
-    ) is None
+    assert (
+        startup_ui.maybe_show_splash(
+            app=_A(),
+            icon=None,
+            project_root=tmp_path,
+            enabled=True,
+        )
+        is None
+    )
 
 
 def test_maybe_show_splash_no_file_returns_none(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(startup_ui, "is_real_pyside_app", lambda app: True)
     monkeypatch.setattr(startup_ui, "find_splash_image_path", lambda project_root: None)
     assert (
-        startup_ui.maybe_show_splash(app=_FakeApp(), icon=None, project_root=tmp_path, enabled=True)
+        startup_ui.maybe_show_splash(
+            app=_FakeApp(), icon=None, project_root=tmp_path, enabled=True
+        )
         is None
     )
 
 
-def test_maybe_show_splash_happy_path_shows_and_finishes(tmp_path: Path, monkeypatch) -> None:
+def test_maybe_show_splash_happy_path_shows_and_finishes(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(startup_ui, "is_real_pyside_app", lambda app: True)
     monkeypatch.setattr(
-        startup_ui, "find_splash_image_path", lambda project_root: tmp_path / "narratex_256.png"
+        startup_ui,
+        "find_splash_image_path",
+        lambda project_root: tmp_path / "narratex_256.png",
     )
 
     class _Pm:
@@ -223,9 +244,13 @@ def test_maybe_show_splash_happy_path_shows_and_finishes(tmp_path: Path, monkeyp
     assert app.events == 1
 
 
-def test_maybe_show_splash_returns_none_when_pixmap_is_null(tmp_path: Path, monkeypatch) -> None:
+def test_maybe_show_splash_returns_none_when_pixmap_is_null(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(
-        startup_ui, "find_splash_image_path", lambda project_root: tmp_path / "narratex_256.png"
+        startup_ui,
+        "find_splash_image_path",
+        lambda project_root: tmp_path / "narratex_256.png",
     )
 
     class _Pm:
@@ -242,20 +267,28 @@ def test_maybe_show_splash_returns_none_when_pixmap_is_null(tmp_path: Path, monk
     import sys
     import types
 
-    monkeypatch.setitem(sys.modules, "PySide6.QtGui", types.SimpleNamespace(QPixmap=_Pm))
+    monkeypatch.setitem(
+        sys.modules, "PySide6.QtGui", types.SimpleNamespace(QPixmap=_Pm)
+    )
     monkeypatch.setitem(
         sys.modules, "PySide6.QtWidgets", types.SimpleNamespace(QSplashScreen=_Splash)
     )
 
     assert (
-        startup_ui.maybe_show_splash(app=_FakeApp(), icon=None, project_root=tmp_path, enabled=True)
+        startup_ui.maybe_show_splash(
+            app=_FakeApp(), icon=None, project_root=tmp_path, enabled=True
+        )
         is None
     )
 
 
-def test_maybe_show_splash_swallow_set_window_icon_error(tmp_path: Path, monkeypatch) -> None:
+def test_maybe_show_splash_swallow_set_window_icon_error(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(
-        startup_ui, "find_splash_image_path", lambda project_root: tmp_path / "narratex_256.png"
+        startup_ui,
+        "find_splash_image_path",
+        lambda project_root: tmp_path / "narratex_256.png",
     )
 
     class _Pm:
@@ -279,7 +312,9 @@ def test_maybe_show_splash_swallow_set_window_icon_error(tmp_path: Path, monkeyp
     import sys
     import types
 
-    monkeypatch.setitem(sys.modules, "PySide6.QtGui", types.SimpleNamespace(QPixmap=_Pm))
+    monkeypatch.setitem(
+        sys.modules, "PySide6.QtGui", types.SimpleNamespace(QPixmap=_Pm)
+    )
     monkeypatch.setitem(
         sys.modules, "PySide6.QtWidgets", types.SimpleNamespace(QSplashScreen=_Splash)
     )
@@ -296,9 +331,13 @@ def test_maybe_show_splash_swallow_set_window_icon_error(tmp_path: Path, monkeyp
     assert app.events == 1
 
 
-def test_maybe_show_splash_outer_exception_returns_none(tmp_path: Path, monkeypatch) -> None:
+def test_maybe_show_splash_outer_exception_returns_none(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(
-        startup_ui, "find_splash_image_path", lambda project_root: tmp_path / "narratex_256.png"
+        startup_ui,
+        "find_splash_image_path",
+        lambda project_root: tmp_path / "narratex_256.png",
     )
 
     class _Pm:
@@ -312,13 +351,16 @@ def test_maybe_show_splash_outer_exception_returns_none(tmp_path: Path, monkeypa
     import sys
     import types
 
-    monkeypatch.setitem(sys.modules, "PySide6.QtGui", types.SimpleNamespace(QPixmap=_Pm))
+    monkeypatch.setitem(
+        sys.modules, "PySide6.QtGui", types.SimpleNamespace(QPixmap=_Pm)
+    )
     monkeypatch.setitem(
         sys.modules, "PySide6.QtWidgets", types.SimpleNamespace(QSplashScreen=_Splash)
     )
 
     assert (
-        startup_ui.maybe_show_splash(app=_FakeApp(), icon=None, project_root=tmp_path, enabled=True)
+        startup_ui.maybe_show_splash(
+            app=_FakeApp(), icon=None, project_root=tmp_path, enabled=True
+        )
         is None
     )
-

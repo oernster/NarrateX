@@ -132,4 +132,3 @@ def default_lock_dir(*, app_name: str) -> Path:
     tmp = os.getenv("TEMP", "").strip()
     base = Path(tmp) if tmp else Path.cwd()
     return base / app_name
-

@@ -123,4 +123,3 @@ def ensure_stdio(
             pass
 
     return stdout, stderr
-

@@ -16,7 +16,9 @@ class _SigNoop:
 
 
 class _Server:
-    def __init__(self, *, listen_ok: bool = True, pending=None, next_raises: bool = False):  # noqa: ANN001
+    def __init__(
+        self, *, listen_ok: bool = True, pending=None, next_raises: bool = False
+    ):  # noqa: ANN001
         self._listen_ok = listen_ok
         self._pending = pending
         self._next_raises = next_raises
@@ -89,36 +91,50 @@ def test_paths_property_is_exposed(tmp_path: Path) -> None:
     assert g.paths.server_name == "s"
 
 
-def test_try_become_primary_swallow_stale_lock_time_errors(tmp_path: Path, monkeypatch) -> None:
+def test_try_become_primary_swallow_stale_lock_time_errors(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(single_instance, "QLockFile", _LockStaleRaises)
-    monkeypatch.setattr(single_instance, "QLocalServer", lambda: _Server(listen_ok=True))
+    monkeypatch.setattr(
+        single_instance, "QLocalServer", lambda: _Server(listen_ok=True)
+    )
 
     g = single_instance.SingleInstance(paths=_paths(tmp_path))
     assert g.try_become_primary() is True
 
 
-def test_try_become_primary_swallow_remove_server_errors(tmp_path: Path, monkeypatch) -> None:
+def test_try_become_primary_swallow_remove_server_errors(
+    tmp_path: Path, monkeypatch
+) -> None:
     monkeypatch.setattr(single_instance, "QLockFile", _Lock)
-    monkeypatch.setattr(single_instance, "QLocalServer", lambda: _ServerRemoveRaises(listen_ok=True))
+    monkeypatch.setattr(
+        single_instance, "QLocalServer", lambda: _ServerRemoveRaises(listen_ok=True)
+    )
 
     g = single_instance.SingleInstance(paths=_paths(tmp_path))
     assert g.try_become_primary() is True
 
 
-def test_try_become_primary_listen_failure_unlock_raises_is_swallowed(tmp_path: Path, monkeypatch) -> None:
+def test_try_become_primary_listen_failure_unlock_raises_is_swallowed(
+    tmp_path: Path, monkeypatch
+) -> None:
     lock = _LockUnlockRaises("x")
 
     def _lock_factory(_path: str) -> _LockUnlockRaises:
         return lock
 
     monkeypatch.setattr(single_instance, "QLockFile", _lock_factory)
-    monkeypatch.setattr(single_instance, "QLocalServer", lambda: _Server(listen_ok=False))
+    monkeypatch.setattr(
+        single_instance, "QLocalServer", lambda: _Server(listen_ok=False)
+    )
 
     g = single_instance.SingleInstance(paths=_paths(tmp_path))
     assert g.try_become_primary() is True
 
 
-def test_try_become_primary_connect_signal_errors_are_swallowed(tmp_path: Path, monkeypatch) -> None:
+def test_try_become_primary_connect_signal_errors_are_swallowed(
+    tmp_path: Path, monkeypatch
+) -> None:
     server = _Server(listen_ok=True)
     server.newConnection = _SigConnectRaises()  # type: ignore[assignment]
 
@@ -129,7 +145,9 @@ def test_try_become_primary_connect_signal_errors_are_swallowed(tmp_path: Path, 
     assert g.try_become_primary() is True
 
 
-def test_notify_primary_exception_returns_false_and_cleanup_swallowed(tmp_path: Path, monkeypatch) -> None:
+def test_notify_primary_exception_returns_false_and_cleanup_swallowed(
+    tmp_path: Path, monkeypatch
+) -> None:
     class _Sock:
         def connectToServer(self, _name: str) -> None:
             raise RuntimeError("no")
@@ -145,7 +163,9 @@ def test_notify_primary_exception_returns_false_and_cleanup_swallowed(tmp_path: 
     assert g.notify_primary() is False
 
 
-def test_notify_primary_disconnect_and_close_exceptions_are_swallowed(tmp_path: Path, monkeypatch) -> None:
+def test_notify_primary_disconnect_and_close_exceptions_are_swallowed(
+    tmp_path: Path, monkeypatch
+) -> None:
     class _Sock:
         def connectToServer(self, _name: str) -> None:
             return
@@ -193,7 +213,9 @@ def test_on_new_connection_returns_when_server_missing(tmp_path: Path) -> None:
     g._on_new_connection()  # server is None
 
 
-def test_on_new_connection_swallow_next_pending_errors_and_cb_errors(tmp_path: Path) -> None:
+def test_on_new_connection_swallow_next_pending_errors_and_cb_errors(
+    tmp_path: Path,
+) -> None:
     called = {"n": 0}
 
     def _cb() -> None:
@@ -216,4 +238,3 @@ def test_on_new_connection_swallow_socket_close_errors(tmp_path: Path) -> None:
     g._server = _Server(pending=_SockCloseRaises())  # noqa: SLF001
     g._on_new_connection()
     assert called["n"] == 1
-

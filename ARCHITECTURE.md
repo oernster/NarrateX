@@ -145,7 +145,10 @@ When the user hits Play:
 
 Preparation does:
 
-1. Detect a sensible narration start point via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29)
+1. Choose a sensible narration start point.
+   - If a saved resume position exists for the book, narration starts from that resume chunk index (see [`BookmarkService.load_resume_position()`](voice_reader/application/services/bookmark_service.py:52)).
+   - If **no** resume position exists (first-time start), the UI prefers the *first* deterministic 🧠 Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py:31)). This aligns “start from scratch” playback with what the Sections dialog shows.
+   - If no Sections can be computed, the system falls back to narration start detection via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29).
 2. Chunk the (sliced) text via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
 3. Store chunk start/end character offsets so the UI can highlight the currently spoken chunk
 

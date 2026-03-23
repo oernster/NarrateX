@@ -6,103 +6,27 @@ import logging
 
 from PySide6.QtWidgets import QMessageBox
 
-from voice_reader.domain.services.reading_start_service import ReadingStartService
-
 from voice_reader.ui.structural_bookmarks_dialog import (
     StructuralBookmarkListItem,
     StructuralBookmarksDialog,
     StructuralBookmarksDialogActions,
 )
 
+from voice_reader.ui.structural_bookmarks_helpers import compute_structural_bookmarks
+
 
 def open_structural_bookmarks_dialog(controller) -> None:
     log = getattr(controller, "_log", logging.getLogger(__name__))
 
-    book_id = None
-    try:
-        book_id = controller.narration_service.loaded_book_id()
-    except Exception:
-        book_id = None
-
-    if not book_id:
+    comp = compute_structural_bookmarks(controller, log=log)
+    if comp is None:
         box = QMessageBox(controller.window)
         box.setWindowTitle("Sections")
         box.setText("Load a book to view sections.")
         box.open()
         return
 
-    # Pull text directly from the already-loaded book.
-    book = None
-    normalized_text = ""
-    book_title = None
-    try:
-        book = getattr(controller.narration_service, "_book", None)  # noqa: SLF001
-        normalized_text = str(getattr(book, "normalized_text", ""))
-        book_title = getattr(book, "title", None)
-    except Exception:
-        normalized_text = ""
-        book_title = None
-
-    svc = getattr(controller, "structural_bookmark_service", None)
-    if svc is None:
-        box = QMessageBox(controller.window)
-        box.setWindowTitle("Sections")
-        box.setText("Sections are not available.")
-        box.open()
-        return
-
-    # Use any already-computed chapter metadata as candidates.
-    try:
-        chapter_candidates = list(
-            getattr(controller, "_chapters", []) or []
-        )  # noqa: SLF001
-    except Exception:
-        chapter_candidates = []
-
-    # If chunks are available, allow optional chunk_index resolution.
-    try:
-        chunks = list(
-            getattr(controller.narration_service, "_chunks", []) or []
-        )  # noqa: SLF001
-    except Exception:
-        chunks = None
-
-    # Compute a readable-start boundary in the same coordinate system as
-    # normalized_text. This prevents section anchors from binding to ToC/front
-    # matter copies of headings.
-    min_char_offset = None
-    try:
-        nav = getattr(controller, "_navigation_chunk_service", None)  # noqa: SLF001
-        if nav is not None:
-            _chunks0, start = nav.build_chunks(book_text=normalized_text)
-            min_char_offset = int(getattr(start, "start_char", 0))
-            # Prefer the chunk list used for indexing/navigation semantics.
-            chunks = list(_chunks0)
-        else:
-            start = ReadingStartService().detect_start(normalized_text)
-            min_char_offset = int(getattr(start, "start_char", 0))
-    except Exception:
-        min_char_offset = None
-
-    bookmarks = []
-    try:
-        bookmarks = list(
-            svc.build_for_loaded_book(
-                book_id=str(book_id),
-                normalized_text=normalized_text,
-                chapter_candidates=chapter_candidates,
-                chunks=chunks,
-                min_char_offset=min_char_offset,
-            )
-        )
-    except Exception:
-        try:
-            log.exception("Sections: build failed")
-        except Exception:
-            pass
-        bookmarks = []
-
-    if not bookmarks:
+    if not comp.bookmarks:
         box = QMessageBox(controller.window)
         box.setWindowTitle("Sections")
         box.setText("No obvious sections found.")
@@ -111,7 +35,7 @@ def open_structural_bookmarks_dialog(controller) -> None:
 
     def _list_items() -> list[StructuralBookmarkListItem]:
         out: list[StructuralBookmarkListItem] = []
-        for b in bookmarks:
+        for b in comp.bookmarks:
             out.append(
                 StructuralBookmarkListItem(
                     label=b.label,
@@ -143,7 +67,7 @@ def open_structural_bookmarks_dialog(controller) -> None:
             # Sections are reading-navigation: keep the same safety semantics as
             # normal narration start detection.
             target = int(it.char_offset)
-            boundary = min_char_offset
+            boundary = comp.min_char_offset
             force = target
             if boundary is not None and target < int(boundary):
                 # Defensive guard: never force narration into front matter.
@@ -189,6 +113,6 @@ def open_structural_bookmarks_dialog(controller) -> None:
     controller._sections_dialog = StructuralBookmarksDialog(  # noqa: SLF001
         parent=controller.window,
         actions=actions,
-        book_title=book_title,
+        book_title=comp.book_title,
     )
     controller._sections_dialog.open()  # noqa: SLF001

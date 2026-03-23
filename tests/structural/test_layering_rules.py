@@ -4,7 +4,6 @@ import ast
 from dataclasses import dataclass
 from pathlib import Path
 
-
 _KNOWN_LAYER_ROOTS = {
     "voice_reader.domain",
     "voice_reader.application",
