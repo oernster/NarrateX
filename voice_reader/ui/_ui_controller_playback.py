@@ -11,6 +11,8 @@ from voice_reader.application.dto.narration_state import NarrationState, Narrati
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 from voice_reader.domain.value_objects.playback_volume import PlaybackVolume
 
+from voice_reader.ui.structural_bookmarks_helpers import compute_structural_bookmarks
+
 
 def set_speed(controller, text: str) -> None:
     log = getattr(controller, "_log", logging.getLogger(__name__))
@@ -82,6 +84,45 @@ def play(controller) -> None:
     if voice is None:
         controller._log.warning("No voice profiles available")  # noqa: SLF001
         return
+
+    # If we're starting from scratch (no explicit index and no saved resume),
+    # prefer the same deterministic first Section shown in the 🧠 dialog.
+    if start_playback_index is None:
+        try:
+            book_id = controller.narration_service.loaded_book_id()
+        except Exception:
+            book_id = None
+
+        has_resume = False
+        if book_id:
+            try:
+                rp = controller.bookmark_service.load_resume_position(
+                    book_id=str(book_id)
+                )
+            except Exception:
+                rp = None
+            has_resume = rp is not None
+
+        if book_id and not has_resume:
+            comp = compute_structural_bookmarks(controller)
+            if comp is not None and comp.bookmarks:
+                first = comp.bookmarks[0]
+                try:
+                    start_char_offset = int(first.char_offset)
+                except Exception:
+                    start_char_offset = None
+                else:
+                    # Force chunking to begin exactly at the target.
+                    controller._last_prepared_voice_id = voice.name  # noqa: SLF001
+                    controller.narration_service.prepare(
+                        voice=voice,
+                        start_char_offset=int(start_char_offset),
+                        force_start_char=int(start_char_offset),
+                        skip_essay_index=True,
+                        persist_resume=False,
+                    )
+                    controller.narration_service.start()
+                    return
 
     controller._last_prepared_voice_id = voice.name  # noqa: SLF001
     controller.narration_service.prepare(

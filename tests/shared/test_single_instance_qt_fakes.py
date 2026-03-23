@@ -97,7 +97,9 @@ class _FakeSocket:
         return b"ACTIVATE"
 
 
-def test_try_become_primary_no_qt_is_noop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_try_become_primary_no_qt_is_noop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(single_instance, "QLockFile", None)
     monkeypatch.setattr(single_instance, "QLocalServer", None)
     paths = single_instance.SingleInstancePaths(
@@ -107,7 +109,9 @@ def test_try_become_primary_no_qt_is_noop(tmp_path: Path, monkeypatch: pytest.Mo
     assert g.try_become_primary() is True
 
 
-def test_notify_primary_no_socket_returns_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_notify_primary_no_socket_returns_false(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setattr(single_instance, "QLocalSocket", None)
     paths = single_instance.SingleInstancePaths(
         lock_path=tmp_path / "x.lock", server_name="s"
@@ -120,7 +124,9 @@ def test_try_become_primary_lock_contention_returns_false(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(single_instance, "QLockFile", _FakeLockTryFail)
-    monkeypatch.setattr(single_instance, "QLocalServer", lambda: _FakeServer(listen_ok=True))
+    monkeypatch.setattr(
+        single_instance, "QLocalServer", lambda: _FakeServer(listen_ok=True)
+    )
     monkeypatch.setattr(single_instance, "QLocalSocket", _FakeSocket)
 
     paths = single_instance.SingleInstancePaths(
@@ -141,7 +147,9 @@ def test_try_become_primary_listen_failure_unlocks_and_falls_back(
         return lock
 
     monkeypatch.setattr(single_instance, "QLockFile", _lock_factory)
-    monkeypatch.setattr(single_instance, "QLocalServer", lambda: _FakeServer(listen_ok=False))
+    monkeypatch.setattr(
+        single_instance, "QLocalServer", lambda: _FakeServer(listen_ok=False)
+    )
 
     paths = single_instance.SingleInstancePaths(
         lock_path=tmp_path / "NarrateX" / "single_instance.lock",
@@ -162,7 +170,9 @@ def test_try_become_primary_sets_stale_lock_time_when_supported(
         return lock
 
     monkeypatch.setattr(single_instance, "QLockFile", _lock_factory)
-    monkeypatch.setattr(single_instance, "QLocalServer", lambda: _FakeServer(listen_ok=True))
+    monkeypatch.setattr(
+        single_instance, "QLocalServer", lambda: _FakeServer(listen_ok=True)
+    )
 
     paths = single_instance.SingleInstancePaths(
         lock_path=tmp_path / "NarrateX" / "single_instance.lock",
@@ -173,7 +183,9 @@ def test_try_become_primary_sets_stale_lock_time_when_supported(
     assert lock.stale_time_set is True
 
 
-def test_on_new_connection_without_callback_is_noop(tmp_path: Path, monkeypatch) -> None:
+def test_on_new_connection_without_callback_is_noop(
+    tmp_path: Path, monkeypatch
+) -> None:
     server = _FakeServer(listen_ok=True)
     server._pending = _FakeSocket()
     monkeypatch.setattr(single_instance, "QLockFile", _FakeLock)
@@ -188,7 +200,9 @@ def test_on_new_connection_without_callback_is_noop(tmp_path: Path, monkeypatch)
     server.newConnection.emit()
 
 
-def test_on_new_connection_swallow_socket_read_errors(tmp_path: Path, monkeypatch) -> None:
+def test_on_new_connection_swallow_socket_read_errors(
+    tmp_path: Path, monkeypatch
+) -> None:
     server = _FakeServer(listen_ok=True)
 
     class _BadSock(_FakeSocket):
@@ -264,7 +278,9 @@ def test_primary_server_receives_activation_and_calls_callback(
     assert sock.closed is True
 
 
-def test_notify_primary_sends_payload_and_closes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_notify_primary_sends_payload_and_closes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     sock = _FakeSocket()
 
     class _SockFactory:
@@ -285,7 +301,9 @@ def test_notify_primary_sends_payload_and_closes(tmp_path: Path, monkeypatch: py
     assert sock.closed is True
 
 
-def test_notify_primary_connect_timeout_returns_false(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_notify_primary_connect_timeout_returns_false(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     sock = _FakeSocket()
     sock.wait_ok = False
 
@@ -309,4 +327,3 @@ def test_close_best_effort_handles_missing_server_and_lock(tmp_path: Path) -> No
     )
     g = single_instance.SingleInstance(paths=paths)
     g.close()
-

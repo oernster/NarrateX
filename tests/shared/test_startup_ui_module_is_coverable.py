@@ -8,4 +8,3 @@ def test_startup_ui_module_is_importable_and_coverable() -> None:
     assert startup_ui.default_lock_dir(app_name="NarrateX")
     startup_ui.activate_window(object())
     startup_ui._touch()
-

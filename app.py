@@ -26,7 +26,6 @@ from voice_reader.shared.startup_ui import default_lock_dir, maybe_show_splash
 from voice_reader.bootstrap import resolve_app_wiring
 from voice_reader.version import APP_APPUSERMODELID, APP_NAME
 
-
 # --- Test hooks / lazy import placeholders ---
 #
 # Several unit tests monkeypatch these names on the `app` module to avoid heavy
@@ -194,7 +193,7 @@ def main() -> int:
         pending_activate: bool = False
 
         def _on_activate() -> None:
-            nonlocal pending_activate, window
+            nonlocal pending_activate
             if window is None:
                 pending_activate = True
                 return
@@ -273,10 +272,14 @@ def main() -> int:
 
         cache_repo = _g("FilesystemCacheRepository")(cache_dir=config.paths.cache_dir)
 
-        bookmark_repo = _g("JSONBookmarkRepository")(bookmarks_dir=config.paths.bookmarks_dir)
+        bookmark_repo = _g("JSONBookmarkRepository")(
+            bookmarks_dir=config.paths.bookmarks_dir
+        )
         bookmark_service = _g("BookmarkService")(repo=bookmark_repo)
 
-        idea_repo = _g("JSONIdeaIndexRepository")(bookmarks_dir=config.paths.bookmarks_dir)
+        idea_repo = _g("JSONIdeaIndexRepository")(
+            bookmarks_dir=config.paths.bookmarks_dir
+        )
         idea_map_service = _g("IdeaMapService")(repo=idea_repo)
         idea_indexing_manager = _g("IdeaIndexingManager")(repo=idea_repo)
 

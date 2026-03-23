@@ -30,7 +30,9 @@ def test_append_startup_log_writes_line(tmp_path: Path) -> None:
         text="hello",
         open_fn=_open,
     )
-    assert (tmp_path / "NarrateX.startup.log.txt").read_text(encoding="utf-8").strip() == "hello"
+    assert (tmp_path / "NarrateX.startup.log.txt").read_text(
+        encoding="utf-8"
+    ).strip() == "hello"
 
 
 def test_ensure_stdio_returns_existing_streams_unchanged(tmp_path: Path) -> None:
@@ -39,7 +41,9 @@ def test_ensure_stdio_returns_existing_streams_unchanged(tmp_path: Path) -> None
         base_dir=tmp_path,
         stdout=s,
         stderr=s,
-        open_fn=lambda *a, **k: (_ for _ in ()).throw(AssertionError("should not open")),
+        open_fn=lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("should not open")
+        ),
     )
     assert out is s
     assert err is s
@@ -108,5 +112,3 @@ def test_preflight_imports_dist_success_branch_is_covered() -> None:
 def test_program_base_dir_invalid_type_falls_back(tmp_path: Path) -> None:
     out = startup_diagnostics.program_base_dir(argv0=object(), cwd=lambda: tmp_path)
     assert out == tmp_path
-
-

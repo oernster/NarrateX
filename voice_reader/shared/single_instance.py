@@ -16,7 +16,6 @@ import hashlib
 from pathlib import Path
 from typing import Callable
 
-
 try:
     from PySide6.QtCore import QLockFile
     from PySide6.QtNetwork import QLocalServer, QLocalSocket
@@ -112,7 +111,9 @@ class SingleInstance:
 
         return True
 
-    def notify_primary(self, *, payload: bytes = b"ACTIVATE", timeout_ms: int = 250) -> bool:
+    def notify_primary(
+        self, *, payload: bytes = b"ACTIVATE", timeout_ms: int = 250
+    ) -> bool:
         """Notify an already-running primary instance to activate.
 
         Returns:
@@ -205,4 +206,3 @@ def _touch() -> None:
     """Coverage helper for import-guarded environments."""
 
     return
-

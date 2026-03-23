@@ -73,7 +73,6 @@ class FakeBookmarks:
 
     def load_resume_position(self, *, book_id: str):
         del book_id
-        return None
 
 
 @dataclass(frozen=True, slots=True)

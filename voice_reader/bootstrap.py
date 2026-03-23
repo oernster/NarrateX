@@ -13,7 +13,6 @@ from __future__ import annotations
 import importlib
 from typing import Mapping
 
-
 _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
     # Application layer
     "NarrationService": (
