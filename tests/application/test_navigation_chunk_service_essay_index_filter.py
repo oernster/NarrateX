@@ -20,6 +20,23 @@ class _FixedStartDetector:
         return ReadingStart(start_char=self._start_char, reason="Fixed")
 
 
+def test_build_chunks_clamps_negative_reading_start_to_zero() -> None:
+    class _NegativeStartDetector:
+        def detect_start(self, text: str) -> ReadingStart:
+            del text
+            return ReadingStart(start_char=-5, reason="Negative")
+
+    book_text = "Hello world.\n"
+    svc = NavigationChunkService(
+        reading_start_detector=_NegativeStartDetector(),
+        chunking_service=ChunkingService(min_chars=1, max_chars=120),
+    )
+    chunks, start = svc.build_chunks(book_text=book_text)
+    assert start.start_char == -5
+    assert chunks
+    assert chunks[0].start_char == 0
+
+
 def _abs_ranges(chunks: list[TextChunk]) -> list[tuple[int, int]]:
     return [(int(c.start_char), int(c.end_char)) for c in chunks]
 
@@ -245,6 +262,63 @@ def test_prologue_then_skip_essay_titles_then_chapter_1() -> None:
     assert any("This is chapter one" in c.text for c in chunks)
 
 
+def test_prologue_then_skip_essay_index_but_keep_introduction_then_chapter_1() -> None:
+    """Regression: Essay Index filtering must not skip a real Introduction.
+
+    Scenario:
+    - Start at Prologue prose.
+    - Essay Index appears after Prologue.
+    - Introduction appears after Essay Index and before Chapter 1.
+
+    Expected:
+    - Essay Index content is filtered from chunk list.
+    - Introduction prose is preserved.
+    - Chapter 1 prose is preserved.
+    """
+
+    book_text = (
+        "CONTENTS\n"
+        "Prologue .... i\n"
+        "Essay Index .... iii\n"
+        "Introduction .... v\n"
+        "Chapter 1 .... 1\n\n"
+        "PROLOGUE\n"
+        "This is the first sentence of the prologue.\n\n"
+        "Essay Index\n"
+        "Architecture\n"
+        "Crystalline\n\n"
+        "INTRODUCTION\n"
+        "This is the first sentence of the introduction.\n\n"
+        "CHAPTER 1\n"
+        "This is chapter one. It begins here.\n"
+    ).strip()
+
+    nav = NavigationChunkService(
+        reading_start_detector=ReadingStartService(),
+        chunking_service=ChunkingService(min_chars=1, max_chars=120),
+    )
+
+    chunks, start = nav.build_chunks(book_text=book_text)
+
+    # 1) Start must be at Prologue prose, not at Contents/ToC.
+    assert start.reason == "Detected Prologue"
+    assert (
+        book_text[start.start_char :]
+        .lstrip()
+        .startswith("This is the first sentence of the prologue.")
+    )
+
+    # 2) Essay Index heading + titles must not appear.
+    forbidden = {"Essay Index", "Architecture", "Crystalline"}
+    assert not any(any(f in c.text for f in forbidden) for c in chunks)
+
+    # 3) Introduction must still be present.
+    assert any("first sentence of the introduction" in c.text for c in chunks)
+
+    # 4) Chapter 1 content must still be present.
+    assert any("This is chapter one" in c.text for c in chunks)
+
+
 def test_private_index_line_detector_allows_mixed_case_break() -> None:
     # Span detection depends on finding a Chapter-1 heading, not on consuming every
     # possible index-line variant.
@@ -263,3 +337,29 @@ def test_private_index_line_detector_allows_mixed_case_break() -> None:
     )
     span = svc._detect_essay_index_span(slice_text=book_text)  # type: ignore[attr-defined]
     assert span is not None
+
+
+def test_detect_span_ignores_toc_entries_without_dotted_leaders() -> None:
+    # Some TOCs use trailing roman numerals without dotted leaders.
+    # Those must not terminate the Essay Index span.
+    svc = NavigationChunkService(
+        reading_start_detector=_FixedStartDetector(0),
+        chunking_service=ChunkingService(min_chars=1, max_chars=120),
+    )
+
+    book_text = (
+        "Essay Index\n"
+        "Introduction v\n"
+        "Entry One\n"
+        "INTRODUCTION\n"
+        "Real introduction prose begins here.\n"
+    )
+
+    span = svc._detect_essay_index_span(slice_text=book_text)  # type: ignore[attr-defined]
+    assert span is not None
+    start, end = span
+
+    # Span must start at the Essay Index heading.
+    assert start == 0
+    # Span must end at the real INTRODUCTION heading (not at "Introduction v").
+    assert book_text[end:].lstrip().startswith("INTRODUCTION")

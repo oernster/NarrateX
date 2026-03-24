@@ -268,8 +268,13 @@ def detect_body_start_offset(normalized_text: str) -> int:
 
         marker_norm = normalize_marker_line(stripped)
         if marker_norm in FRONT_MATTER_MARKERS:
-            seen_front_matter = True
-            prev_nonblank_norm = str(marker_norm)
+            # Only treat front-matter markers as such *before* we've detected any
+            # real body marker. Some books contain an "Essay Index" *inside* the
+            # body (e.g., after Prologue). That must not cause later headings
+            # (like Introduction) to be classified as "pre-body".
+            if first_body_any is None:
+                seen_front_matter = True
+                prev_nonblank_norm = str(marker_norm)
             continue
 
         kind, include, _priority = classify_heading(stripped)

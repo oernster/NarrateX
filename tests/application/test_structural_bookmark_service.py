@@ -309,6 +309,43 @@ def test_keeps_real_preface_or_prologue_when_it_is_after_boundary_or_is_the_boun
     assert pre.char_offset >= min_off
 
 
+def test_sections_include_intro_when_essay_index_is_inside_body_after_prologue() -> (
+    None
+):
+    # Regression: an "Essay Index" marker can appear after body has begun
+    # (e.g. after Prologue). That must not cause later headings like
+    # Introduction to be treated as "front matter" and excluded.
+    text = (
+        "PROLOGUE\n\n"
+        "Prologue prose begins here. It has enough words to count as prose.\n\n"
+        "Essay Index\n"
+        "Entry One .... 1\n\n"
+        "INTRODUCTION\n\n"
+        "Introduction prose begins here. It also has enough words to count.\n\n"
+        "CHAPTER 1\n\n"
+        "Chapter one prose begins here. It is real content.\n"
+    )
+
+    nav = NavigationChunkService(
+        reading_start_detector=ReadingStartService(),
+        chunking_service=ChunkingService(min_chars=10, max_chars=200),
+    )
+    chunks, start = nav.build_chunks(book_text=text)
+    min_off = int(start.start_char)
+
+    svc = StructuralBookmarkService()
+    out = svc.build_for_loaded_book(
+        book_id="b1",
+        normalized_text=text,
+        chunks=chunks,
+        min_char_offset=min_off,
+    )
+    kinds = [b.kind for b in out]
+    assert "prologue" in kinds
+    assert "introduction" in kinds
+    assert "chapter" in kinds
+
+
 def test_filters_resolved_chunk_index_candidates_before_boundary() -> None:
     # Synthetic case: a chapter candidate comes via chunk_index pointing at a
     # pre-boundary chunk (e.g. front matter). If the resolved jump target ends
