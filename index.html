@@ -13,17 +13,12 @@
             color: #e6edf3;
         }
 
-        .header {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-        }
-
         .logo {
-            width: 56px;
-            height: 56px;
-            border-radius: 14px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            margin-right: 14px;
+            vertical-align: middle;
         }
 
         .container {
@@ -37,6 +32,9 @@
             font-size: 42px;
             margin-bottom: 10px;
             font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .subtitle {
@@ -85,13 +83,12 @@
 
 <body>
 
-<div class="header">
-    <img src="site-images/icon.png" class="logo" alt="NarrateX Logo">
-</div>
-
 <div class="container">
 
-    <h1>NarrateX</h1>
+    <h1>
+        <img src="site-images/icon.png" class="logo" alt="NarrateX Logo">
+        NarrateX
+    </h1>
 
     <div class="subtitle">
         Deterministic EPUB to audiobook pipeline with structural navigation.
