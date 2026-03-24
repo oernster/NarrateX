@@ -152,6 +152,18 @@ Preparation does:
 - If **no** resume position exists (first-time start), the UI prefers the *first* deterministic 🧠 Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py:31)). This aligns “start from scratch” playback with what the Sections dialog shows.
   - If no Sections can be computed, the system falls back to narration start detection via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29).
 2. Chunk the (sliced) text via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
+   - Chunking is performed on the slice beginning at the detected start point.
+   - The chunk list can then be *filtered* for navigation purposes (without mutating
+     the text buffer or changing offsets) by [`NavigationChunkService.build_chunks()`](voice_reader/application/services/navigation_chunk_service.py:49).
+   - If `skip_essay_index=True`, the service detects an `Essay Index` block and
+     removes chunks fully contained within that span. Importantly, the span ends
+     at the first *clean structural heading* following `Essay Index` (e.g.
+     `INTRODUCTION`, `PROLOGUE`, `CHAPTER I`), so a real Introduction that appears
+     after the index is **not** skipped.
+   - Note: `Essay Index` and similar marker headings are treated as *front matter*
+     only when they occur before the first real body marker. Some books include an
+     `Essay Index` inside the body (e.g. after `PROLOGUE`); this must not cause the
+     🧠 Sections list (structural bookmarks) to jump forward to `CHAPTER 1`.
 3. Store chunk start/end character offsets so the UI can highlight the currently spoken chunk
 
 Resume persistence (auto-bookmarking) rules:

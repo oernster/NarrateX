@@ -4,14 +4,18 @@ from dataclasses import dataclass
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.application.services.narration.audio_playback import play
-from voice_reader.application.services.narration.persistence import maybe_save_resume_position
+from voice_reader.application.services.narration.persistence import (
+    maybe_save_resume_position,
+)
 
 
 @dataclass
 class _FakeBookmarkService:
     calls: list[tuple[str, int, int]]
 
-    def save_resume_position(self, *, book_id: str, char_offset: int, chunk_index: int) -> None:
+    def save_resume_position(
+        self, *, book_id: str, char_offset: int, chunk_index: int
+    ) -> None:
         self.calls.append((str(book_id), int(char_offset), int(chunk_index)))
 
 
@@ -111,7 +115,9 @@ def test_app_exit_persists_resume_only_after_playback_started() -> None:
                 },
             )()
         ],
-        stream=type("S", (), {"path_q": type("Q", (), {"get": lambda _self: None})()})(),
+        stream=type(
+            "S", (), {"path_q": type("Q", (), {"get": lambda _self: None})()}
+        )(),
         voice=type("V", (), {})(),
         book_id="book-1",
     )  # type: ignore[arg-type]
