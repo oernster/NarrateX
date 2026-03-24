@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="icon" href="site-images/icon.png">
     <title>NarrateX</title>
     <meta charset="utf-8">
 
@@ -12,10 +13,23 @@
             color: #e6edf3;
         }
 
+        .header {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+        }
+
+        .logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+
         .container {
             max-width: 1000px;
             margin: 0 auto;
-            padding: 60px 20px;
+            padding: 120px 20px 60px;
             text-align: center;
         }
 
@@ -70,6 +84,10 @@
 </head>
 
 <body>
+
+<div class="header">
+    <img src="site-images/icon.png" class="logo" alt="NarrateX Logo">
+</div>
 
 <div class="container">
 
