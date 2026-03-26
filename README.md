@@ -1,4 +1,4 @@
-<img width="57" height="48" src="images/narratex-icon.png" /> (NarrateX)[https://www.narratex.co.uk]
+<img width="57" height="48" src="images/narratex-icon.png" /> [NarrateX](https://www.narratex.co.uk)
 
 # NarrateX (Voice Reader app)
 
