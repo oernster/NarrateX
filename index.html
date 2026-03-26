@@ -2,8 +2,22 @@
 <html>
 <head>
     <link rel="icon" href="site-images/icon.png">
-    <title>NarrateX</title>
     <meta charset="utf-8">
+
+    <title>NarrateX - Local audiobook engine for ebooks and documents</title>
+
+    <meta name="description" content="NarrateX is a local desktop application that converts ebooks and documents into real-time narrated audio. No cloud, streaming playback, built for long-form listening.">
+
+    <meta name="keywords" content="text to speech, audiobook generator, ebook to audio, local TTS, offline TTS, python desktop app, narration software">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Open Graph (for LinkedIn, Twitter, etc) -->
+    <meta property="og:title" content="NarrateX - Local audiobook engine">
+    <meta property="og:description" content="Convert ebooks into real-time narrated audio. Local, deterministic, no cloud dependency.">
+    <meta property="og:image" content="https://www.narratex.co.uk/site-images/NarrateX1.png">
+    <meta property="og:url" content="https://www.narratex.co.uk">
+    <meta property="og:type" content="website">
 
     <style>
         body {
@@ -87,12 +101,15 @@
 
     <h1>
         <img src="site-images/icon.png" class="logo" alt="NarrateX Logo">
-        NarrateX
+        NarrateX - Local text-to-speech audiobook engine
     </h1>
 
     <div class="subtitle">
-        NarrateX is a locally-run desktop application that converts books and documents into real-time narrated audio, designed for long-form listening without relying on cloud services. It streams audio as content is processed and is built around a layered architecture with clear separation between UI, services and domain logic, ensuring deterministic behaviour and reliability at scale.
+        NarrateX is a locally-run text-to-speech desktop application that converts ebooks and documents into real-time narrated audio. Designed for long-form audiobook listening without relying on cloud services, it provides offline TTS with streaming playback and a layered architecture ensuring deterministic behaviour and reliability.
     </div>
+
+    <h2>Local text-to-speech for ebooks and long-form content</h2>
+    <h3>Convert EPUB, PDF and text into narrated audio</h3>
 
     <div class="actions">
         <a class="primary" href="https://github.com/oernster/NarrateX/releases">
@@ -109,11 +126,27 @@
     </div>
 
     <div class="screenshots">
-        <img src="site-images/NarrateX1.png" alt="NarrateX UI">
-        <img src="site-images/NarrateX2.png" alt="NarrateX Sections View">
+        <img src="site-images/NarrateX1.png" alt="NarrateX text-to-speech desktop app interface showing ebook narration">
+        <img src="site-images/NarrateX2.png" alt="NarrateX chapter navigation and document structure view for audiobook playback">
     </div>
 
+    <div class="subtitle" style="margin-top:40px;">
+        NarrateX supports EPUB, PDF and plain text files, allowing users to convert books into narrated audio in real time. Unlike cloud-based text-to-speech services, NarrateX runs entirely locally, giving full control over performance, privacy and reliability.
+    </div>
 </div>
-
+<script type="application/ld+json">
+    {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "NarrateX",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Windows",
+    "description": "Local text-to-speech desktop application for converting ebooks into narrated audio.",
+    "url": "https://www.narratex.co.uk"
+    }
+</script>
+<div class="minor-detail" style="margin-top:20px;">
+    Created by Oliver Ernster
+</div>
 </body>
 </html>
