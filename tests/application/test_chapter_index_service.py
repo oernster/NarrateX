@@ -60,6 +60,15 @@ def test_build_index_detects_roman_numeral_headings_case_insensitive() -> None:
     assert [c.title for c in chapters] == ["CHAPTER I", "Chapter ix"]
 
 
+def test_build_index_ignores_pdf_toc_entries_with_dotted_leaders() -> None:
+    # Regression: dotted leaders indicate a TOC entry, not a body heading.
+    text = "Contents\n\nChapter 1: Title . . . . 12\n\nCHAPTER 1\nBody\n"
+    chunks = [TextChunk(chunk_id=0, text=text, start_char=0, end_char=len(text))]
+    svc = ChapterIndexService()
+    chapters = svc.build_index(text, chunks=chunks, min_char_offset=0)
+    assert [c.title for c in chapters] == ["CHAPTER 1"]
+
+
 def test_build_index_ignores_unsupported_headings() -> None:
     text = 'Part 1\nChapterhouse\n"In this chapter we discuss"\n'
     chunks = [TextChunk(chunk_id=0, text=text, start_char=0, end_char=len(text))]

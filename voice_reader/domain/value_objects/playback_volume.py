@@ -22,7 +22,9 @@ class PlaybackVolume:
 
     MIN = 0.0
     MAX = 1.0
-    DEFAULT = 1.0
+    # NarrateX UX default: start at 25% volume unless a persisted user
+    # preference exists.
+    DEFAULT = 0.25
 
     def __post_init__(self) -> None:
         if not isinstance(self.value, (int, float)):

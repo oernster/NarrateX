@@ -5,8 +5,8 @@ import pytest
 from voice_reader.domain.value_objects.playback_volume import PlaybackVolume
 
 
-def test_default_is_one() -> None:
-    assert PlaybackVolume.default().multiplier == 1.0
+def test_default_is_quarter() -> None:
+    assert PlaybackVolume.default().multiplier == 0.25
 
 
 @pytest.mark.parametrize(

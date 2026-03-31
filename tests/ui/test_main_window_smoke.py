@@ -96,7 +96,8 @@ def test_main_window_volume_controls_smoke(qapp) -> None:
     assert hasattr(w, "volume_slider")
     assert w.volume_slider.minimum() == 0
     assert w.volume_slider.maximum() == 100
-    assert w.volume_slider.value() == 100
+    # UX default is 25% until user preferences are applied by the controller.
+    assert w.volume_slider.value() == 25
 
     assert hasattr(w, "lbl_volume_icon")
     assert w.lbl_volume_icon.text() in {"🔊", "🔉", "🔇"}
