@@ -309,7 +309,24 @@ class StructuralBookmarkService:
             )
 
         out.sort(key=lambda b: int(b.char_offset))
-        return out
+        # Final pass: drop duplicates that resolve to the same navigation anchor.
+        # This can happen when we have both a "Chapter N" metadata candidate and a
+        # longer text-scan label ("Chapter N: Title") that both anchor to the same
+        # body marker line (common in PDFs where headings are wrapped across lines).
+        by_anchor: dict[tuple[str, int], StructuralBookmark] = {}
+        for b in out:
+            key = (str(b.kind), int(b.char_offset))
+            prev = by_anchor.get(key)
+            if prev is None:
+                by_anchor[key] = b
+                continue
+            # Prefer the more descriptive label.
+            if len(str(b.label)) > len(str(prev.label)):
+                by_anchor[key] = b
+
+        out2 = list(by_anchor.values())
+        out2.sort(key=lambda b: int(b.char_offset))
+        return out2
 
     @staticmethod
     def _adapt_chapter_like_candidates(

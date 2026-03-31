@@ -2,7 +2,16 @@ from __future__ import annotations
 
 import re
 
-from voice_reader.application.text_patterns import contains_dotted_leader, normalize_dotlikes
+"""Front-matter/body boundary heuristics.
+
+TOC end detection is implemented in a small helper module to keep this file
+under the repo's per-file LoC limit.
+"""
+
+from voice_reader.application.services.structural_bookmarks.toc_end import (
+    detect_toc_end_offset,
+    looks_like_toc_entry_line,
+)
 
 from voice_reader.application.services.structural_bookmarks.classification import (
     classify_heading,
@@ -40,183 +49,6 @@ def has_front_matter_marker(*, normalized_text: str) -> bool:
     return False
 
 
-def looks_like_toc_entry_line(line: str) -> bool:
-    """Heuristic for TOC list entries.
-
-    Must match both dotted-leader/page-number style and clean-outline style.
-    """
-
-    s = str(line or "").strip()
-    if not s:
-        return False
-
-    s = normalize_dotlikes(s)
-
-    # Wrapped PDF TOCs often split an entry across multiple lines:
-    #   "Chapter 5: Title" / ". . . . ." / "42"
-    # Treat leader-only or page-number-only lines as TOC-ish.
-    if contains_dotted_leader(s) and re.fullmatch(r"[.\s]+", s):
-        return True
-    if re.fullmatch(r"(\d+|[ivxlcdm]+)", s, flags=re.IGNORECASE):
-        return True
-
-    # Dotted leader (+ optional page number).
-    if contains_dotted_leader(s) and re.search(
-        r"\s*(\d+|[ivxlcdm]+)?\s*$", s, flags=re.IGNORECASE
-    ):
-        return True
-
-    # Trailing page number / roman numeral.
-    if re.match(r"^.+\s+(\d+|[ivxlcdm]+)\s*$", s, flags=re.IGNORECASE):
-        if len(s) <= 120:
-            return True
-
-    # Outline numbering like "3" or "3.1".
-    if re.match(r"^\d+(?:\.\d+)*$", s):
-        return True
-    if re.match(r"^\d+(?:\.\d+)*\s+\S+", s):
-        return True
-
-    return False
-
-
-def detect_toc_end_offset(normalized_text: str) -> int | None:
-    """Detect end offset of a TOC block, if present.
-
-    HARD REQUIREMENT: structural bookmarks must never bind to TOC copies.
-
-    Returns:
-        Absolute char offset in `normalized_text` where the TOC ends.
-        The returned offset is suitable as a minimum bound for anchor search.
-    """
-
-    text = str(normalized_text or "")
-    if not text:
-        return None
-
-    lines = text.splitlines(keepends=True)
-    offset = 0
-
-    toc_start_end: int | None = None
-    for line in lines:
-        offset += len(line)
-        stripped = line.strip()
-        if not stripped:
-            continue
-
-        marker_norm = normalize_marker_line(stripped)
-        if marker_norm in {"contents", "table of contents"}:
-            # Start scanning immediately after the TOC heading line.
-            toc_start_end = int(offset)
-            break
-
-    if toc_start_end is None:
-        return None
-
-    # Scan the block after the TOC heading.
-    scan_lines = text[toc_start_end:].splitlines(keepends=True)
-    scan_offset = int(toc_start_end)
-
-    consumed_any = False
-    structural_entries = 0
-
-    def next_nonblank_value(start_idx: int) -> str | None:
-        j = start_idx
-        while j < len(scan_lines):
-            s2 = scan_lines[j].strip()
-            if s2:
-                return s2
-            j += 1
-        return None
-
-    # Heuristic: if we see many numbered-outline markers soon after the TOC heading,
-    # treat this as a wrapped PDF TOC and do not return an early cutoff.
-    outline_markers = 0
-
-    for i, line in enumerate(scan_lines):
-        line_start = int(scan_offset)
-        scan_offset += len(line)
-        stripped = line.strip()
-        if not stripped:
-            continue
-
-        prev_blank = True
-        try:
-            if i > 0:
-                prev_blank = not bool(scan_lines[i - 1].strip())
-        except Exception:
-            prev_blank = True
-
-        next_blank = True
-        try:
-            if (i + 1) < len(scan_lines):
-                next_blank = not bool(scan_lines[i + 1].strip())
-        except Exception:
-            next_blank = True
-
-        kind, include, _prio = classify_heading(stripped)
-        structural = bool(include and kind is not None)
-        tocish = looks_like_toc_entry_line(stripped)
-
-        if structural and kind in {
-            "chapter",
-            "part",
-            "prologue",
-            "introduction",
-            "preface",
-            "appendix",
-            "conclusion",
-            "epilogue",
-            "afterword",
-        }:
-            tocish = True
-            structural_entries += 1
-
-        if re.fullmatch(r"\d+(?:\.\d+)*", normalize_dotlikes(stripped).strip()):
-            outline_markers += 1
-
-        if not consumed_any:
-            if tocish:
-                consumed_any = True
-                continue
-            # If the first line after the TOC heading doesn't look TOC-like, bail.
-            return None
-
-        # Once we've consumed some TOC-like entries, treat the first *body-style*
-        # structural heading as the end of the TOC. Importantly, return the
-        # heading offset (not the paragraph), so bookmarks can still anchor to it.
-        if structural:
-            nxt = next_nonblank_value(i + 1)
-
-            bodyish = False
-            if prev_blank or next_blank:
-                # Headings in the body are often blank-separated.
-                bodyish = True
-            if nxt is not None and looks_like_paragraph_line(nxt):
-                bodyish = True
-
-            # Avoid ending immediately on the first TOC entry; require at least
-            # a couple structural entries to be sure we were in a TOC list.
-            if bodyish and structural_entries >= 2:
-                return int(line_start)
-
-        # A non-TOC-looking, non-structural line ends the TOC.
-        # Return its offset as the end-of-TOC boundary.
-        if not tocish:
-            # If this looks like a wrapped PDF TOC (lots of outline numbering),
-            # do not claim an early end-of-TOC boundary.
-            if outline_markers >= 8:
-                return None
-            return int(line_start)
-
-    # If we never found a clean end but did consume entries, end at scan end.
-    if consumed_any and structural_entries >= 2:
-        return int(scan_offset)
-
-    # Conservative fallback for wrapped PDF TOCs: if we saw a TOC marker and
-    # consumed at least one entry, return None (unknown) rather than claiming the
-    # TOC ends immediately after the heading.
-    return None
 
 
 def detect_body_start_offset(normalized_text: str) -> int:
