@@ -19,6 +19,7 @@ from voice_reader.application.services.structural_bookmarks.front_matter import 
     has_front_matter_marker,
 )
 from voice_reader.application.services.structural_bookmarks.normalization import (
+    clean_heading_label,
     normalize_label_for_compare,
     normalize_label_for_match,
 )
@@ -37,12 +38,19 @@ from voice_reader.domain.entities.text_chunk import TextChunk
 
 
 def extract_heading_labels_from_text(*, normalized_text: str) -> list[str]:
-    """Return unique structural heading labels found by scanning the text."""
+    """Return unique structural heading labels found by scanning the text.
+
+    Note: for PDFs we intentionally prefer *major* structure only (Prologue,
+    Introduction, Chapter N, etc.). Lower-level outline fragments (e.g. "2.3.1")
+    are treated as front matter / TOC noise and are filtered elsewhere.
+    """
 
     labels: list[str] = []
     seen: set[str] = set()
     for c in scan_structural_headings(normalized_text=str(normalized_text or "")):
-        lab = normalize_label_for_match(c.label)
+        lab = clean_heading_label(c.label)
+        if not lab:
+            lab = normalize_label_for_match(c.label)
         if not lab:
             continue
         kind, include, _priority = classify_heading(lab)
@@ -119,7 +127,9 @@ class StructuralBookmarkService:
         # Normalize/classify/exclude the label set.
         filtered: list[RawHeadingCandidate] = []
         for c in raw:
-            label_disp = normalize_label_for_match(c.label)
+            label_disp = clean_heading_label(c.label)
+            if not label_disp:
+                label_disp = normalize_label_for_match(c.label)
             if not label_disp:
                 continue
             kind, include, _priority = classify_heading(label_disp)
@@ -159,7 +169,11 @@ class StructuralBookmarkService:
             # Choose a stable display label (prefer the longest; it tends to
             # preserve subtitles like "Chapter 3: ...").
             label_disp = sorted(
-                {normalize_label_for_match(c.label) for c in cands if c.label},
+                {
+                    (clean_heading_label(c.label) or normalize_label_for_match(c.label))
+                    for c in cands
+                    if c.label
+                },
                 key=len,
                 reverse=True,
             )[0]

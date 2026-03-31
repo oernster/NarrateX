@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from voice_reader.application.services.structural_bookmarks.normalization import (
+    clean_heading_label,
     normalize_label_for_match,
 )
 
@@ -28,7 +29,10 @@ def classify_heading(label: str) -> tuple[str | None, bool, int]:
     Higher priority wins.
     """
 
-    raw = normalize_label_for_match(label)
+    # Clean PDF TOC artifacts (leaders/page numbers) before classification.
+    raw = clean_heading_label(label)
+    if not raw:
+        raw = normalize_label_for_match(label)
     s = raw.casefold()
 
     # Explicit exclusions (front matter/junk).

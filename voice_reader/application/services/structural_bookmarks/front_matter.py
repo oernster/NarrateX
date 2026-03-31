@@ -129,6 +129,10 @@ def detect_toc_end_offset(normalized_text: str) -> int | None:
             j += 1
         return None
 
+    # Heuristic: if we see many numbered-outline markers soon after the TOC heading,
+    # treat this as a wrapped PDF TOC and do not return an early cutoff.
+    outline_markers = 0
+
     for i, line in enumerate(scan_lines):
         line_start = int(scan_offset)
         scan_offset += len(line)
@@ -168,6 +172,9 @@ def detect_toc_end_offset(normalized_text: str) -> int | None:
             tocish = True
             structural_entries += 1
 
+        if re.fullmatch(r"\d+(?:\.\d+)*", normalize_dotlikes(stripped).strip()):
+            outline_markers += 1
+
         if not consumed_any:
             if tocish:
                 consumed_any = True
@@ -196,11 +203,19 @@ def detect_toc_end_offset(normalized_text: str) -> int | None:
         # A non-TOC-looking, non-structural line ends the TOC.
         # Return its offset as the end-of-TOC boundary.
         if not tocish:
+            # If this looks like a wrapped PDF TOC (lots of outline numbering),
+            # do not claim an early end-of-TOC boundary.
+            if outline_markers >= 8:
+                return None
             return int(line_start)
 
     # If we never found a clean end but did consume entries, end at scan end.
     if consumed_any and structural_entries >= 2:
         return int(scan_offset)
+
+    # Conservative fallback for wrapped PDF TOCs: if we saw a TOC marker and
+    # consumed at least one entry, return None (unknown) rather than claiming the
+    # TOC ends immediately after the heading.
     return None
 
 

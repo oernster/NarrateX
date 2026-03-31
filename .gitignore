@@ -191,6 +191,9 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# NarrateX runtime user state (dev mode writes beside project root).
+preferences.json
+
 # PyPI configuration file
 .pypirc
 

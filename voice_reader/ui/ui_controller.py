@@ -165,7 +165,9 @@ class UiController(QObject):
             self.set_volume(v)
         except Exception:
             try:
-                self.set_volume(100)
+                # If the service volume isn't available, fall back to the
+                # product default (25%).
+                self.set_volume(25)
             except Exception:
                 pass
 

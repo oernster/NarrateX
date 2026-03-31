@@ -138,7 +138,8 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
 
     window.volume_slider = QSlider(Qt.Horizontal)
     window.volume_slider.setRange(0, 100)
-    window.volume_slider.setValue(100)
+    # UX default: 25% until a persisted preference is loaded.
+    window.volume_slider.setValue(25)
     window.volume_slider.setFixedWidth(140)
     window.volume_slider.setToolTip("Volume")
 

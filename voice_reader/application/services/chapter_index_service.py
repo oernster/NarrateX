@@ -16,6 +16,8 @@ import re
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
+from voice_reader.domain.text_patterns import contains_dotted_leader
+
 from voice_reader.domain.entities.chapter import Chapter
 from voice_reader.domain.entities.text_chunk import TextChunk
 from voice_reader.domain.services.sanitized_text_mapper import SanitizedTextMapper
@@ -75,6 +77,13 @@ class ChapterIndexService:
         for m in self._chapter_heading_re.finditer(book_text):
             start = int(m.start())
             title = self._line_text_at(book_text, start)
+
+            # PDFs often contain Table-of-Contents entries that look like headings
+            # but include dotted leaders and page numbers. Those should not be
+            # treated as real chapter boundaries.
+            if contains_dotted_leader(title):
+                continue
+
             chunk_index = resolve_chunk_index(start)
             if chunk_index is None:
                 continue
