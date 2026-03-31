@@ -115,6 +115,25 @@ def test_detect_start_skips_toc_when_present() -> None:
     assert "contents" not in text[start.start_char :].lower()[:50]
 
 
+def test_detect_start_skips_pdf_style_spaced_dot_toc_entries() -> None:
+    # PDFs often render dotted leaders as spaced dots: ". . . .".
+    text = (
+        "Title\n\n"
+        "Contents\n"
+        "Prologue . . . . . . . i\n"
+        "Chapter 1: Start . . . . . . 1\n\n"
+        "PROLOGUE\n"
+        "It begins.\n\n"
+        "CHAPTER 1\n"
+        "Real content.\n"
+    )
+    svc = ReadingStartService()
+    start = svc.detect_start(text)
+    # Prologue appears before Chapter 1; ensure we start at its paragraph.
+    assert start.reason == "Detected Prologue"
+    assert text[start.start_char :].lstrip().startswith("It begins")
+
+
 def test_detect_start_defaults_to_beginning_when_no_markers() -> None:
     text = "Just a short text without headings."
     svc = ReadingStartService()

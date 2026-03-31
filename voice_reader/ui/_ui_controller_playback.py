@@ -111,7 +111,18 @@ def play(controller) -> None:
                     start_char_offset = int(first.char_offset)
                 except Exception:
                     start_char_offset = None
-                else:
+
+                # Defensive: never start playback from a pre-boundary structural
+                # bookmark (e.g. a PDF TOC duplicate). Prefer the computed safe
+                # boundary instead, which is based on the reading-start detector.
+                if (
+                    start_char_offset is not None
+                    and comp.min_char_offset is not None
+                    and int(start_char_offset) < int(comp.min_char_offset)
+                ):
+                    start_char_offset = int(comp.min_char_offset)
+
+                if start_char_offset is not None:
                     # Force chunking to begin exactly at the target.
                     controller._last_prepared_voice_id = voice.name  # noqa: SLF001
                     controller.narration_service.prepare(

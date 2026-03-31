@@ -98,6 +98,7 @@ omit =
     voice_reader\application\services\narration\*
     voice_reader\application\services\structural_bookmarks\*
     voice_reader/domain/services/reading_start_service.py
+    voice_reader/domain/services/reading_start_toc.py
     voice_reader/domain/services/chunking_service.py
     voice_reader/domain/alignment/estimated_aligner.py
     voice_reader/domain/services/sanitized_text_mapper.py

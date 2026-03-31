@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import re
 
+from voice_reader.application.text_patterns import contains_dotted_leader, normalize_dotlikes
+
 from voice_reader.application.services.structural_bookmarks.classification import (
     classify_heading,
 )
@@ -48,8 +50,20 @@ def looks_like_toc_entry_line(line: str) -> bool:
     if not s:
         return False
 
-    # Dotted leader + page number.
-    if re.search(r"\.{2,}\s*(\d+|[ivxlcdm]+)\s*$", s, flags=re.IGNORECASE):
+    s = normalize_dotlikes(s)
+
+    # Wrapped PDF TOCs often split an entry across multiple lines:
+    #   "Chapter 5: Title" / ". . . . ." / "42"
+    # Treat leader-only or page-number-only lines as TOC-ish.
+    if contains_dotted_leader(s) and re.fullmatch(r"[.\s]+", s):
+        return True
+    if re.fullmatch(r"(\d+|[ivxlcdm]+)", s, flags=re.IGNORECASE):
+        return True
+
+    # Dotted leader (+ optional page number).
+    if contains_dotted_leader(s) and re.search(
+        r"\s*(\d+|[ivxlcdm]+)?\s*$", s, flags=re.IGNORECASE
+    ):
         return True
 
     # Trailing page number / roman numeral.

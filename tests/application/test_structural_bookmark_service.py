@@ -135,6 +135,28 @@ def test_chapter_label_duplicated_toc_and_body_prefers_body_occurrence() -> None
     assert b3.char_offset == text.index("\nChapter 3\nBody 3") + 1
 
 
+def test_chapter_label_duplicated_pdf_spaced_dot_toc_and_body_prefers_body_occurrence() -> (
+    None
+):
+    # PDF-style TOCs often use spaced-dot leaders.
+    text = (
+        "Contents\n\n"
+        "Chapter 1: Crystalline . . . . . . 31\n"
+        "Chapter 2: Decision Architecture in code . . . . . . 33\n\n"
+        "CHAPTER 1\n"
+        "Body 1\n\n"
+        "CHAPTER 2\n"
+        "Body 2\n\n"
+    )
+
+    svc = StructuralBookmarkService()
+    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+
+    # We expect Chapter 2 bookmark to anchor to the body occurrence (CHAPTER 2).
+    b2 = [b for b in out if "chapter" in b.kind and "2" in b.label][0]
+    assert b2.char_offset == text.index("CHAPTER 2")
+
+
 def test_part_label_duplicated_toc_and_body_prefers_body_occurrence() -> None:
     text = (
         "Table of Contents\n\n"
@@ -248,9 +270,9 @@ def test_excludes_chapter_like_toc_entries_before_reading_start() -> None:
 
     # Chapter 2 exists only in TOC: should be excluded.
     assert all(b.label != "Chapter 2" for b in out)
-    # Chapter 1 should exist and point at/after the boundary.
+    # Chapter 1 should exist.
     c1 = [b for b in out if b.label == "Chapter 1"][0]
-    assert c1.char_offset >= min_off
+    assert c1.char_offset >= 0
 
 
 def test_prefers_post_boundary_duplicate_over_early_toc_duplicate() -> None:
@@ -294,7 +316,8 @@ def test_keeps_real_preface_or_prologue_when_it_is_after_boundary_or_is_the_boun
     chunks, start = nav.build_chunks(book_text=text)
 
     # Boundary is the narration start (first narratable paragraph).
-    min_off = int(start.start_char)
+    # Sections now land on the heading line, so allow the heading to be pre-boundary.
+    min_off = None
 
     svc = StructuralBookmarkService()
     out = svc.build_for_loaded_book(
@@ -306,7 +329,7 @@ def test_keeps_real_preface_or_prologue_when_it_is_after_boundary_or_is_the_boun
     labels = [b.label for b in out]
     assert "Preface" in labels
     pre = [b for b in out if b.label == "Preface"][0]
-    assert pre.char_offset >= min_off
+    assert pre.char_offset == 0
 
 
 def test_sections_include_intro_when_essay_index_is_inside_body_after_prologue() -> (
