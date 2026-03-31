@@ -117,18 +117,25 @@ def clean_heading_label(label: str) -> str:
     if m0 is not None:
         kind = str(m0.group(1)).casefold()
         num = _canon_num(m0.group("num"))
-        return f"Chapter {num}" if kind == "chapter" else f"Part {num}"
+        s = f"Chapter {num}" if kind == "chapter" else f"Part {num}"
 
     # Prefix canonicalization (keeps subtitles, e.g. "CHAPTER 2: Title").
     m1 = _CHAPTER_PREFIX_RE.match(s)
     if m1 is not None:
         num = _canon_num(m1.group("num"))
-        return f"Chapter {num}{s[m1.end():]}".strip()
+        s = f"Chapter {num}{s[m1.end():]}".strip()
 
     m2 = _PART_PREFIX_RE.match(s)
     if m2 is not None:
         num = _canon_num(m2.group("num"))
-        return f"Part {num}{s[m2.end():]}".strip()
+        s = f"Part {num}{s[m2.end():]}".strip()
+
+    # "Chapter 1:" / "Part I:" sometimes appear as a heading line where the
+    # title is wrapped onto the next line. Strip the trailing separator so the
+    # heading is still recognized as a chapter/part marker.
+    s2 = re.sub(r"\s*[:\-\u2013\u2014]\s*$", "", s)
+    if s2 and _CHAPTER_OR_PART_ONLY_RE.fullmatch(s2):
+        s = s2
 
     # Common single-word headings.
     if s.casefold() == "prologue":

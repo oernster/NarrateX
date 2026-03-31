@@ -7,6 +7,9 @@ from voice_reader.application.services.structural_bookmarks.normalization import
     normalize_label_for_compare,
     normalize_label_for_match,
 )
+from voice_reader.application.services.structural_bookmarks.classification import (
+    classify_heading,
+)
 import re
 
 from voice_reader.application.text_patterns import contains_dotted_leader, normalize_dotlikes
@@ -29,6 +32,23 @@ def find_exact_heading_occurrences(
     norm_label = normalize_label_for_compare(cleaned or label)
     if not text or not norm_label:
         return []
+
+    # Fallback: many PDFs render body headings as a wrapped marker line like
+    # "Chapter 1:" then the title on the next line. In that case, the label
+    # discovered from TOC/scan ("Chapter 1: Full Title") won't have an exact
+    # full-line body match, but we can still anchor to the marker line.
+    prefix_norm: str | None = None
+    try:
+        m = re.match(
+            r"^(chapter|part)\s+(?P<num>[0-9ivxlcdm]+)\b",
+            str(cleaned or label or "").strip(),
+            flags=re.IGNORECASE,
+        )
+        if m is not None and (":" in str(cleaned or label) or "-" in str(cleaned or label)):
+            prefix = f"{m.group(1)} {m.group('num')}"
+            prefix_norm = normalize_label_for_compare(clean_heading_label(prefix) or prefix)
+    except Exception:
+        prefix_norm = None
 
     min_off = max(0, int(min_char_offset))
     lines = text.splitlines(keepends=True)
@@ -103,6 +123,7 @@ def find_exact_heading_occurrences(
         return not lines[i].strip()
 
     out: list[HeadingOccurrence] = []
+    prefix_out: list[HeadingOccurrence] = []
     offset = 0
     for i, line in enumerate(lines):
         line_offset = offset
@@ -115,7 +136,23 @@ def find_exact_heading_occurrences(
         if not stripped:
             continue
         cleaned_line = clean_heading_label(stripped) or stripped
-        if normalize_label_for_compare(cleaned_line) != norm_label:
+        cleaned_cmp = normalize_label_for_compare(cleaned_line)
+        if cleaned_cmp != norm_label:
+            if prefix_norm is not None and cleaned_cmp == prefix_norm:
+                kind2, include2, _p2 = classify_heading(cleaned_line)
+                if include2 and kind2 in {"chapter", "part"}:
+                    if not _is_probable_toc_occurrence(i, stripped_line=stripped):
+                        prefix_out.append(
+                            HeadingOccurrence(
+                                char_offset=int(line_offset),
+                                label=(
+                                    clean_heading_label(stripped)
+                                    or normalize_label_for_match(stripped)
+                                ),
+                                prev_blank=bool(is_blank(i - 1)),
+                                next_blank=bool(is_blank(i + 1)),
+                            )
+                        )
             continue
 
         # HARD REQUIREMENT: never bind to Table-of-Contents copies.
@@ -133,7 +170,10 @@ def find_exact_heading_occurrences(
             )
         )
 
-    return out
+    if out:
+        return out
+    return prefix_out
+
 
 
 def choose_best_occurrence(
