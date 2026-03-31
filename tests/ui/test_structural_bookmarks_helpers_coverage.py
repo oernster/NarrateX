@@ -181,7 +181,9 @@ def test_compute_handles_chapters_and_chunks_exceptions(monkeypatch) -> None:
     )
     comp = compute_structural_bookmarks(c)
     assert isinstance(comp, StructuralBookmarksComputation)
-    assert comp.min_char_offset == 9
+    # Boundary is heading-safe (never after narration start).
+    assert comp.min_char_offset is not None
+    assert comp.min_char_offset <= 9
     assert comp.chunks is None
 
 
@@ -257,7 +259,18 @@ def test_compute_prefers_navigation_chunk_service_outputs() -> None:
     c = _Controller(
         narration_service=_Narration(
             book_id="book-1",
-            book=_Book(normalized_text="Chapter 1\n..."),
+            # Include a small TOC block so `detect_toc_end_offset()` returns a
+            # non-None value and the UI helper exercises the `toc_end is not None`
+            # branch.
+            book=_Book(
+                normalized_text=(
+                    "Contents\n"
+                    "Chapter 1 . . . . . . 1\n"
+                    "Chapter 2 . . . . . . 5\n\n"
+                    "CHAPTER 1\n"
+                    "This is body prose.\n"
+                )
+            ),
             chunks=[],
         ),
         structural_bookmark_service=svc,
@@ -266,7 +279,9 @@ def test_compute_prefers_navigation_chunk_service_outputs() -> None:
     )
     comp = compute_structural_bookmarks(c)
     assert comp is not None
-    assert comp.min_char_offset == 7
+    # Boundary is heading-safe: it never exceeds the reading-start output.
+    assert comp.min_char_offset is not None
+    assert comp.min_char_offset <= 7
     assert comp.chunks == chunks0
     assert len(comp.bookmarks) == 1
 
@@ -283,6 +298,31 @@ def test_compute_handles_navigation_chunk_service_exception(monkeypatch) -> None
     comp = compute_structural_bookmarks(c)
     assert comp is not None
     assert comp.min_char_offset is None
+
+
+def test_compute_nav_boundary_is_zero_when_no_front_matter_cutoff() -> None:
+    """Cover the `cut <= 0` branch in the UI helper boundary logic."""
+
+    chunks0 = [TextChunk(chunk_id=0, text="x", start_char=0, end_char=1)]
+    nav = _Nav(chunks=chunks0, start_char=0)
+    svc = _Svc(bookmarks=[])
+    c = _Controller(
+        narration_service=_Narration(
+            book_id="book-1",
+            # No Contents/TOC markers and no structural headings.
+            # This should yield `detect_body_start_offset()==0` and
+            # `detect_toc_end_offset()==None`, so the UI cutoff is 0.
+            book=_Book(normalized_text="This is body prose.\n\nSecond paragraph.\n"),
+            chunks=[],
+        ),
+        structural_bookmark_service=svc,
+        chapters=[],
+        navigation_chunk_service=nav,
+    )
+
+    comp = compute_structural_bookmarks(c)
+    assert comp is not None
+    assert comp.min_char_offset == 0
 
 
 def test_compute_handles_structural_bookmark_service_exception() -> None:

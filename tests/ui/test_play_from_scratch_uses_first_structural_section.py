@@ -133,6 +133,7 @@ def test_play_when_idle_and_no_resume_prefers_first_section(monkeypatch, qapp) -
     class _Comp:
         def __init__(self):
             self.bookmarks = [_B(123)]
+            self.min_char_offset = None
 
     monkeypatch.setattr(
         "voice_reader.ui._ui_controller_playback.compute_structural_bookmarks",

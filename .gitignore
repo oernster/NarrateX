@@ -217,6 +217,7 @@ ALL_SOURCES.txt
 cache/
 temp_books/
 Scripts/
+decision_architecture_hardback.pdf
 
 # Installer build artifacts
 dist-installer/

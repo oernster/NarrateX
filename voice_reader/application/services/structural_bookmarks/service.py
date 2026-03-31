@@ -240,33 +240,26 @@ class StructuralBookmarkService:
                 continue
 
             # Canonicalize the bookmark anchor to a stable navigation target.
+            # Policy: Sections GoTo should land on the exact heading line offset.
+            # We still compute `chunk_index` for stable playback/navigation semantics.
             canonical_offset = int(best_offset)
             if chunks is not None:
-                idx = resolve_chunk_index_for_offset(
-                    char_offset=int(best_offset),
+                best_chunk_index = resolve_chunk_index_for_offset(
+                    char_offset=int(canonical_offset),
                     chunks=chunks,
                 )
-                if idx is not None:
-                    try:
-                        jump_start = int(chunks[int(idx)].start_char)
-                        jump_end = int(chunks[int(idx)].end_char)
-                    except Exception:
-                        jump_start = int(best_offset)
-                        jump_end = int(best_offset)
 
-                    # Chunk-intersection semantics.
-                    if min_char_offset is not None:
-                        try:
-                            if int(jump_end) < int(min_char_offset):
-                                continue
-                        except Exception:
-                            pass
+            # NOTE: `min_char_offset` represents a *reading* safety boundary.
+            # Sections are allowed to land on a heading line that precedes the
+            # first narratable paragraph; the UI has its own defensive guard.
 
-                    canonical_offset = int(jump_start)
-
-            if min_char_offset is not None:
+            # However, if the ONLY way we can resolve a bookmark is via a chunk_index
+            # or other metadata that lands entirely before the boundary, drop it.
+            # This prevents bookmarks that can only ever navigate into front matter.
+            if chunks is not None and min_char_offset is not None and best_chunk_index is not None:
                 try:
-                    canonical_offset = max(int(canonical_offset), int(min_char_offset))
+                    if int(chunks[int(best_chunk_index)].end_char) < int(min_char_offset):
+                        continue
                 except Exception:
                     pass
 
@@ -288,12 +281,6 @@ class StructuralBookmarkService:
                 and int(best_offset) < int(body_start_offset)
             ):
                 continue
-
-            if chunks is not None:
-                best_chunk_index = resolve_chunk_index_for_offset(
-                    char_offset=int(canonical_offset),
-                    chunks=chunks,
-                )
 
             out.append(
                 StructuralBookmark(

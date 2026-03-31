@@ -10,6 +10,8 @@ from voice_reader.domain.interfaces.reading_start_detector import ReadingStartDe
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.domain.services.reading_start_service import ReadingStart
 
+from voice_reader.application.text_patterns import contains_dotted_leader, normalize_dotlikes
+
 
 @dataclass(frozen=True, slots=True)
 class NavigationChunkService:
@@ -24,12 +26,12 @@ class NavigationChunkService:
         index entries, but avoid consuming real prose.
         """
 
-        s = line.strip()
+        s = normalize_dotlikes(line).strip()
         if not s:
             return True
 
         # Dotted leaders / page numbers.
-        if re.search(r"\.{2,}\s*(\d+|[ivxlcdm]+)\s*$", s, re.I):
+        if contains_dotted_leader(s) and re.search(r"\s*(\d+|[ivxlcdm]+)\s*$", s, re.I):
             return True
 
         # Outline-ish numbering like "3" or "3.1".
@@ -138,12 +140,12 @@ class NavigationChunkService:
         tail = slice_text[essay.end() :]
 
         def looks_like_toc_entry(line: str) -> bool:
-            s = str(line or "").strip()
+            s = normalize_dotlikes(str(line or "")).strip()
             if not s:
                 return False
 
             # Dotted leaders (with or without explicit page numbers).
-            if re.search(r"\.{2,}", s):
+            if contains_dotted_leader(s):
                 return True
 
             # Trailing page number / roman numeral.
@@ -156,7 +158,7 @@ class NavigationChunkService:
         def looks_like_clean_structural_heading(line: str) -> bool:
             """True for headings that should end the Essay Index span."""
 
-            s = str(line or "").strip()
+            s = normalize_dotlikes(str(line or "")).strip()
             if not s:
                 return False
 
@@ -164,7 +166,7 @@ class NavigationChunkService:
             # Example false positives we must reject:
             # - "Chapter 1 .... 1"
             # - "Introduction .... v"
-            if re.search(r"\.{2,}", s):
+            if contains_dotted_leader(s):
                 return False
 
             # Allow outline numbering prefixes like "3" or "3.1".

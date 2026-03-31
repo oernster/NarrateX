@@ -1,0 +1,7 @@
+norm_len 411821
+reading_start 944 Detected Chapter 1
+start_preview 'Chapter 2: Decision Architecture in code . . . . . . .\n33\n2.3.1\nThe original premise\n. . . . . . . . . . . . .\n33\n2.3.2\nSoftware suffers the same problem . . . . . .\n33\n2.3.3\nThe e'
+toc_end 123
+body_start 880
+bookmarks 191
+first10 [('chapter', 'Chapter 1: Crystalline', 880), ('chapter', 'Chapter 2: Decision Architecture in code . . . . . . .', 944), ('chapter', 'Chapter 3: An operating model for when the CTO', 1451), ('chapter', 'Chapter 4: Decision load as a structural signal', 1959), ('chapter', 'Chapter 5: Authority mapped to decision type . . . .', 2353), ('chapter', 'Chapter 6: Junior pipelines are structural not senti-', 2747), ('chapter', 'Chapter 7: Designing junior pipelines in an age of AI', 3140), ('chapter', 'Chapter 8: Designing authority as a primary CTO', 3577), ('chapter', 'Chapter 9: The structural cost of delegation without', 3970), ('chapter', 'Chapter 10: Reducing option space as a leadership', 4364)]

@@ -5,6 +5,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from voice_reader.domain.text_patterns import contains_dotted_leader
+
+from voice_reader.domain.services import reading_start_toc
+
 
 @dataclass(frozen=True, slots=True)
 class ReadingStart:
@@ -23,14 +27,20 @@ class ReadingStartService:
     - start reading at the FIRST sentence under that heading
     """
 
-    max_scan_chars: int = 60_000
+    # PDFs can contain extremely long Tables of Contents (including subsection
+    # listings) where the first body chapter is far beyond 60k characters.
+    # Keep this high enough to reliably reach the first real body heading.
+    max_scan_chars: int = 250_000
     max_prose_seek_chars: int = 40_000
 
     def detect_start(self, text: str) -> ReadingStart:
         scan = text[: self.max_scan_chars]
 
         # 1) Skip ToC first, deterministically.
-        toc_end = self._detect_toc_end(scan)
+        toc_end = reading_start_toc.detect_toc_end(
+            scan=scan,
+            looks_like_structural_heading=self._looks_like_structural_heading,
+        )
         search_start = toc_end if toc_end is not None else 0
         search = scan[search_start:]
 
@@ -38,18 +48,28 @@ class ReadingStartService:
         candidates: list[ReadingStart] = []
 
         def add_first_match(patterns: list[re.Pattern[str]], reason: str) -> None:
-            earliest: int | None = None
+            earliest_start: int | None = None
             earliest_end: int | None = None
 
             for pat in patterns:
-                m = pat.search(search)
-                if not m:
-                    continue
-                if earliest is None or m.start() < earliest:
-                    earliest = m.start()
-                    earliest_end = m.end()
+                for m in pat.finditer(search):
+                    abs_start = int(search_start) + int(m.start())
+                    abs_end = int(search_start) + int(m.end())
 
-            if earliest is not None and earliest_end is not None:
+                    if reading_start_toc.is_toc_wrapped_heading_match(
+                        scan=scan,
+                        absolute_match_start=int(abs_start),
+                    ):
+                        continue
+
+                    if earliest_start is None or int(m.start()) < int(earliest_start):
+                        earliest_start = int(m.start())
+                        earliest_end = int(m.end())
+                    # Since we're scanning left-to-right per-pattern, the first
+                    # valid match is the earliest for that pattern.
+                    break
+
+            if earliest_start is not None and earliest_end is not None:
                 absolute_end = search_start + earliest_end
                 candidates.append(
                     ReadingStart(
@@ -83,6 +103,16 @@ class ReadingStartService:
         start = self._seek_first_paragraph(text, start)
 
         return ReadingStart(start_char=start, reason=best.reason)
+
+    # ---- Backwards-compatible helpers for existing tests/callers ----
+    @staticmethod
+    def _detect_toc_end(scan: str) -> int | None:
+        """Compatibility wrapper retained for older tests."""
+
+        return reading_start_toc.detect_toc_end(
+            scan=str(scan or ""),
+            looks_like_structural_heading=ReadingStartService._looks_like_structural_heading,
+        )
 
     def _seek_first_paragraph(self, text: str, start: int) -> int:
         """Find the first real prose paragraph after a structural heading."""
@@ -124,6 +154,11 @@ class ReadingStartService:
         """Accept actual prose, including short first sentences."""
 
         words = [w for w in re.split(r"\s+", line) if w]
+
+        # Accept very short first sentences like "Real content.".
+        # Keep 1-word sentences rejected (e.g. "Short.") for existing edge-case tests.
+        if len(words) >= 2 and re.search(r"[.!?]\s*$", line):
+            return True
 
         if len(words) < 3:
             return False
@@ -171,37 +206,11 @@ class ReadingStartService:
 
     @staticmethod
     def _looks_like_outline_line(line: str) -> bool:
-        """Reject numbering and short heading lines."""
-
-        # Number-only like "4.2.2"
-        if re.match(r"^\d+(?:\.\d+)*$", line):
-            return True
-
-        # Numbered heading like "4.2 Chapter title"
-        if re.match(r"^\d+(?:\.\d+)*\s+\S+", line):
-            return True
-
-        # Very short non-sentence headings
-        if len(line.split()) <= 4 and not re.search(r"[.!?]\s*$", line):
-            return True
-
-        return False
+        return reading_start_toc.looks_like_outline_line(line)
 
     @staticmethod
     def _looks_like_toc_entry(line: str) -> bool:
-        """Reject typical Table of Contents lines."""
-
-        # Dotted leader + page number
-        if re.search(r"\.{2,}\s*(\d+|[ivxlcdm]+)\s*$", line, re.I):
-            return True
-
-        # Trailing page number / roman numeral, e.g. "Prologue i"
-        if re.match(r"^.+\s+(\d+|[ivxlcdm]+)\s*$", line, re.I):
-            # Be conservative: TOC entries are usually fairly short.
-            if len(line) <= 120:
-                return True
-
-        return False
+        return reading_start_toc.looks_like_toc_entry(line)
 
     @staticmethod
     def _looks_like_backmatter(line: str) -> bool:
@@ -241,49 +250,6 @@ class ReadingStartService:
         return i
 
     @staticmethod
-    def _detect_toc_end(scan: str) -> int | None:
-        """Detect the end of a real Table of Contents block."""
-
-        toc_heading = re.search(r"(?im)^\s*(table of contents|contents)\s*$", scan)
-        if not toc_heading:
-            return None
-
-        start = toc_heading.end()
-        lines = scan[start:].splitlines(keepends=True)
-
-        offset = start
-        consumed_any = False
-
-        for line in lines:
-            stripped = line.strip()
-
-            if not stripped:
-                offset += len(line)
-                continue
-
-            # If we've already consumed ToC-looking entries and we now see a clean
-            # structural heading, treat it as the end of the ToC.
-            if consumed_any and ReadingStartService._looks_like_structural_heading(
-                stripped
-            ):
-                break
-
-            if ReadingStartService._looks_like_toc_entry(
-                stripped
-            ) or ReadingStartService._looks_like_outline_line(stripped):
-                consumed_any = True
-                offset += len(line)
-                continue
-
-            # First non-ToC-looking line after consuming entries ends the ToC.
-            if consumed_any:
-                break
-
-            # If the line after "Contents" doesn't look like ToC, abort.
-            return None
-
-        return offset if consumed_any else None
-
     @staticmethod
     def _looks_like_structural_heading(line: str) -> bool:
         """Detect *clean* headings that indicate we're out of the ToC.
@@ -299,7 +265,8 @@ class ReadingStartService:
         - "PROLOGUE"
         """
 
-        if re.search(r"\.{2,}", line):
+        # Never treat dotted-leader TOC lines as body headings.
+        if contains_dotted_leader(line):
             return False
 
         for pat in (
