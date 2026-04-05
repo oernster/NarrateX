@@ -2,9 +2,11 @@
 
 # NarrateX (Voice Reader app)
 
-Desktop eBook voice reader built on the Kokoro TTS library: select from multiple machine voices, load a book, and control playback (play/pause/stop) while it reads.
+NarrateX is a desktop reading system that converts structured books into continuous audio playback.
 
-Where available, the UI also displays the book cover and other metadata during book handling.
+It supports EPUB and PDF formats, preserves document structure, and provides deterministic navigation through sections and chapters.
+
+The system is designed to handle real-world book formats, including Kindle-compatible content and multi-book compilations.
 
 For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITECTURE.md`](ARCHITECTURE.md:1).
 
