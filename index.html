@@ -8,8 +8,6 @@
 
     <meta name="description" content="NarrateX is a structured desktop reading system that converts ebooks and documents into continuous audio playback. Local, deterministic and designed for long-form listening.">
 
-    <meta name="keywords" content="text to speech, audiobook generator, ebook to audio, local TTS, offline TTS, narration software, epub reader, pdf reader audio">
-
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Open Graph -->
@@ -27,14 +25,6 @@
             color: #e6edf3;
         }
 
-        .logo {
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            margin-right: 14px;
-            vertical-align: middle;
-        }
-
         .container {
             max-width: 1100px;
             margin: 0 auto;
@@ -46,16 +36,20 @@
             font-size: 40px;
             margin-bottom: 12px;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        }
+
+        .logo {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            margin-bottom: 12px;
         }
 
         .subtitle {
             font-size: 18px;
             color: #9da7b3;
             margin-bottom: 28px;
-            max-width: 800px;
+            max-width: 780px;
             margin-left: auto;
             margin-right: auto;
         }
@@ -63,7 +57,7 @@
         .actions a {
             display: inline-block;
             margin: 10px;
-            padding: 12px 20px;
+            padding: 12px 22px;
             border-radius: 6px;
             text-decoration: none;
             font-weight: 500;
@@ -79,36 +73,69 @@
             color: #e6edf3;
         }
 
+        .minor-detail {
+            margin-top: 30px;
+            font-size: 14px;
+            color: #6e7681;
+        }
+
         .section {
-            margin-top: 60px;
+            margin-top: 70px;
         }
 
         .section h2 {
             font-size: 22px;
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
         .section p {
             color: #9da7b3;
-            max-width: 800px;
+            max-width: 760px;
             margin: 0 auto 10px;
         }
 
-        .list {
+        /* --- GRID CARDS --- */
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
             margin-top: 20px;
-            text-align: left;
-            max-width: 700px;
-            margin-left: auto;
-            margin-right: auto;
-            color: #c9d1d9;
         }
 
-        .list li {
-            margin-bottom: 8px;
+        .grid.small {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         }
+
+        .card {
+            background: #11161c;
+            border: 1px solid #1f2933;
+            border-radius: 10px;
+            padding: 16px 18px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 500;
+            color: #e6edf3;
+            transition: all 0.15s ease;
+        }
+
+        .card:hover {
+            border-color: #2f81f7;
+            transform: translateY(-2px);
+        }
+
+        .card span {
+            display: block;
+            margin-top: 6px;
+            font-size: 13px;
+            color: #8b949e;
+            font-weight: 400;
+        }
+
+        /* --- SCREENSHOTS --- */
 
         .screenshots {
-            margin-top: 50px;
+            margin-top: 60px;
         }
 
         .screenshots img {
@@ -117,12 +144,6 @@
             margin-bottom: 30px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
-
-        .minor-detail {
-            margin-top: 30px;
-            font-size: 14px;
-            color: #6e7681;
-        }
     </style>
 </head>
 
@@ -130,10 +151,9 @@
 
 <div class="container">
 
-    <h1>
-        <img src="site-images/icon.png" class="logo">
-        NarrateX
-    </h1>
+    <img src="site-images/icon.png" class="logo">
+
+    <h1>NarrateX</h1>
 
     <div class="subtitle">
         A structured desktop reading system that converts books and documents into continuous audio playback.
@@ -155,57 +175,84 @@
         Local execution. Deterministic playback. No cloud dependency.
     </div>
 
+    <!-- CORE BEHAVIOUR -->
+
     <div class="section">
         <h2>Core behaviour</h2>
-        <ul class="list">
-            <li>Playback follows document structure rather than file order</li>
-            <li>Navigation is derived from headings and bookmarks</li>
-            <li>Non-content sections are excluded automatically</li>
-            <li>Navigation loads immediately and processes in the background</li>
-            <li>Playback position is consistent across sessions</li>
-        </ul>
+
+        <div class="grid">
+            <div class="card">
+                Playback follows structure
+                <span>Not file order</span>
+            </div>
+
+            <div class="card">
+                Navigation is derived
+                <span>From headings and bookmarks</span>
+            </div>
+
+            <div class="card">
+                Non-content excluded
+                <span>Frontmatter and indexes removed</span>
+            </div>
+
+            <div class="card">
+                Instant navigation
+                <span>Processed in the background</span>
+            </div>
+
+            <div class="card">
+                Deterministic position
+                <span>Consistent across sessions</span>
+            </div>
+        </div>
     </div>
+
+    <!-- WHY -->
 
     <div class="section">
         <h2>Why this exists</h2>
         <p>
-            Most tools treat documents as flat text streams.
-            This leads to broken navigation, skipped sections and inconsistent playback.
+            Most tools treat documents as flat text streams. This leads to broken navigation, skipped sections and inconsistent playback.
         </p>
         <p>
-            NarrateX treats books as structured systems.
-            Structure is preserved, navigation is derived from it and playback follows it.
+            NarrateX treats books as structured systems. Structure is preserved, navigation is derived from it and playback follows it.
         </p>
     </div>
+
+    <!-- SCREENSHOTS -->
 
     <div class="screenshots">
         <img src="site-images/NarrateX1.png">
         <img src="site-images/NarrateX2.png">
     </div>
 
+    <!-- FORMATS -->
+
     <div class="section">
         <h2>Supported formats</h2>
-        <ul class="list">
-            <li>EPUB</li>
-            <li>PDF</li>
-            <li>Plain text</li>
-            <li>Kindle formats via Calibre conversion</li>
-        </ul>
+
+        <div class="grid small">
+            <div class="card">EPUB</div>
+            <div class="card">PDF</div>
+            <div class="card">Plain text</div>
+            <div class="card">Kindle (via Calibre)</div>
+        </div>
     </div>
+
+    <!-- EXECUTION -->
 
     <div class="section">
         <h2>Execution model</h2>
         <p>
-            Text is processed into structured chunks.
-            Audio is generated and streamed continuously.
-            Playback begins immediately and continues without interruption.
+            Text is processed into structured chunks. Audio is generated and streamed continuously.
         </p>
         <p>
-            Everything runs locally which keeps the system fast, predictable and private.
+            Playback begins immediately and continues without interruption. Everything runs locally which keeps the system fast, predictable and private.
         </p>
     </div>
 
-    <div class="minor-detail" style="margin-top:50px;">
+    <div class="minor-detail" style="margin-top:60px;">
         Created by Oliver Ernster
     </div>
 
