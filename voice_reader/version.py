@@ -16,4 +16,4 @@ APP_COPYRIGHT: str = "© 2026 Oliver Ernster"
 # builds as a different app (separate taskbar grouping / pinned item).
 APP_APPUSERMODELID: str = "com.oliverernster.narratex"
 
-__version__: str = "2.4.0"
+__version__: str = "2.5.0"
