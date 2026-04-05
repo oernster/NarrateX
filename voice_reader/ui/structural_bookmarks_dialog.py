@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import os
 from typing import Callable, Sequence
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -61,6 +61,33 @@ class StructuralBookmarksDialog(QDialog):
         super().__init__(parent)
         self._actions = actions
 
+        # Explicit dark styling to avoid a white flash before the main window
+        # stylesheet is applied/inherited.
+        self.setObjectName("sectionsDialog")
+        try:
+            self.setAttribute(Qt.WA_StyledBackground, True)
+        except Exception:  # pragma: no cover
+            pass
+        self.setStyleSheet(
+            """
+            QDialog#sectionsDialog { background: #0b0f17; }
+            QListWidget { background: #121826; border: 1px solid #1f2937; }
+            QListWidget::item:selected { background: #1f2a44; }
+            QPushButton { background: #121826; border: 1px solid #1f2937; padding: 6px 10px; border-radius: 6px; }
+            QPushButton:hover { border-color: #8b5cf6; }
+            QPushButton:disabled { color: #94a3b8; }
+            """
+        )
+
+        # On some Windows configurations Qt can briefly show an unstyled (white)
+        # window background before the first paint with styles applied. Avoid that
+        # by opening fully transparent, then revealing on the next UI tick.
+        self._reveal_after_show = True
+        try:
+            self.setWindowOpacity(0.0)
+        except Exception:  # pragma: no cover
+            self._reveal_after_show = False
+
         self.setWindowTitle("Sections")
         self.setModal(True)
         self.resize(520, 420)
@@ -85,6 +112,12 @@ class StructuralBookmarksDialog(QDialog):
             subtitle.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
             subtitle.setStyleSheet("color: #cbd5e1;")
             root.addWidget(subtitle)
+
+        self.status = QLabel("")
+        self.status.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.status.setStyleSheet("color: #94a3b8;")
+        self.status.setVisible(False)
+        root.addWidget(self.status)
 
         self.list = QListWidget()
         self.list.setSelectionMode(QListWidget.SingleSelection)
@@ -111,6 +144,88 @@ class StructuralBookmarksDialog(QDialog):
 
         self.refresh()
 
+    def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        super().showEvent(event)
+        if not getattr(self, "_reveal_after_show", False):
+            return
+
+        def _reveal() -> None:
+            try:
+                self.setWindowOpacity(1.0)
+            except Exception:  # pragma: no cover
+                return
+
+        try:
+            QTimer.singleShot(0, _reveal)
+        except Exception:  # pragma: no cover
+            _reveal()
+
+    def set_loading(self, *, message: str = "Loading sections…") -> None:
+        """Show a lightweight loading state (non-blocking)."""
+
+        try:
+            self.status.setText(str(message))
+            self.status.setVisible(True)
+        except Exception:  # pragma: no cover
+            pass
+
+        try:
+            self.btn_goto.setEnabled(False)
+        except Exception:  # pragma: no cover
+            pass
+
+        try:
+            self.list.clear()
+            lw = QListWidgetItem(str(message))
+            lw.setFlags(Qt.NoItemFlags)
+            try:
+                lw.setForeground(Qt.gray)
+            except Exception:  # pragma: no cover
+                pass
+            self.list.addItem(lw)
+        except Exception:  # pragma: no cover
+            pass
+
+    def set_items(self, *, items: Sequence[StructuralBookmarkListItem]) -> None:
+        """Replace list contents (used after background computation finishes)."""
+
+        self.list.clear()
+        for it in list(items or []):
+            lw = QListWidgetItem(_display_label(it.label))
+            lw.setData(Qt.UserRole, it)
+            self.list.addItem(lw)
+        if self.list.count() > 0:
+            self.list.setCurrentRow(0)
+        try:
+            self.btn_goto.setEnabled(self.list.count() > 0)
+        except Exception:  # pragma: no cover
+            pass
+        try:
+            self.status.setVisible(False)
+        except Exception:  # pragma: no cover
+            pass
+
+    def set_empty(self, *, message: str = "No obvious sections found.") -> None:
+        """Show an empty-state message."""
+
+        self.list.clear()
+        lw = QListWidgetItem(str(message))
+        lw.setFlags(Qt.NoItemFlags)
+        try:
+            lw.setForeground(Qt.gray)
+        except Exception:  # pragma: no cover
+            pass
+        self.list.addItem(lw)
+        try:
+            self.btn_goto.setEnabled(False)
+        except Exception:  # pragma: no cover
+            pass
+        try:
+            self.status.setText(str(message))
+            self.status.setVisible(True)
+        except Exception:  # pragma: no cover
+            pass
+
     def refresh(self) -> None:
         self.list.clear()
         items = list(self._actions.list_items())
@@ -120,6 +235,10 @@ class StructuralBookmarksDialog(QDialog):
             self.list.addItem(lw)
         if self.list.count() > 0:
             self.list.setCurrentRow(0)
+        try:
+            self.btn_goto.setEnabled(self.list.count() > 0)
+        except Exception:  # pragma: no cover
+            pass
 
     def _selected(self) -> StructuralBookmarkListItem | None:
         item = self.list.currentItem()
