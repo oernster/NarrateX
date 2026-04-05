@@ -8,7 +8,13 @@ The system is designed to handle real-world book formats, including Kindle-compa
 
 NarrateX treats books as structured systems rather than raw text.
 
-For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITECTURE.md`](ARCHITECTURE.md:1).
+## Core behaviour
+
+- Playback follows document structure rather than file order  
+- Section navigation is derived from headings and bookmarks  
+- Non-content sections (e.g. frontmatter, indexes) are excluded  
+- Navigation loads immediately and processes in the background  
+- Playback position is deterministic and consistent across sessions  
 
 # Screenshot
 
@@ -29,6 +35,8 @@ Kindle formats (via optional Calibre conversion to EPUB):
 - AZW3 (`.azw3`)
 - PRC (`.prc`)
 - KFX (`.kfx`)
+
+For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITECTURE.md`](ARCHITECTURE.md:1).
 
 ## Requirements
 
