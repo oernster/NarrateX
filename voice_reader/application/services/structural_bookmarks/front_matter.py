@@ -58,6 +58,11 @@ def detect_body_start_offset(normalized_text: str) -> int:
     if not text:
         return 0
 
+    # When a TOC is present, `looks_like_toc_entry_line()` can match real body
+    # headings like "Prologue". Only treat TOC-like lines as front matter when
+    # they appear before the detected TOC end.
+    toc_end_offset = detect_toc_end_offset(text)
+
     lines = text.splitlines(keepends=True)
 
     seen_front_matter = False
@@ -77,6 +82,7 @@ def detect_body_start_offset(normalized_text: str) -> int:
         if not inc or k is None:
             return False
         return k in {
+            "book",
             "prologue",
             "introduction",
             "preface",
@@ -95,10 +101,20 @@ def detect_body_start_offset(normalized_text: str) -> int:
     for line in lines:
         if offset_probe > early_limit:
             break
+        line_offset = int(offset_probe)
         offset_probe += len(line)
 
         stripped = line.strip()
         if not stripped:
+            continue
+
+        # Never treat TOC entry lines as body markers when probing. In PDF extracts,
+        # entries like "Prologue .... 1" often appear as clean structural headings
+        # after leader/page cleanup, but they are still TOC noise.
+        if looks_like_toc_entry_line(stripped) and (
+            toc_end_offset is None or int(line_offset) < int(toc_end_offset)
+        ):
+            consec_struct = 0
             continue
 
         marker_norm = normalize_marker_line(stripped)
@@ -128,6 +144,16 @@ def detect_body_start_offset(normalized_text: str) -> int:
             continue
 
         marker_norm = normalize_marker_line(stripped)
+
+        # Do not treat TOC list entries as real body headings.
+        # This prevents early TOC duplicates (e.g. "Prologue .... 1") from being
+        # mistaken for the real body Prologue heading.
+        if looks_like_toc_entry_line(stripped) and (
+            toc_end_offset is None or int(line_offset) < int(toc_end_offset)
+        ):
+            prev_nonblank_norm = str(marker_norm)
+            continue
+
         if marker_norm in FRONT_MATTER_MARKERS:
             # Only treat front-matter markers as such *before* we've detected any
             # real body marker. Some books contain an "Essay Index" *inside* the
@@ -135,7 +161,10 @@ def detect_body_start_offset(normalized_text: str) -> int:
             # (like Introduction) to be classified as "pre-body".
             if first_body_any is None:
                 seen_front_matter = True
-                prev_nonblank_norm = str(marker_norm)
+            # Even inside the body, keep tracking the previous nonblank marker so
+            # running headers like "Contents" can be recognized immediately before
+            # a real body heading (common in some PDF extracts).
+            prev_nonblank_norm = str(marker_norm)
             continue
 
         kind, include, _priority = classify_heading(stripped)
@@ -145,6 +174,7 @@ def detect_body_start_offset(normalized_text: str) -> int:
             and (
                 kind
                 in {
+                    "book",
                     "prologue",
                     "introduction",
                     "preface",
@@ -153,7 +183,7 @@ def detect_body_start_offset(normalized_text: str) -> int:
                     "epilogue",
                     "afterword",
                 }
-                or kind in {"part", "chapter"}
+                or kind in {"part", "chapter", "book"}
             )
         )
         if not is_body_marker:
@@ -174,7 +204,11 @@ def detect_body_start_offset(normalized_text: str) -> int:
                 else False
             )
 
-            if not prev_line_blank:
+            # Many PDFs repeat running headers like "Contents" on multiple pages.
+            # When the final page header immediately precedes the real body marker
+            # (e.g. "Contents" then "Prologue" with no blank line), treat the
+            # structural marker as a valid body start.
+            if not prev_line_blank and not prev_nonblank_was_front:
                 prev_nonblank_norm = str(marker_norm)
                 continue
 

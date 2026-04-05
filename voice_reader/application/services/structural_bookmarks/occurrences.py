@@ -40,7 +40,7 @@ def find_exact_heading_occurrences(
     prefix_norm: str | None = None
     try:
         m = re.match(
-            r"^(chapter|part)\s+(?P<num>[0-9ivxlcdm]+)\b",
+            r"^(chapter|part|book)\s+(?P<num>[0-9ivxlcdm]+)\b",
             str(cleaned or label or "").strip(),
             flags=re.IGNORECASE,
         )
@@ -124,6 +124,7 @@ def find_exact_heading_occurrences(
 
     out: list[HeadingOccurrence] = []
     prefix_out: list[HeadingOccurrence] = []
+    wrapped_out: list[HeadingOccurrence] = []
     offset = 0
     for i, line in enumerate(lines):
         line_offset = offset
@@ -138,6 +139,40 @@ def find_exact_heading_occurrences(
         cleaned_line = clean_heading_label(stripped) or stripped
         cleaned_cmp = normalize_label_for_compare(cleaned_line)
         if cleaned_cmp != norm_label:
+            # Wrapped heading match: PDFs often break long headings across lines.
+            # If the current line + next non-blank line equals the label, treat the
+            # current line as the heading anchor.
+            try:
+                nxt = _next_nonblank_value(i + 1)
+            except Exception:
+                nxt = None
+
+            if nxt:
+                try:
+                    # Hyphenation join support.
+                    joined = (
+                        f"{stripped[:-1]}{nxt}"
+                        if str(stripped).endswith("-")
+                        else f"{stripped} {nxt}"
+                    )
+                    joined_clean = clean_heading_label(joined) or normalize_label_for_match(
+                        joined
+                    )
+                    joined_cmp = normalize_label_for_compare(joined_clean)
+                    if joined_cmp == norm_label and not _is_probable_toc_occurrence(
+                        i, stripped_line=stripped
+                    ):
+                        wrapped_out.append(
+                            HeadingOccurrence(
+                                char_offset=int(line_offset),
+                                label=joined_clean,
+                                prev_blank=bool(is_blank(i - 1)),
+                                next_blank=bool(is_blank(i + 1)),
+                            )
+                        )
+                except Exception:
+                    pass
+
             if prefix_norm is not None and cleaned_cmp == prefix_norm:
                 kind2, include2, _p2 = classify_heading(cleaned_line)
                 if include2 and kind2 in {"chapter", "part"}:
@@ -172,6 +207,8 @@ def find_exact_heading_occurrences(
 
     if out:
         return out
+    if wrapped_out:
+        return wrapped_out
     return prefix_out
 
 
@@ -191,8 +228,21 @@ def choose_best_occurrence(
 
     prefer_cut = max(0, int(prefer_min_offset))
 
+    # Soft boundary: reading-start detectors typically return the first *prose*
+    # paragraph offset, which may be *after* a heading line.
+    #
+    # For Sections navigation we want to land on the heading line even when it
+    # precedes the preferred boundary by a small amount.
+    #
+    # Without this, headings like "Prologue" can incorrectly bind to a much
+    # later duplicate occurrence (e.g. inside an index) simply because the real
+    # heading is a few characters before `prefer_cut`.
+    SOFT_PRE_CUT_ALLOWANCE = 250
+    soft_cut = max(0, int(prefer_cut) - int(SOFT_PRE_CUT_ALLOWANCE))
+
     post = [o for o in occurrences if int(o.char_offset) >= prefer_cut]
     pre = [o for o in occurrences if int(o.char_offset) < prefer_cut]
+    near_pre = [o for o in pre if int(o.char_offset) >= int(soft_cut)]
 
     def blank_score(o: HeadingOccurrence) -> int:
         if o.prev_blank and o.next_blank:
@@ -204,6 +254,8 @@ def choose_best_occurrence(
     if kind in {"chapter", "part"}:
         # Policy: the first occurrence in the whole book is usually wrong;
         # the first occurrence at/after the body cutoff is usually right.
+        if near_pre:
+            return sorted(near_pre, key=lambda o: int(o.char_offset))[0]
         if post:
             return sorted(post, key=lambda o: int(o.char_offset))[0]
         # Fall back to a pre-body candidate only as a last resort.
@@ -211,6 +263,9 @@ def choose_best_occurrence(
             pre, key=lambda o: (blank_score(o), int(o.char_offset)), reverse=True
         )[0]
 
+    # Non-chapter kinds: prefer a near-pre heading line over a much later duplicate.
+    if near_pre:
+        return sorted(near_pre, key=lambda o: int(o.char_offset))[0]
     if post:
         return sorted(post, key=lambda o: int(o.char_offset))[0]
     return sorted(

@@ -16,7 +16,18 @@ CHAPTER_RE = re.compile(
     r"^(chapter)\s+(?P<num>[0-9ivxlcdm]+)\b(\s*[:\-\u2013]\s+.+)?$",
     re.IGNORECASE,
 )
+BOOK_RE = re.compile(
+    r"^(book)\s+(?P<num>[0-9ivxlcdm]+)\b(\s*[:\-\u2013]\s+.+)?$",
+    re.IGNORECASE,
+)
 CH_DOT_RE = re.compile(r"^(ch\.)\s*(?P<num>[0-9ivxlcdm]+)\b.*$", re.IGNORECASE)
+
+# Some books (including technical monographs) structure major sections as
+# "Axiom N: ..." rather than "Chapter N".
+AXIOM_RE = re.compile(
+    r"^(axiom)\s+(?P<num>[0-9ivxlcdm]+)\b(\s*[:\-\u2013]\s+.+)?$",
+    re.IGNORECASE,
+)
 
 
 def classify_heading(label: str) -> tuple[str | None, bool, int]:
@@ -34,6 +45,78 @@ def classify_heading(label: str) -> tuple[str | None, bool, int]:
     if not raw:
         raw = normalize_label_for_match(label)
     s = raw.casefold()
+
+    def _looks_like_title_case_section(text: str) -> bool:
+        # Heuristic: accept title-case-ish headings that look like TOC/body chapter
+        # titles even when the book doesn't label them as "Chapter N".
+        t = str(text or "").strip()
+        if not t:
+            return False
+        if len(t) < 6 or len(t) > 90:
+            return False
+        if t.endswith((".", "!", "?", ";")):
+            return False
+        # Avoid common "micro" headings that would flood the Sections list.
+        micro = {
+            "notation",
+            "physical",
+            "decision-system mapping",
+            "decision system mapping",
+            "relationship / equation",
+            "constraint",
+            "implication",
+            "observable / measurement (even if partial)",
+            "observable / measurement",
+        }
+        if t.casefold() in micro:
+            return False
+
+        # Require at least 2 words to avoid single-word subheadings.
+        words = [w for w in re.split(r"\s+", t) if w]
+        if len(words) < 2 or len(words) > 10:
+            return False
+
+        stop = {
+            "a",
+            "an",
+            "and",
+            "as",
+            "at",
+            "by",
+            "for",
+            "from",
+            "in",
+            "into",
+            "is",
+            "of",
+            "on",
+            "or",
+            "the",
+            "to",
+            "with",
+            "without",
+        }
+
+        def _is_titleish(w: str) -> bool:
+            w0 = re.sub(r"^[^A-Za-z0-9]+|[^A-Za-z0-9]+$", "", w)
+            if not w0:
+                return True
+            if w0.casefold() in stop:
+                return True
+            # allow acronyms / initialisms
+            if len(w0) >= 2 and w0.isupper():
+                return True
+            return w0[:1].isupper()
+
+        titleish = sum(1 for w in words if _is_titleish(w))
+        # Must be mostly title-like.
+        if titleish / max(1, len(words)) < 0.75:
+            return False
+
+        # Avoid lines that contain obvious equation-ish tokens.
+        if re.search(r"[=<>]{1,2}", t):
+            return False
+        return True
 
     # Explicit exclusions (front matter/junk).
     excludes = [
@@ -67,8 +150,17 @@ def classify_heading(label: str) -> tuple[str | None, bool, int]:
     if PART_RE.match(raw):
         return "part", True, 70
 
+    if BOOK_RE.match(raw):
+        return "book", True, 72
+
     if CHAPTER_RE.match(raw) or CH_DOT_RE.match(raw):
         return "chapter", True, 60
+
+    if AXIOM_RE.match(raw):
+        return "axiom", True, 60
+
+    if _looks_like_title_case_section(raw):
+        return "section", True, 40
 
     if re.match(r"^appendix\b", s, flags=re.IGNORECASE):
         return "appendix", True, 55
