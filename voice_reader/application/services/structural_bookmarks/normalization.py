@@ -125,10 +125,41 @@ def clean_heading_label(label: str) -> str:
         num = _canon_num(m1.group("num"))
         s = f"Chapter {num}{s[m1.end():]}".strip()
 
+    # Normalize common separators after chapter number so we don't treat
+    # "Chapter 2 - Title" and "Chapter 2 Title" as distinct.
+    m1b = re.match(r"^(Chapter\s+(?:\d+|[IVXLCDM]+))\b\s*(.*)$", s, flags=re.I)
+    if m1b is not None:
+        prefix = m1b.group(1).strip()
+        rest = (m1b.group(2) or "").strip()
+        if rest:
+            rest = re.sub(r"^(?:[:\-\u2013\u2014]\s*)+", "", rest).strip()
+            if rest:
+                s = f"{prefix}: {rest}".strip()
+
     m2 = _PART_PREFIX_RE.match(s)
     if m2 is not None:
         num = _canon_num(m2.group("num"))
         s = f"Part {num}{s[m2.end():]}".strip()
+
+    # Normalize separators after part number.
+    m2b = re.match(r"^(Part\s+(?:\d+|[IVXLCDM]+))\b\s*(.*)$", s, flags=re.I)
+    if m2b is not None:
+        prefix = m2b.group(1).strip()
+        rest = (m2b.group(2) or "").strip()
+        if rest:
+            rest = re.sub(r"^(?:[:\-\u2013\u2014]\s*)+", "", rest).strip()
+            if rest:
+                s = f"{prefix}: {rest}".strip()
+
+    # Normalize separators after axiom number (used by some EPUBs).
+    m3b = re.match(r"^(Axiom\s+(?:\d+|[IVXLCDM]+))\b\s*(.*)$", s, flags=re.I)
+    if m3b is not None:
+        prefix = m3b.group(1).strip()
+        rest = (m3b.group(2) or "").strip()
+        if rest:
+            rest = re.sub(r"^(?:[:\-\u2013\u2014]\s*)+", "", rest).strip()
+            if rest:
+                s = f"{prefix}: {rest}".strip()
 
     # "Chapter 1:" / "Part I:" sometimes appear as a heading line where the
     # title is wrapped onto the next line. Strip the trailing separator so the
@@ -167,4 +198,7 @@ def normalize_marker_line(line: str) -> str:
     # beyond the separator replacements above).
     s = re.sub(r"^[\s\W_]+", "", s)
     s = re.sub(r"[\s\W_]+$", "", s)
+
+    # Remove trailing qualifiers like "(overview)" so markers match reliably.
+    s = re.sub(r"\s*\([^)]*\)\s*$", "", s)
     return s.strip()

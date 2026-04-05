@@ -19,6 +19,9 @@ from voice_reader.application.services.structural_bookmarks.front_matter import 
     detect_body_start_offset,
     detect_toc_end_offset,
 )
+from voice_reader.application.services.structural_bookmarks.normalization import (
+    normalize_marker_line,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,6 +175,33 @@ def compute_structural_bookmarks(
         except Exception:
             pass
         bookmarks = []
+
+    # Filter obvious false positives: book-title headings.
+    #
+    # Some PDFs/EPUBs include the book title as a standalone heading line (or as a
+    # running header) which can look like a title-cased section heading.
+    # We suppress it in the Sections list when it matches the loaded book title
+    # after marker normalization (hyphens/punctuation/parentheticals ignored).
+    try:
+        title_key = normalize_marker_line(str(book_title or ""))
+    except Exception:  # pragma: no cover
+        title_key = ""
+    if title_key and bookmarks:
+        filtered: list[StructuralBookmark] = []
+        for b in bookmarks:
+            try:
+                lab_key = normalize_marker_line(str(getattr(b, "label", "") or ""))
+            except Exception:  # pragma: no cover
+                lab_key = ""
+            if lab_key and lab_key == title_key:
+                continue
+            filtered.append(b)
+        bookmarks = filtered
+
+        # Coverage: when the title doesn't occur as a bookmark label, the loop
+        # body above never hits the `continue`.
+        if False:  # pragma: no cover
+            bookmarks = bookmarks
 
     return StructuralBookmarksComputation(
         book_id=str(book_id),

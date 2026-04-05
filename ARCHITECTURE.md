@@ -147,10 +147,11 @@ Preparation does:
 
 1. Choose a sensible narration start point.
 - If a saved resume position exists for the book, narration resumes using the stored absolute `char_offset`.
-  - The resume `char_offset` is mapped into the *current* playback candidate list using [`resolve_playback_index_for_char_offset()`](voice_reader/application/services/narration/prepare.py:13) inside [`prepare()`](voice_reader/application/services/narration/prepare.py:47).
-  - The stored `chunk_index` is treated as non-authoritative because chunking start/candidate filtering can change between runs.
-- If **no** resume position exists (first-time start), the UI prefers the *first* deterministic 🧠 Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py:31)). This aligns “start from scratch” playback with what the Sections dialog shows.
-  - If no Sections can be computed, the system falls back to narration start detection via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29).
+   - The resume `char_offset` is mapped into the *current* playback candidate list using [`resolve_playback_index_for_char_offset()`](voice_reader/application/services/narration/prepare.py:13) inside [`prepare()`](voice_reader/application/services/narration/prepare.py:47).
+   - The stored `chunk_index` is treated as non-authoritative because chunking start/candidate filtering can change between runs.
+- If **no** resume position exists (first-time start), the UI prefers the *first* deterministic 🧠 Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py:39)). This aligns “start from scratch” playback with what the Sections dialog shows.
+   - If no Sections can be computed, the system falls back to narration start detection via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:36).
+
 2. Chunk the (sliced) text via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
    - Chunking is performed on the slice beginning at the detected start point.
    - The chunk list can then be *filtered* for navigation purposes (without mutating
@@ -165,6 +166,50 @@ Preparation does:
      `Essay Index` inside the body (e.g. after `PROLOGUE`); this must not cause the
      🧠 Sections list (structural bookmarks) to jump forward to `CHAPTER 1`.
 3. Store chunk start/end character offsets so the UI can highlight the currently spoken chunk
+
+#### Structural bookmarks (“🧠 Sections”) pipeline
+
+The 🧠 Sections list is a deterministic set of *structural bookmarks* derived from the normalized book text. It is used by:
+
+- the Sections dialog controller ([`open_structural_bookmarks_dialog()`](voice_reader/ui/_ui_controller_sections.py:18))
+- first-time “Play from scratch” behavior ([`play()`](voice_reader/ui/_ui_controller_playback.py:57))
+
+Computation entry points:
+
+- UI helper: [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py:39)
+- Application service: [`StructuralBookmarkService.build_for_loaded_book()`](voice_reader/application/services/structural_bookmarks/service.py:71)
+
+At a high level, the service:
+
+1. Establishes a safe boundary between front matter / TOC and body:
+   - body start cutoff via [`detect_body_start_offset()`](voice_reader/application/services/structural_bookmarks/front_matter.py:54)
+   - TOC end cutoff via [`detect_toc_end_offset()`](voice_reader/application/services/structural_bookmarks/toc_end.py:78)
+
+2. Collects *candidate heading labels* from multiple sources:
+   - parsed chapter-like candidates adapted by [`StructuralBookmarkService._adapt_chapter_like_candidates()`](voice_reader/application/services/structural_bookmarks/service.py:372)
+   - text scanning via [`scan_structural_headings()`](voice_reader/application/services/structural_bookmarks/text_scan.py:18) and [`extract_heading_labels_from_text()`](voice_reader/application/services/structural_bookmarks/service.py:42)
+
+3. Classifies and resolves each label to a stable navigation anchor:
+   - heading classification via [`classify_heading()`](voice_reader/application/services/structural_bookmarks/classification.py:33) (includes `Book N` headings)
+   - exact full-line matching via [`find_exact_heading_occurrences()`](voice_reader/application/services/structural_bookmarks/occurrences.py:21)
+   - body-aware selection via [`choose_best_occurrence()`](voice_reader/application/services/structural_bookmarks/occurrences.py:216)
+
+4. Applies post-processing to reduce UI noise and handle omnibus-style books:
+   - suppress duplicated title-only sections via [`suppress_redundant_title_sections()`](voice_reader/application/services/structural_bookmarks/postprocess.py:17)
+   - suppress stray title-case headings *between* chapters via [`suppress_sections_between_chapters()`](voice_reader/application/services/structural_bookmarks/postprocess.py:59)
+   - inject additional `Prologue` entries per `Book N` span when present via [`inject_prologue_after_each_book()`](voice_reader/application/services/structural_bookmarks/postprocess.py:86)
+
+Key behaviors this pipeline is designed to preserve:
+
+- “Prologue” is included when present and is the first section for first-time playback.
+- TOC duplicates (dotted-leader/page-number styles, wrapped entries, and “glued” page tokens) are excluded from bookmark anchors.
+- Omnibus PDFs/EPUBs can contain multiple `Book N` segments, each with its own `Prologue`; these must appear as separate entries.
+
+Regression tests for these cases live in:
+
+- Move Space boundary regressions: [`test_front_matter_body_start_regression_move_space.py`](tests/application/test_front_matter_body_start_regression_move_space.py:1)
+- Structural-bookmarks axioms (incl. Book headings): [`test_structural_bookmark_service_axioms.py`](tests/application/test_structural_bookmark_service_axioms.py:1)
+- General service behavior: [`test_structural_bookmark_service.py`](tests/application/test_structural_bookmark_service.py:1)
 
 Resume persistence (auto-bookmarking) rules:
 

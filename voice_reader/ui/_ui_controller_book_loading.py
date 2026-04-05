@@ -62,7 +62,50 @@ def load_selected_book(controller, *, path: Path) -> None:
 
     prepare_for_book_switch(controller)
 
-    book = controller.narration_service.load_book(path)
+    try:
+        book = controller.narration_service.load_book(path)
+    except Exception as exc:
+        # Surface a clear state in the UI instead of silently staying blank.
+        try:
+            controller._log.exception("Book load failed: %s", path)  # noqa: SLF001
+        except Exception:
+            pass
+        try:
+            controller._chapters = []  # noqa: SLF001
+        except Exception:
+            pass
+        try:
+            if hasattr(controller.window, "chapter_spine"):
+                controller.window.chapter_spine.set_chapters([])
+                controller.window.chapter_spine.set_current_chapter(None)
+                controller.window.chapter_spine.set_playhead_char_offset(None)
+        except Exception:
+            pass
+        try:
+            controller.window.set_cover_image(None)
+        except Exception:
+            pass
+        try:
+            controller.window.set_reader_text("")
+        except Exception:
+            pass
+
+        try:
+            controller.narration_service._set_state(  # noqa: SLF001
+                NarrationState(
+                    status=NarrationStatus.ERROR,
+                    current_chunk_id=None,
+                    playback_chunk_id=None,
+                    prefetch_chunk_id=None,
+                    total_chunks=None,
+                    progress=0.0,
+                    message=f"Failed loading {path.name}: {exc}",
+                )
+            )
+        except Exception:
+            pass
+        return
+
     controller.window.set_reader_text(book.normalized_text)
 
     start_char_for_ui = 0
