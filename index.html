@@ -1,21 +1,31 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <link rel="icon" href="site-images/icon.png">
     <meta charset="utf-8">
 
-    <title>NarrateX - Structured local narration for books and documents</title>
+    <title>NarrateX - Text to Speech Reader for eBooks and PDFs | Runs Offline</title>
 
-    <meta name="description" content="Books are structured systems. NarrateX preserves that structure and plays it back. Local, deterministic and designed for long-form listening.">
-
+    <meta name="description" content="Read ebooks, PDFs and documents with a local text-to-speech reader. NarrateX provides continuous audio playback with structured navigation and no cloud dependency.">
+    <meta name="keywords" content="text to speech ebook reader, text to speech pdf reader, ebook reader with audio, read ebooks aloud, read pdf aloud, offline text to speech, local text to speech reader, epub text to speech, document narration software, continuous audio playback">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Oliver Ernster">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://www.narratex.co.uk/">
 
     <!-- Open Graph -->
-    <meta property="og:title" content="NarrateX - Structured local narration">
-    <meta property="og:description" content="Books treated as structured systems. Deterministic playback. Local execution.">
+    <meta property="og:title" content="NarrateX - Text to Speech Reader for eBooks and PDFs">
+    <meta property="og:description" content="Local text-to-speech reading for ebooks, PDFs and documents with structured navigation and continuous audio playback.">
     <meta property="og:image" content="https://www.narratex.co.uk/site-images/NarrateX1.png">
-    <meta property="og:url" content="https://www.narratex.co.uk">
+    <meta property="og:url" content="https://www.narratex.co.uk/">
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="NarrateX">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="NarrateX - Text to Speech Reader for eBooks and PDFs">
+    <meta name="twitter:description" content="Local text-to-speech reading for ebooks, PDFs and documents with structured navigation and continuous audio playback.">
+    <meta name="twitter:image" content="https://www.narratex.co.uk/site-images/NarrateX1.png">
 
     <style>
         body {
@@ -94,8 +104,6 @@
             margin: 0 auto 10px;
         }
 
-        /* --- GRID CARDS --- */
-
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -132,8 +140,6 @@
             font-weight: 400;
         }
 
-        /* --- SCREENSHOTS --- */
-
         .screenshots {
             margin-top: 60px;
         }
@@ -144,6 +150,18 @@
             margin-bottom: 30px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
     </style>
 </head>
 
@@ -151,7 +169,7 @@
 
 <div class="container">
 
-    <img src="site-images/icon.png" class="logo">
+    <img src="site-images/icon.png" class="logo" alt="NarrateX icon">
 
     <h1>NarrateX</h1>
 
@@ -174,8 +192,6 @@
     <div class="minor-detail">
         Local execution. Deterministic playback. No cloud dependency.
     </div>
-
-    <!-- CORE BEHAVIOUR -->
 
     <div class="section">
         <h2>Core behaviour</h2>
@@ -208,8 +224,6 @@
         </div>
     </div>
 
-    <!-- WHY -->
-
     <div class="section">
         <h2>Why this exists</h2>
         <p>
@@ -220,14 +234,10 @@
         </p>
     </div>
 
-    <!-- SCREENSHOTS -->
-
     <div class="screenshots">
-        <img src="site-images/NarrateX1.png">
-        <img src="site-images/NarrateX2.png">
+        <img src="site-images/NarrateX1.png" alt="NarrateX screenshot showing text-to-speech reader interface">
+        <img src="site-images/NarrateX2.png" alt="NarrateX screenshot showing structured ebook and PDF audio playback">
     </div>
-
-    <!-- FORMATS -->
 
     <div class="section">
         <h2>Supported formats</h2>
@@ -240,8 +250,6 @@
         </div>
     </div>
 
-    <!-- EXECUTION -->
-
     <div class="section">
         <h2>Execution model</h2>
         <p>
@@ -250,6 +258,10 @@
         <p>
             Playback begins immediately and continues without interruption. Everything runs locally which keeps the system fast, predictable and private.
         </p>
+    </div>
+
+    <div class="sr-only">
+        NarrateX is a text-to-speech reader for ebooks, PDFs and documents. It reads EPUB files, PDF files and plain text aloud with continuous audio playback, structured navigation and offline local execution. It is designed for long-form listening and predictable document reading without cloud dependency.
     </div>
 
     <div class="minor-detail" style="margin-top:60px;">
@@ -265,8 +277,36 @@
     "name": "NarrateX",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Windows",
-    "description": "Structured desktop narration system for converting books into continuous audio playback.",
-    "url": "https://www.narratex.co.uk"
+    "description": "Text-to-speech reader for ebooks, PDFs and documents with structured navigation, continuous audio playback and local offline execution.",
+    "url": "https://www.narratex.co.uk/",
+    "image": "https://www.narratex.co.uk/site-images/NarrateX1.png",
+    "author": {
+        "@type": "Person",
+        "name": "Oliver Ernster"
+    },
+    "keywords": [
+        "text to speech reader",
+        "ebook reader",
+        "pdf reader",
+        "read ebooks aloud",
+        "read pdf aloud",
+        "offline text to speech",
+        "local text to speech",
+        "EPUB reader",
+        "document narration"
+    ],
+    "featureList": [
+        "Structured playback",
+        "Derived navigation from headings and bookmarks",
+        "Continuous audio playback",
+        "Local execution",
+        "Offline operation",
+        "EPUB support",
+        "PDF support",
+        "Plain text support"
+    ],
+    "downloadUrl": "https://github.com/oernster/NarrateX/releases",
+    "softwareVersion": "1.0"
 }
 </script>
 
