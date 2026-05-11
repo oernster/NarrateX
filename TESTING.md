@@ -26,6 +26,19 @@ Run lint:
 python -m flake8
 ```
 
+## Windows UI QA matrix (installer + app)
+
+Some UI regressions only reproduce under Windows display scaling / accessibility
+text sizing / mixed-DPI multi-monitor setups.
+
+When validating a UI sizing/layout fix (especially the installer header in
+[`InstallerMainWindow`](installer/ui/main_window.py:42)), test at least:
+
+- Display scale: 100%, 125%, 150% (Windows Settings → System → Display)
+- Accessibility → Text size: 100%, 110%+
+- Single monitor vs 2+ monitors with *mixed* scale factors
+- Move the window between monitors and confirm text remains un-clipped
+
 Run *only* structural tests (without coverage, to avoid “no data collected” failures):
 
 ```bash
