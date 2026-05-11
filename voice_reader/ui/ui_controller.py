@@ -232,6 +232,17 @@ class UiController(QObject):
     def _connect_signals(self) -> None:
         self.window.select_book_clicked.connect(self.select_book)
 
+        # Reader click-to-seek.
+        if hasattr(self.window, "reader_seek_requested"):
+            try:
+                from voice_reader.ui._ui_controller_seek import seek_to_char_offset
+
+                self.window.reader_seek_requested.connect(
+                    lambda off: seek_to_char_offset(self, int(off))
+                )
+            except Exception:
+                pass
+
         # Playback transport:
         # - new UI uses a single play/pause toggle
         # - keep legacy separate play/pause signals for backwards compatibility

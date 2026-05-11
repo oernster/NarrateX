@@ -132,6 +132,38 @@ When the user selects a book:
     - then parses via [`BookParser.parse()`](voice_reader/infrastructure/books/parser.py:21)
 - The UI text view is updated immediately (`setPlainText`) via [`MainWindow.set_reader_text()`](voice_reader/ui/main_window.py:284)
 
+### 2.5) Click-to-seek reading position (chunk-relative)
+
+The reader supports **chunk-relative seeking**: clicking in the displayed text
+restarts narration from the nearest *playback candidate* chunk boundary.
+
+Key properties:
+
+- Input is a UI cursor position that resolves to an absolute character offset
+  into `normalized_text`.
+- Seeking resolves **offset → playback-candidate index** using the same candidate
+  filtering semantics as narration playback.
+- No raw audio timestamp seeking is performed.
+- Highlighting remains driven by the narration state (`highlight_start/end`) and
+  uses the same selection/highlight mechanism as regular playback.
+- Resume persistence is updated immediately on click (product requirement).
+
+Implementation wiring:
+
+- The reader widget is [`SeekableTextEdit`](voice_reader/ui/seekable_text_edit.py:17)
+  (a subclass of `QTextEdit`) and emits `seek_requested(char_offset)`.
+- [`MainWindow`](voice_reader/ui/main_window.py:38) forwards this as
+  `reader_seek_requested(int)`.
+- [`UiController`](voice_reader/ui/ui_controller.py:21) receives the signal and
+  delegates to [`seek_to_char_offset()`](voice_reader/ui/_ui_controller_seek.py:21).
+- The handler:
+  - builds navigation chunks using [`NavigationChunkService.build_chunks()`](voice_reader/application/services/navigation_chunk_service.py:51)
+  - maps `char_offset` → candidate index via
+    [`resolve_playback_index_for_char_offset()`](voice_reader/application/services/narration/prepare.py:13)
+  - restarts playback via `stop(persist_resume=False)` → `prepare(start_playback_index=...)` → `start()`.
+  - persists resume immediately via [`BookmarkService.save_resume_position()`](voice_reader/application/services/bookmark_service.py:39)
+    using the resolved chunk start offset and candidate index.
+
 Cover extraction is best-effort and UI-facing:
 
 - [`UiController.select_book()`](voice_reader/ui/ui_controller.py:77) calls [`CoverExtractor.extract_cover_bytes()`](voice_reader/infrastructure/books/cover_extractor.py:26)
@@ -234,6 +266,13 @@ Resume persistence (auto-bookmarking) rules:
   - Primary signal: [`audio_playback.play()`](voice_reader/application/services/narration/audio_playback.py:18) sets `NarrationService._played_any_chunk = True` in its `on_chunk_start` callback (see [`on_start()`](voice_reader/application/services/narration/audio_playback.py:37)).
   - Secondary signal: if the callback cannot fire (exit race / synthetic state), persistence also infers “played” from `NarrationState` fields.
 - On Windows, the JSON write is performed by [`JSONBookmarkRepository.save_resume_position()`](voice_reader/infrastructure/bookmarks/json_bookmark_repository.py:232) under the configured `bookmarks_dir` (see [`Config.from_project_root()`](voice_reader/shared/config.py:35)).
+
+Click-to-seek persistence note:
+
+- Click-to-seek intentionally persists resume immediately from the UI handler
+  (before audio starts) by calling [`BookmarkService.save_resume_position()`](voice_reader/application/services/bookmark_service.py:39).
+  This is a product-level behavior and is separate from the playback-driven
+  guard in [`maybe_save_resume_position()`](voice_reader/application/services/narration/persistence.py:13).
 
 Additional hardening:
 

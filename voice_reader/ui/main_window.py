@@ -40,6 +40,10 @@ class MainWindow(QMainWindow):
     speed_changed = Signal(str)
     volume_changed = Signal(int)
 
+    # Reader: click-to-seek.
+    # Emits an absolute character offset into the displayed normalized text.
+    reader_seek_requested = Signal(int)
+
     previous_chapter_clicked = Signal()
     next_chapter_clicked = Signal()
 
@@ -88,6 +92,13 @@ class MainWindow(QMainWindow):
 
         # Keep volume icon consistent with current slider position.
         self.volume_slider.valueChanged.connect(self._update_volume_icon)
+
+        # Reader click-to-seek (best-effort; the reader widget may be swapped in tests).
+        try:
+            if hasattr(self, "reader") and hasattr(self.reader, "seek_requested"):
+                self.reader.seek_requested.connect(self.reader_seek_requested.emit)
+        except Exception:
+            pass
 
     def _on_play_pause_clicked(self, checked: bool) -> None:
         """Emit unified Play/Pause without visually flipping ahead of state.
