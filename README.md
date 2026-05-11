@@ -16,6 +16,7 @@ NarrateX treats books as structured systems rather than raw text.
 - Navigation loads immediately and processes in the background  
 - Playback position is deterministic and consistent across sessions  
 - Separator-only divider lines in source texts (e.g. `---`) are treated as non-content and ignored during playback  
+- Click-to-seek: clicking in the reader restarts narration from the nearest chunk boundary (chunk-relative seeking)  
 
 # Screenshot
 

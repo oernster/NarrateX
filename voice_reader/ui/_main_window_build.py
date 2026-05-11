@@ -322,7 +322,9 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     window.chapter_spine = ChapterSpineWidget()
     reader_row.addWidget(window.chapter_spine, stretch=0)
 
-    window.reader = QTextEdit()
+    from voice_reader.ui.seekable_text_edit import SeekableTextEdit
+
+    window.reader = SeekableTextEdit()
     window.reader.setReadOnly(True)
     window.reader.setFont(QFont("Segoe UI", 11))
     reader_row.addWidget(window.reader, stretch=1)
