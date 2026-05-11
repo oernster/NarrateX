@@ -53,6 +53,12 @@ Use `--no-cov` when running the structural tests in isolation:
 python -m pytest -q --no-cov tests/structural
 ```
 
+On Windows, if you use a project-local venv, prefer invoking via the venv Python:
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q --no-cov tests\structural
+```
+
 The full suite should still be run with coverage enabled:
 
 ```bash

@@ -15,6 +15,7 @@ NarrateX treats books as structured systems rather than raw text.
 - Non-content sections (e.g. frontmatter, indexes) are excluded  
 - Navigation loads immediately and processes in the background  
 - Playback position is deterministic and consistent across sessions  
+- Separator-only divider lines in source texts (e.g. `---`) are treated as non-content and ignored during playback  
 
 # Screenshot
 
@@ -158,6 +159,6 @@ start explorer.exe
 ## Tests
 
 ```powershell
-python -m pytest
+.venv\Scripts\python.exe -m pytest
 ```
 
