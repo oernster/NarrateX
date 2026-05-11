@@ -10,12 +10,14 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QProgressBar,
     QPushButton,
-    QSpacerItem,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
 from voice_reader.version import APP_NAME, __version__
+
+from installer.ui._safe_label import SafeLabel
 
 
 def build_installer_main_window_ui(window: Any) -> None:
@@ -35,18 +37,34 @@ def build_installer_main_window_ui(window: Any) -> None:
     header_row = QHBoxLayout()
     header_row.setSpacing(12)
 
-    title = QLabel(f"{APP_NAME} Setup")
+    # NOTE: This header is intentionally over-allocated by a few pixels.
+    # On some Windows DPI/font combinations, Qt can clip the last glyph by 1-2px
+    # even when it wouldn't elide. This safety buffer enforces the hard
+    # requirement of *zero truncation*.
+    title = SafeLabel(
+        f"{APP_NAME} Setup",
+        extra_width_px=28,
+        extra_height_px=18,
+        # Bias rendering slightly up-left to avoid descender/edge clipping.
+        draw_dx_px=-1,
+        draw_dy_px=-1,
+    )
     title.setObjectName("HeaderTitle")
+    title.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
-    version = QLabel(f"v{__version__}")
+    version = SafeLabel(f"v{__version__}", extra_width_px=2, extra_height_px=2)
     version.setObjectName("HeaderVersion")
     version.setAlignment(Qt.AlignVCenter)
+    version.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+
+    # Keep references for runtime sizing logic (DPI/accessibility variability).
+    window._header_title = title
+    window._header_version = version
 
     header_left = QHBoxLayout()
     header_left.setSpacing(14)
     header_left.addWidget(title)
     header_left.addWidget(version)
-    header_left.addItem(QSpacerItem(10, 10))
 
     window._licence_btn = QPushButton("Licence")
     window._licence_btn.setObjectName("LicenceButton")
@@ -55,19 +73,25 @@ def build_installer_main_window_ui(window: Any) -> None:
     window._theme_toggle_btn = QPushButton(window._theme.toggle_label)  # noqa: SLF001
     window._theme_toggle_btn.setObjectName("ThemeToggle")
 
-    header_row.addLayout(header_left)
-    header_row.addStretch(1)
+    # Give the left side stretch so the header title has priority in width
+    # allocation (prevents font-metric rounding causing clipping). Do not add an
+    # extra stretch item, otherwise the free space is split and the title can be
+    # under-allocated on some DPI/font configurations.
+    header_row.addLayout(header_left, 1)
     header_row.addWidget(window._licence_btn)
     header_row.addWidget(window._theme_toggle_btn)
 
     outer.addLayout(header_row)
 
-    window._subtitle = QLabel(f"Welcome to the {APP_NAME} Installer")
+    window._subtitle = SafeLabel(
+        f"Welcome to the {APP_NAME} Installer", extra_width_px=8, extra_height_px=6
+    )
     window._subtitle.setObjectName("SubTitle")
     window._subtitle.setAlignment(Qt.AlignHCenter)
+    window._subtitle.setWordWrap(True)
     outer.addWidget(window._subtitle)
 
-    window._status_line = QLabel("")
+    window._status_line = SafeLabel("", extra_width_px=6, extra_height_px=6)
     window._status_line.setObjectName("StatusLine")
     window._status_line.setWordWrap(True)
     window._status_line.setAlignment(Qt.AlignHCenter)
@@ -127,7 +151,7 @@ def build_installer_main_window_ui(window: Any) -> None:
     window._progress_bar.setVisible(False)
     outer.addWidget(window._progress_bar)
 
-    window._progress = QLabel("")
+    window._progress = SafeLabel("", extra_width_px=6, extra_height_px=6)
     window._progress.setObjectName("StatusLine")
     window._progress.setAlignment(Qt.AlignHCenter)
     outer.addWidget(window._progress)

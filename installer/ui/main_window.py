@@ -29,6 +29,7 @@ from installer.ui._main_window_actions import (
 )
 from installer.ui._main_window_uninstall import confirm_and_run_uninstall
 from installer.ui._main_window_types import UiSelections
+from installer.ui._header_fit import HeaderFitController
 
 from voice_reader.shared.resources import find_qt_window_icon_path
 from voice_reader.version import APP_NAME
@@ -57,8 +58,19 @@ class InstallerMainWindow(QMainWindow):
         self._theme: Theme = DARK
 
         self.setWindowTitle(f"{APP_NAME} Setup")
-        # Reduce vertical waste.
-        self.setFixedSize(620, 520)
+
+        # Size policy
+        # -----------
+        # The installer used to be fixed-size. That can cause text clipping under
+        # Windows DPI scaling / Accessibility text size / mixed-DPI multi-monitor
+        # setups (see [`crapinstaller.png`](crapinstaller.png:1)).
+        #
+        # Use a minimum size for the intended design, but allow width/height to
+        # grow if required to keep all header text visible.
+        self.setMinimumSize(620, 520)
+        self.resize(620, 520)
+
+        self._header_fit = HeaderFitController(self)
 
         # Window icon (taskbar/titlebar). This is separate from the exe icon.
         try:
@@ -79,9 +91,15 @@ class InstallerMainWindow(QMainWindow):
             pass
 
         build_installer_main_window_ui(self)
+        # Ensure header fitting sees the post-build widgets before any early
+        # Qt events (some platforms deliver events during/after widget creation).
+        self._header_fit.ensure_now()
         self._connect_signals()
         self._apply_theme()
         self._refresh_state()
+
+        # Defer sizing pass until Qt has performed initial layout.
+        self._header_fit.schedule()
 
         # If invoked as uninstaller from Settings.
         if getattr(cli_args, "uninstall", False):
@@ -93,10 +111,26 @@ class InstallerMainWindow(QMainWindow):
     def _apply_theme(self) -> None:
         self.setStyleSheet(self._theme.qss)
         self._theme_toggle_btn.setText(self._theme.toggle_label)
+        self._header_fit.on_theme_applied()
+        self._header_fit.schedule()
 
     def _toggle_theme(self) -> None:
         self._theme = DARK if self._theme is LIGHT else LIGHT
         self._apply_theme()
+
+    def showEvent(self, event) -> None:  # noqa: ANN001 (Qt override)
+        super().showEvent(event)
+        self._header_fit.schedule()
+
+    def resizeEvent(self, event) -> None:  # noqa: ANN001 (Qt override)
+        super().resizeEvent(event)
+        self._header_fit.schedule()
+
+    def event(self, event) -> bool:  # noqa: ANN001 (Qt override)
+        header_fit = getattr(self, "_header_fit", None)
+        if header_fit is not None and header_fit.should_watch_event_type(event.type()):
+            header_fit.schedule()
+        return super().event(event)
 
     def _show_installer_licence(self) -> None:
         show_installer_licence(self)
