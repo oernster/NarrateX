@@ -14,6 +14,12 @@ Run the full suite (includes coverage gate):
 python -m pytest -q
 ```
 
+On Windows, if you have a project-local venv, prefer invoking pytest via the venv Python to avoid accidentally running the global interpreter:
+
+```powershell
+.venv\Scripts\python.exe -m pytest -q
+```
+
 Run lint:
 
 ```bash

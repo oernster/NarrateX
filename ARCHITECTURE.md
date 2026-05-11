@@ -4,6 +4,22 @@ This document describes the current structure of the `voice_reader` codebase and
 
 Status note: the codebase is now **Kokoro-only** (no Coqui XTTS, no pyttsx3 fallback, no voice cloning).
 
+## Recent operational notes (grounded in bug reports)
+
+### Separator-only lines are treated as non-content
+
+Some books contain separator-only lines (e.g. `---`) between scenes/chapters (example: [`The_Portal_Conundrum_COMPLETE.txt`](The_Portal_Conundrum_COMPLETE.txt:1)).
+
+These lines must be treated as *non-content* so they:
+
+- do not become playback candidates
+- do not trigger TTS synthesis attempts that can produce no audio
+- do not cause playback to appear to restart
+
+This behavior is enforced at the domain sanitization boundary via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28), which drops separator-only lines.
+
+Additionally, narration failure handling persists a best-effort resume position before emitting ERROR from [`run()`](voice_reader/application/services/narration/run.py:24).
+
 ## High-level overview
 
 - Entry point + wiring happens in [`app.py`](app.py:1), specifically [`main()`](app.py:55).
@@ -219,20 +235,28 @@ Resume persistence (auto-bookmarking) rules:
   - Secondary signal: if the callback cannot fire (exit race / synthetic state), persistence also infers “played” from `NarrationState` fields.
 - On Windows, the JSON write is performed by [`JSONBookmarkRepository.save_resume_position()`](voice_reader/infrastructure/bookmarks/json_bookmark_repository.py:232) under the configured `bookmarks_dir` (see [`Config.from_project_root()`](voice_reader/shared/config.py:35)).
 
+Additional hardening:
+
+- On narration failure, we attempt to persist resume (best-effort) before emitting ERROR so retrying Play does not restart from the beginning (see [`run()`](voice_reader/application/services/narration/run.py:24)).
+
 ### 4) Synthesis, caching, and playback
 
-Starting narration spawns a background thread via [`NarrationService.start()`](voice_reader/application/services/narration_service.py:156), which runs [`NarrationService._run()`](voice_reader/application/services/narration_service.py:293).
+Starting narration spawns a background thread via [`NarrationService.start()`](voice_reader/application/services/narration_service.py:172), which runs the narration runner [`run()`](voice_reader/application/services/narration/run.py:24).
 
-Core responsibilities of [`NarrationService._run()`](voice_reader/application/services/narration_service.py:293):
+Core responsibilities of the narration runner (see [`run()`](voice_reader/application/services/narration/run.py:24)):
 
-- Build a list of candidate chunks to narrate (skipping empty spoken output)
-- Sanitize spoken text (remove outline numbering, normalize punctuation, expand initialisms) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28)
+- Build a list of playback candidates (skipping chunks whose sanitized `speak_text` is empty)
+- Sanitize spoken text (remove outline numbering, normalize punctuation, expand initialisms, and drop separator-only lines) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28)
 - For each chunk:
   - compute a deterministic cache location via [`FilesystemCacheRepository.audio_path()`](voice_reader/infrastructure/cache/filesystem_cache.py:15)
   - on cache miss: call [`TTSEngine.synthesize_to_file()`](voice_reader/domain/interfaces/tts_engine.py:16)
   - publish ready-to-play WAV paths into a bounded queue
 - Start audio playback via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/audio_streamer.py:111)
-  - the streamer calls back into [`NarrationService._run()`](voice_reader/application/services/narration_service.py:293) on chunk boundaries so application state can be updated
+  - the streamer calls back into the runner to update narration state (chunk boundaries + highlight spans)
+
+Error behavior:
+
+- If a mid-book synthesis/playback error occurs, the runner persists a best-effort resume position before entering ERROR state (see [`run()`](voice_reader/application/services/narration/run.py:24)).
 
 Notable performance and UX choices:
 
@@ -260,7 +284,7 @@ The app is **Kokoro-only**.
 - UI runs on Qt main thread.
 - Narration runs on a background thread started by [`NarrationService.start()`](voice_reader/application/services/narration_service.py:156).
 - Audio playback (`sounddevice` + `soundfile`) uses internal producer/player threads inside [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72).
-- In Kokoro-native mode, TTS synthesis can be parallelized by multiple worker threads and a publisher thread (see [`NarrationService._run()`](voice_reader/application/services/narration_service.py:293)).
+- In Kokoro-native mode, TTS synthesis can be parallelized by multiple worker threads and a publisher thread (see [`run()`](voice_reader/application/services/narration/run.py:24)).
 
 ## Packaging note (Windows)
 

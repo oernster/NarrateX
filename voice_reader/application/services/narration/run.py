@@ -137,6 +137,14 @@ def run(service: NarrationService) -> None:
             )
         )
     except Exception as exc:  # pragma: no cover
+        # Hardening: if a synthesis/playback failure occurs mid-book (e.g. TTS
+        # produced no audio for a separator-only chunk), persist a best-effort
+        # resume position so the next Play doesn't restart at the beginning.
+        try:
+            service._maybe_save_resume_position()  # noqa: SLF001
+        except Exception:
+            pass
+
         service._log.exception("Narration failed")  # noqa: SLF001
         service._set_state(
             NarrationState(

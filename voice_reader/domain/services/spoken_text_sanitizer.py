@@ -22,6 +22,16 @@ _MULTI_DOT = re.compile(r"\.{2,}")
 _DOTLIKE = re.compile(r"[\u2024\u2219\u00B7\uFF0E\uFE52]")
 _ISOLATED_DOT = re.compile(r"\s+\.\s+")
 
+# Separator-only lines (common in plain-text books and PDF/EPUB extracts).
+#
+# Root-cause fix motivation:
+# A separator-only chunk like "---" can be considered "speakable" by our current
+# sanitization (it's non-empty) but may yield *no audio* from some TTS engines.
+# That synthesis failure can bubble up and look like playback restarting.
+#
+# We treat these as non-content structure and drop them at sanitization time.
+_SEPARATOR_ONLY = re.compile(r"^[\s\-\u2013\u2014\u2212_\*=~]+$")
+
 
 @dataclass(frozen=True, slots=True)
 class SpokenTextSanitizer:
@@ -30,6 +40,14 @@ class SpokenTextSanitizer:
         # outline numbering.
         lines: list[str] = []
         for raw in text.splitlines():
+            # Drop separator-only structure lines (e.g. "---", "--", "____").
+            # This is semantic (no words), not based on a specific dash count.
+            stripped = str(raw or "").strip()
+            if stripped and _SEPARATOR_ONLY.fullmatch(stripped) and not any(
+                ch.isalnum() for ch in stripped
+            ):
+                continue
+
             if _NUMBER_ONLY.match(raw):
                 continue
             cleaned = _NUMBER_PREFIX.sub("", raw)
