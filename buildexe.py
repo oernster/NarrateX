@@ -229,6 +229,11 @@ def main() -> int:
         "--collect-data=torch",
         "--hidden-import=torch",
         "--collect-all=transformers",
+        # NumPy 2.x restructured its C-extension layout; PyInstaller does not
+        # auto-collect the new paths. Without this the frozen app fails at
+        # startup with "Importing the numpy C-extensions failed".
+        "--collect-all=numpy",
+        "--collect-all=soundfile",
         # Optional extras referenced by torch hooks; exclude to avoid warnings
         # and reduce output size.
         "--exclude-module=tensorboard",
