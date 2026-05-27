@@ -10,6 +10,7 @@ import sys
 import traceback
 from pathlib import Path
 
+from PySide6.QtCore import QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
@@ -87,16 +88,25 @@ def set_windows_app_identity() -> None:
         pass
 
 
-def find_runtime_icon() -> Path | None:
-    """
-    Locate runtime PNG icon beside the executable.
+# Shipped PNG sizes (must match buildexe.py add_data list).
+_ICON_PNG_SIZES = (16, 32, 48, 64, 128, 256, 512)
 
-    Qt sometimes fails to decode ICO files in frozen apps, so we use PNG.
+
+def build_runtime_icon() -> QIcon:
     """
-    icon_path = exe_dir() / "narratex_256.png"
-    if icon_path.exists():
-        return icon_path
-    return None
+    Build a multi-resolution QIcon from all shipped PNG sizes.
+
+    Qt sometimes fails to decode ICO files in frozen apps, so we use PNGs.
+    Providing all sizes lets Windows/Qt pick the sharpest match for each
+    use (taskbar, title bar, Alt+Tab), avoiding scaled-down artefacts.
+    """
+    base = exe_dir()
+    icon = QIcon()
+    for size in _ICON_PNG_SIZES:
+        candidate = base / f"narratex_{size}.png"
+        if candidate.exists():
+            icon.addFile(str(candidate), QSize(size, size))
+    return icon
 
 
 def program_base_dir() -> Path:
@@ -176,8 +186,7 @@ def main() -> int:
         if hasattr(app, "setDesktopFileName"):
             app.setDesktopFileName(APP_APPUSERMODELID)
 
-        icon_path = find_runtime_icon()
-        icon = QIcon(str(icon_path)) if icon_path else QIcon()
+        icon = build_runtime_icon()
 
         if not icon.isNull() and hasattr(app, "setWindowIcon"):
             app.setWindowIcon(icon)
