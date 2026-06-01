@@ -234,6 +234,8 @@ def main() -> int:
         # startup with "Importing the numpy C-extensions failed".
         "--collect-all=numpy",
         "--collect-all=soundfile",
+        "--hidden-import=soundfile",
+        "--collect-binaries=soundfile",
         # Optional extras referenced by torch hooks; exclude to avoid warnings
         # and reduce output size.
         "--exclude-module=tensorboard",
