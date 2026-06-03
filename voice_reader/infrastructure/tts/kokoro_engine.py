@@ -31,6 +31,7 @@ def _best_torch_device() -> str:
     """Return the fastest available torch device: cuda > mps > cpu."""
     try:
         import torch
+
         if torch.cuda.is_available():
             return "cuda"
         if torch.backends.mps.is_available():
@@ -54,10 +55,10 @@ def _normalise_for_tts(text: str) -> str:
     # ── Typographic punctuation ───────────────────────────────────────────────
     # Non-breaking hyphen (U+2011) between letters = hyphenation artefact → join
     text = re.sub(r"([a-zA-Z])‑([a-z])", r"\1\2", text)
-    text = text.replace("‑", "-")   # remaining non-breaking hyphens → plain
-    text = text.replace("‒", "-")   # figure dash
-    text = text.replace("–", " - ") # en dash
-    text = text.replace("—", " - ") # em dash
+    text = text.replace("‑", "-")  # remaining non-breaking hyphens → plain
+    text = text.replace("‒", "-")  # figure dash
+    text = text.replace("–", " - ")  # en dash
+    text = text.replace("—", " - ")  # em dash
 
     def sub(pat: str, repl: str, t: str) -> str:
         return re.sub(pat, repl, t, flags=re.IGNORECASE)
@@ -65,60 +66,99 @@ def _normalise_for_tts(text: str) -> str:
     # ── British -isation family (ORDER: longest suffix first) ─────────────────
     # "organisational" ends in -isational, NOT -isation, so needs its own rule.
     text = sub(r"\b(\w+)isationally\b", r"\1izationally", text)
-    text = sub(r"\b(\w+)isational\b",   r"\1izational",   text)
-    text = sub(r"\b(\w+)isations\b",    r"\1izations",    text)
-    text = sub(r"\b(\w+)isation\b",     r"\1ization",     text)
-    text = sub(r"\b(\w+)isers\b",       r"\1izers",       text)
-    text = sub(r"\b(\w+)iser\b",        r"\1izer",        text)
-    text = sub(r"\b(\w+)ising\b",       r"\1izing",       text)
-    text = sub(r"\b(\w+)ised\b",        r"\1ized",        text)
+    text = sub(r"\b(\w+)isational\b", r"\1izational", text)
+    text = sub(r"\b(\w+)isations\b", r"\1izations", text)
+    text = sub(r"\b(\w+)isation\b", r"\1ization", text)
+    text = sub(r"\b(\w+)isers\b", r"\1izers", text)
+    text = sub(r"\b(\w+)iser\b", r"\1izer", text)
+    text = sub(r"\b(\w+)ising\b", r"\1izing", text)
+    text = sub(r"\b(\w+)ised\b", r"\1ized", text)
     # -ise → -ize: only for stems ≥ 4 chars to avoid "rise"→"rize", "wise"→"wize"
     # "promise", "surprise" etc. are in CMU already so any slight mispronunciation
     # from converting them is better than silence.
-    text = sub(r"\b(\w{4,})ise\b",      r"\1ize",         text)
+    text = sub(r"\b(\w{4,})ise\b", r"\1ize", text)
 
     # ── British -our words (word list to avoid "four"→"for" etc.) ────────────
     _our = {
-        "behaviour": "behavior", "behaviours": "behaviors",
-        "behavioural": "behavioral", "behaviourally": "behaviorally",
-        "colour": "color", "colours": "colors", "coloured": "colored",
-        "colouring": "coloring", "colourful": "colorful",
-        "favour": "favor", "favours": "favors", "favoured": "favored",
-        "favouring": "favoring", "favourite": "favorite", "favourites": "favorites",
-        "honour": "honor", "honours": "honors", "honoured": "honored",
-        "honourable": "honorable", "dishonour": "dishonor",
-        "humour": "humor", "humours": "humors", "humourless": "humorless",
-        "labour": "labor", "labours": "labors", "laboured": "labored",
-        "labourer": "laborer", "labourers": "laborers",
-        "neighbour": "neighbor", "neighbours": "neighbors",
-        "neighbourhood": "neighborhood", "neighbouring": "neighboring",
-        "rumour": "rumor", "rumours": "rumors", "rumoured": "rumored",
-        "flavour": "flavor", "flavours": "flavors", "flavoured": "flavored",
-        "endeavour": "endeavor", "endeavours": "endeavors",
-        "harbour": "harbor", "harbours": "harbors",
-        "armour": "armor", "glamour": "glamor", "valour": "valor",
-        "odour": "odor", "odours": "odors", "candour": "candor",
-        "vigour": "vigor", "rigour": "rigor", "ardour": "ardor",
-        "fervour": "fervor", "splendour": "splendor",
-        "tumour": "tumor", "tumours": "tumors",
+        "behaviour": "behavior",
+        "behaviours": "behaviors",
+        "behavioural": "behavioral",
+        "behaviourally": "behaviorally",
+        "colour": "color",
+        "colours": "colors",
+        "coloured": "colored",
+        "colouring": "coloring",
+        "colourful": "colorful",
+        "favour": "favor",
+        "favours": "favors",
+        "favoured": "favored",
+        "favouring": "favoring",
+        "favourite": "favorite",
+        "favourites": "favorites",
+        "honour": "honor",
+        "honours": "honors",
+        "honoured": "honored",
+        "honourable": "honorable",
+        "dishonour": "dishonor",
+        "humour": "humor",
+        "humours": "humors",
+        "humourless": "humorless",
+        "labour": "labor",
+        "labours": "labors",
+        "laboured": "labored",
+        "labourer": "laborer",
+        "labourers": "laborers",
+        "neighbour": "neighbor",
+        "neighbours": "neighbors",
+        "neighbourhood": "neighborhood",
+        "neighbouring": "neighboring",
+        "rumour": "rumor",
+        "rumours": "rumors",
+        "rumoured": "rumored",
+        "flavour": "flavor",
+        "flavours": "flavors",
+        "flavoured": "flavored",
+        "endeavour": "endeavor",
+        "endeavours": "endeavors",
+        "harbour": "harbor",
+        "harbours": "harbors",
+        "armour": "armor",
+        "glamour": "glamor",
+        "valour": "valor",
+        "odour": "odor",
+        "odours": "odors",
+        "candour": "candor",
+        "vigour": "vigor",
+        "rigour": "rigor",
+        "ardour": "ardor",
+        "fervour": "fervor",
+        "splendour": "splendor",
+        "tumour": "tumor",
+        "tumours": "tumors",
     }
     for brit, am in _our.items():
-        text = re.sub(r"\b" + re.escape(brit) + r"\b", am, text,
-                      flags=re.IGNORECASE)
+        text = re.sub(r"\b" + re.escape(brit) + r"\b", am, text, flags=re.IGNORECASE)
 
     # ── British -re → -er ─────────────────────────────────────────────────────
     _re = {
-        "centre": "center", "centres": "centers", "centred": "centered",
-        "theatre": "theater", "theatres": "theaters",
-        "litre": "liter", "litres": "liters",
-        "fibre": "fiber", "fibres": "fibers",
-        "calibre": "caliber", "lustre": "luster",
-        "metre": "meter", "metres": "meters",
-        "kilometre": "kilometer", "kilometres": "kilometers",
+        "centre": "center",
+        "centres": "centers",
+        "centred": "centered",
+        "theatre": "theater",
+        "theatres": "theaters",
+        "litre": "liter",
+        "litres": "liters",
+        "fibre": "fiber",
+        "fibres": "fibers",
+        "calibre": "caliber",
+        "lustre": "luster",
+        "metre": "meter",
+        "metres": "meters",
+        "kilometre": "kilometer",
+        "kilometres": "kilometers",
     }
     for brit, am in _re.items():
-        text = re.sub(r"\b" + re.escape(brit) + r"\b", am, text,
-                      flags=re.IGNORECASE)
+        text = re.sub(r"\b" + re.escape(brit) + r"\b", am, text, flags=re.IGNORECASE)
 
     return text
 
@@ -161,6 +201,7 @@ class KokoroEngine(TTSEngine):
         def _load() -> None:
             try:
                 from kokoro import KPipeline  # type: ignore
+
                 self._get_pipeline(
                     KPipeline=KPipeline,
                     lang_code=self._default_lang_code,

@@ -97,7 +97,7 @@ _ICON_PNG_SIZES = (16, 32, 48, 64, 128, 256, 512)
 
 
 def build_runtime_icon() -> QIcon:
-    """Build multi-resolution QIcon from shipped PNGs (avoids ICO decode failures in frozen builds)."""
+    """Build QIcon from shipped PNGs (avoids ICO decode failures in frozen builds)."""
     base = exe_dir()
     icon = QIcon()
     for size in _ICON_PNG_SIZES:
@@ -134,15 +134,9 @@ def ensure_stdio() -> None:
 
 def main() -> int:
     try:
-        # IMPORTANT (frozen builds + multiprocessing):
-        # On Windows frozen builds, freeze_support() intercepts child-process
-        # re-entry before any app startup runs.
-        # On macOS, spawn (the default start method) re-executes this module as
-        # __main__ inside multiprocessing.spawn.prepare() before calling the
-        # worker target.  freeze_support() is a no-op on non-frozen macOS, so we
-        # add an explicit parent-process guard here: if parent_process() is not
-        # None we are in a spawned child — exit immediately before Qt or any
-        # other heavy initialisation runs.
+        # freeze_support() handles Windows frozen re-entry. On macOS (spawn),
+        # this module is re-executed as __main__ in the child; the parent-process
+        # guard exits before Qt or any heavy init runs.
         mp.freeze_support()
         if mp.parent_process() is not None:
             return 0

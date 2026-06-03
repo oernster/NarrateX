@@ -49,8 +49,8 @@ def test_kokoro_pipeline_is_cached_per_thread_and_lang(
         text="hello", voice_profile=vp, output_path=out2, device="cpu", language="en-gb"
     )
 
-    # Pipeline should be cached in TLS.
-    cache = getattr(k._tls, "pipelines")  # pylint: disable=protected-access
+    # Pipeline should be cached in the shared pipeline cache.
+    cache = k._pipeline_cache  # pylint: disable=protected-access
     assert "b" in cache
     assert isinstance(cache["b"], _FakePipeline)
     assert len(cache["b"].calls) == 2

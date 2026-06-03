@@ -71,6 +71,7 @@ ENTITLEMENTS = """\
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def run(cmd: list[str], check: bool = True, **kwargs) -> subprocess.CompletedProcess:
     print(f"  $ {' '.join(str(c) for c in cmd)}")
     return subprocess.run(cmd, check=check, **kwargs)
@@ -94,11 +95,14 @@ def section(title: str) -> None:
 
 # ── Steps ─────────────────────────────────────────────────────────────────────
 
+
 def check_platform() -> None:
     section("Platform check")
     if sys.platform != "darwin":
         sys.exit("ERROR: This script must run on macOS.")
-    result = subprocess.run(["sw_vers", "-productVersion"], capture_output=True, text=True)
+    result = subprocess.run(
+        ["sw_vers", "-productVersion"], capture_output=True, text=True
+    )
     print(f"  macOS {result.stdout.strip()}")
     require("pyinstaller", "pyinstaller")
     require("create-dmg", "create-dmg")
@@ -108,7 +112,14 @@ def check_platform() -> None:
 
 def clean() -> None:
     section("Clean previous build")
-    for path in ["build", "dist", FINAL_DMG, "NarrateX.spec", "_dmg_staging", "_narratex_rw.dmg"]:
+    for path in [
+        "build",
+        "dist",
+        FINAL_DMG,
+        "NarrateX.spec",
+        "_dmg_staging",
+        "_narratex_rw.dmg",
+    ]:
         if os.path.exists(path):
             if os.path.isdir(path):
                 shutil.rmtree(path)
@@ -138,14 +149,20 @@ def build_app_bundle(entitlements_path: Path, icns_path: Path | None = None) -> 
     ]
 
     cmd = [
-        sys.executable, "-m", "PyInstaller",
+        sys.executable,
+        "-m",
+        "PyInstaller",
         "--noconfirm",
         "--clean",
         "--windowed",
-        "--name", APP_NAME,
-        "--osx-bundle-identifier", BUNDLE_ID,
-        "--codesign-identity", DEVELOPER_ID,
-        "--osx-entitlements-file", str(entitlements_path),
+        "--name",
+        APP_NAME,
+        "--osx-bundle-identifier",
+        BUNDLE_ID,
+        "--codesign-identity",
+        DEVELOPER_ID,
+        "--osx-entitlements-file",
+        str(entitlements_path),
         *icon_args,
         # ── kokoro / TTS stack ─────────────────────────────────────
         "--collect-all=kokoro",
@@ -190,9 +207,12 @@ def build_app_bundle(entitlements_path: Path, icns_path: Path | None = None) -> 
         "--hidden-import=voice_reader.infrastructure.books.parser",
         "--hidden-import=voice_reader.infrastructure.books.repository",
         "--hidden-import=voice_reader.infrastructure.cache.filesystem_cache",
-        "--hidden-import=voice_reader.infrastructure.bookmarks.json_bookmark_repository",
-        "--hidden-import=voice_reader.infrastructure.ideas.json_idea_index_repository",
-        "--hidden-import=voice_reader.infrastructure.preferences.json_preferences_repository",
+        "--hidden-import=voice_reader.infrastructure.bookmarks"
+        ".json_bookmark_repository",
+        "--hidden-import=voice_reader.infrastructure.ideas"
+        ".json_idea_index_repository",
+        "--hidden-import=voice_reader.infrastructure.preferences"
+        ".json_preferences_repository",
         "--hidden-import=voice_reader.infrastructure.tts.voice_profile_repository",
         "--hidden-import=voice_reader.ui.main_window",
         "--hidden-import=voice_reader.ui.ui_controller",
@@ -231,12 +251,20 @@ def strip_build_artifacts(app_path: Path) -> None:
 def sign_bundle(app_path: Path, entitlements_path: Path) -> None:
     section("Code signing")
 
-    run([
-        "codesign", "--force", "--deep", "--options", "runtime",
-        "--entitlements", str(entitlements_path),
-        "--sign", DEVELOPER_ID,
-        str(app_path),
-    ])
+    run(
+        [
+            "codesign",
+            "--force",
+            "--deep",
+            "--options",
+            "runtime",
+            "--entitlements",
+            str(entitlements_path),
+            "--sign",
+            DEVELOPER_ID,
+            str(app_path),
+        ]
+    )
 
     run(["codesign", "--verify", "--deep", "--strict", str(app_path)])
     print("  Signature verified.")
@@ -302,12 +330,17 @@ def _fill_png_background(path: Path, bg: tuple[int, int, int]) -> None:
         if pa == 255:
             continue
         if pa == 0:
-            pixels[off], pixels[off + 1], pixels[off + 2], pixels[off + 3] = br, bg_, bb, 255
+            pixels[off], pixels[off + 1], pixels[off + 2], pixels[off + 3] = (
+                br,
+                bg_,
+                bb,
+                255,
+            )
         else:
             a = pa / 255.0
-            pixels[off]     = int(pixels[off]     * a + br  * (1 - a))
+            pixels[off] = int(pixels[off] * a + br * (1 - a))
             pixels[off + 1] = int(pixels[off + 1] * a + bg_ * (1 - a))
-            pixels[off + 2] = int(pixels[off + 2] * a + bb  * (1 - a))
+            pixels[off + 2] = int(pixels[off + 2] * a + bb * (1 - a))
             pixels[off + 3] = 255
 
     raw_out = bytearray()
@@ -337,11 +370,15 @@ def png_to_icns(png_path: Path, work_dir: Path) -> Path:
     iconset.mkdir(parents=True, exist_ok=True)
     sizes = [16, 32, 128, 256, 512]
     for size in sizes:
-        for suffix, px in [(f"icon_{size}x{size}.png", size),
-                           (f"icon_{size}x{size}@2x.png", size * 2)]:
+        for suffix, px in [
+            (f"icon_{size}x{size}.png", size),
+            (f"icon_{size}x{size}@2x.png", size * 2),
+        ]:
             out = iconset / suffix
-            run(["sips", "-z", str(px), str(px), str(png_path), "--out", str(out)],
-                capture_output=True)
+            run(
+                ["sips", "-z", str(px), str(px), str(png_path), "--out", str(out)],
+                capture_output=True,
+            )
             _fill_png_background(out, BG)
     icns_path = work_dir / "narratex.icns"
     run(["iconutil", "--convert", "icns", str(iconset), "--output", str(icns_path)])
@@ -365,12 +402,16 @@ def set_volume_icon(icns_path: Path) -> None:
     try:
         result = subprocess.run(
             ["hdiutil", "attach", "-noverify", str(rw_dmg)],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         print(f"  $ hdiutil attach -noverify {rw_dmg}")
         mount_point = _find_mount_point(result.stdout)
         if not mount_point:
-            sys.exit(f"ERROR: could not find mount point in hdiutil output:\n{result.stdout}")
+            sys.exit(
+                f"ERROR: could not find mount point in hdiutil output:\n{result.stdout}"
+            )
 
         try:
             shutil.copy(icns_path, Path(mount_point) / ".VolumeIcon.icns")
@@ -383,8 +424,13 @@ def set_volume_icon(icns_path: Path) -> None:
                 finder_info = bytearray(32)
                 finder_info[8] = 0x04
                 subprocess.run(
-                    ["xattr", "-wx", "com.apple.FinderInfo",
-                     " ".join(f"{b:02x}" for b in finder_info), mount_point],
+                    [
+                        "xattr",
+                        "-wx",
+                        "com.apple.FinderInfo",
+                        " ".join(f"{b:02x}" for b in finder_info),
+                        mount_point,
+                    ],
                     check=True,
                 )
             print(f"  Volume icon embedded; custom-icon flag set on {mount_point}")
@@ -416,13 +462,25 @@ def create_dmg(app_path: Path) -> None:
 
     cmd = [
         "create-dmg",
-        "--volname", VOLUME_NAME,
-        "--window-pos", "200", "120",
-        "--window-size", "640", "400",
-        "--icon-size", "100",
-        "--text-size", "14",
-        "--app-drop-link", "520", "180",
-        "--icon", f"{APP_NAME}.app", "120", "180",
+        "--volname",
+        VOLUME_NAME,
+        "--window-pos",
+        "200",
+        "120",
+        "--window-size",
+        "640",
+        "400",
+        "--icon-size",
+        "100",
+        "--text-size",
+        "14",
+        "--app-drop-link",
+        "520",
+        "180",
+        "--icon",
+        f"{APP_NAME}.app",
+        "120",
+        "180",
         FINAL_DMG,
         str(staging / f"{APP_NAME}.app"),
     ]
@@ -437,28 +495,41 @@ def create_dmg(app_path: Path) -> None:
 
 def sign_dmg() -> None:
     section("Sign DMG")
-    run([
-        "codesign",
-        "--force",
-        "--sign", DEVELOPER_ID,
-        FINAL_DMG,
-    ])
+    run(
+        [
+            "codesign",
+            "--force",
+            "--sign",
+            DEVELOPER_ID,
+            FINAL_DMG,
+        ]
+    )
     print("  DMG signed.")
 
 
 def notarize_dmg() -> None:
     if not APPLE_ID or not APPLE_APP_PASSWORD:
-        print("\n  Notarization skipped (set APPLE_ID and APPLE_APP_PASSWORD to enable).")
+        print(
+            "\n  Notarization skipped (set APPLE_ID and APPLE_APP_PASSWORD to enable)."
+        )
         return
 
     section("Notarize DMG")
-    run([
-        "xcrun", "notarytool", "submit", FINAL_DMG,
-        "--apple-id", APPLE_ID,
-        "--password", APPLE_APP_PASSWORD,
-        "--team-id", APPLE_TEAM_ID,
-        "--wait",
-    ])
+    run(
+        [
+            "xcrun",
+            "notarytool",
+            "submit",
+            FINAL_DMG,
+            "--apple-id",
+            APPLE_ID,
+            "--password",
+            APPLE_APP_PASSWORD,
+            "--team-id",
+            APPLE_TEAM_ID,
+            "--wait",
+        ]
+    )
     run(["xcrun", "stapler", "staple", FINAL_DMG])
     print("  Notarization complete and stapled.")
 
@@ -479,6 +550,7 @@ def apply_file_icon(png_path: Path) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
 def main() -> int:
     print(f"\nNARRATEX DMG BUILDER  v{APP_VERSION}")
     print(f"Signing identity: {DEVELOPER_ID}")
@@ -486,8 +558,9 @@ def main() -> int:
     check_platform()
     clean()
 
-    with tempfile.NamedTemporaryFile(suffix=".entitlements", mode="w",
-                                     delete=False) as f:
+    with tempfile.NamedTemporaryFile(
+        suffix=".entitlements", mode="w", delete=False
+    ) as f:
         f.write(ENTITLEMENTS)
         entitlements_path = Path(f.name)
 
