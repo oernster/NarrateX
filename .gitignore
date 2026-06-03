@@ -52,7 +52,7 @@ coverage.xml
 *.py.cover
 .hypothesis/
 .pytest_cache/
-cover/
+/cover/
 
 # Translations
 *.mo
@@ -215,6 +215,9 @@ __marimo__/
 # builds
 dist-pyinstaller/
 share/
+narratex.dmg
+*.err.txt
+*.log.txt
 
 # Rubbish
 generate_scripts.py
@@ -224,6 +227,7 @@ cache/
 temp_books/
 Scripts/
 decision_architecture_hardback.pdf
+.DS_Store
 
 # Installer build artifacts
 dist-installer/
