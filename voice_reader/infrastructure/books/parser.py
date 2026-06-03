@@ -20,6 +20,24 @@ def normalize_text(text: str) -> str:
     return text.strip()
 
 
+def _dehyphenate(text: str) -> str:
+    """Remove PDF line-break hyphenation artefacts.
+
+    PDFs often store words broken across lines as e.g. "per-\\nformance".
+    Join them back when the continuation starts with a lowercase letter
+    (uppercase continuation = new sentence, leave untouched).
+    Also strip soft hyphens (U+00AD) and normalize typographic hyphens
+    (U+2011 non-breaking hyphen) to plain ASCII so downstream regex matches.
+    """
+    # Soft hyphen (invisible, used by PDF typesetting)
+    text = text.replace("­", "")
+    # Non-breaking hyphen → plain hyphen so the line-join regex can match it
+    text = text.replace("‑", "-")
+    # Join line-break hyphens: "per-\nformance" → "performance"
+    text = re.sub(r"([a-zA-Z])-\n([a-z])", r"\1\2", text)
+    return text
+
+
 @dataclass(frozen=True, slots=True)
 class BookParser:
     def parse(self, path: Path) -> tuple[str, str]:
@@ -42,7 +60,8 @@ class BookParser:
             for page in doc:
                 pages.append(page.get_text("text"))
             raw = "\n\n".join(pages)
-            return raw, normalize_text(raw)
+            normalized = _dehyphenate(raw)
+            return raw, normalize_text(normalized)
         except Exception as exc:
             raise BookParseError(str(exc)) from exc
 

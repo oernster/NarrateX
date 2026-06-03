@@ -1,3 +1,6 @@
+# NOTE: after install, patch misaki 0.7.4 bug manually:
+#   sed -i '' 's/t\.phonemes + t\.whitespace/(t.phonemes or "") + (t.whitespace or "")/g' \
+#     venv/lib/python3.13/site-packages/misaki/en.py
 absl-py==2.4.0
 addict==2.4.0
 aiohappyeyeballs==2.6.1
@@ -138,6 +141,7 @@ sounddevice==0.5.5
 soundfile==0.13.1
 soupsieve==2.8.3
 soxr==1.0.0
+en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
 spacy-curated-transformers==0.1.1
 srsly==2.5.2
 sympy==1.14.0

@@ -134,13 +134,18 @@ def ensure_stdio() -> None:
 
 def main() -> int:
     try:
-        # IMPORTANT (Windows frozen builds + multiprocessing):
-        # Our Ideas indexing runs in a spawned child process. In a frozen
-        # application (PyInstaller), Windows uses the "spawn" start method which
-        # re-launches the executable. Without mp.freeze_support(), the child can
-        # incorrectly execute the normal app startup path and create a second
-        # (blank) Qt window.
+        # IMPORTANT (frozen builds + multiprocessing):
+        # On Windows frozen builds, freeze_support() intercepts child-process
+        # re-entry before any app startup runs.
+        # On macOS, spawn (the default start method) re-executes this module as
+        # __main__ inside multiprocessing.spawn.prepare() before calling the
+        # worker target.  freeze_support() is a no-op on non-frozen macOS, so we
+        # add an explicit parent-process guard here: if parent_process() is not
+        # None we are in a spawned child — exit immediately before Qt or any
+        # other heavy initialisation runs.
         mp.freeze_support()
+        if mp.parent_process() is not None:
+            return 0
 
         ensure_stdio()
 

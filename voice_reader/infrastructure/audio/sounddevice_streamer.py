@@ -77,6 +77,25 @@ class SoundDeviceAudioStreamer:
             self._log.debug("AudioStreamer pause=%s", self._pause.is_set())
         except Exception:
             pass
+
+        import sys
+        if sys.platform == "darwin":
+            # On macOS, PortAudio's push-based OutputStream causes buffer
+            # underruns with Core Audio (sample-rate conversion + channel
+            # upmixing compound the issue).  Use afplay — macOS's built-in
+            # Core Audio player — which is glitch-free on all Mac hardware.
+            mac = threading.Thread(
+                target=self._afplay,
+                args=(chunk_audio_paths, on_chunk_start, on_chunk_end, on_playback_progress),
+                name="audio-afplay",
+                daemon=True,
+            )
+            self._threads = [mac]
+            mac.start()
+            mac.join()
+            self._log.debug("AudioStreamer finished (afplay)")
+            return
+
         prod = threading.Thread(
             target=self._producer,
             args=(chunk_audio_paths,),
@@ -135,6 +154,68 @@ class SoundDeviceAudioStreamer:
                     sd.stop()
         except Exception:
             return
+
+    def _afplay(self, paths: Iterable[Path], on_start, on_end, on_progress) -> None:
+        """macOS-only: play WAV files sequentially via afplay (native Core Audio)."""
+        import subprocess
+        import time
+
+        for idx, path in enumerate(paths):
+            if self._stop.is_set():
+                return
+
+            while self._pause.is_set() and not self._stop.is_set():
+                time.sleep(0.05)
+            if self._stop.is_set():
+                return
+
+            if on_start is not None:
+                try:
+                    on_start(idx)
+                except Exception:
+                    pass
+
+            rate = float(self.playback_rate.multiplier)
+            volume = float(self.volume.multiplier)
+            cmd = ["afplay"]
+            if rate != 1.0:
+                cmd += ["-r", str(rate)]
+            if volume != 1.0:
+                cmd += ["-v", str(volume)]
+            cmd.append(str(path))
+
+            proc = subprocess.Popen(cmd)
+            t0 = time.perf_counter()
+
+            while proc.poll() is None:
+                if self._stop.is_set():
+                    proc.terminate()
+                    proc.wait()
+                    return
+                if self._pause.is_set():
+                    proc.terminate()
+                    proc.wait()
+                    while self._pause.is_set() and not self._stop.is_set():
+                        time.sleep(0.05)
+                    if self._stop.is_set():
+                        return
+                    # Resume: restart current chunk from beginning
+                    proc = subprocess.Popen(cmd)
+                    t0 = time.perf_counter()
+                    continue
+                if on_progress is not None:
+                    try:
+                        elapsed_ms = int((time.perf_counter() - t0) * 1000.0)
+                        on_progress(idx, elapsed_ms)
+                    except Exception:
+                        pass
+                time.sleep(0.05)
+
+            if on_end is not None:
+                try:
+                    on_end(idx)
+                except Exception:
+                    pass
 
     def _producer(self, paths: Iterable[Path]) -> None:
         producer_loop(self, paths)
