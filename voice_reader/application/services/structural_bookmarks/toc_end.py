@@ -36,7 +36,9 @@ def looks_like_toc_entry_line(line: str) -> bool:
     ):
         return True
 
-    m = re.match(r"^(?P<label>.+)\s+(?P<page>\d+|[ivxlcdm]+)\s*$", s, flags=re.IGNORECASE)
+    m = re.match(
+        r"^(?P<label>.+)\s+(?P<page>\d+|[ivxlcdm]+)\s*$", s, flags=re.IGNORECASE
+    )
     if m is not None:
         label = str(m.group("label") or "").strip()
 
@@ -210,9 +212,6 @@ def detect_toc_end_offset(normalized_text: str) -> int | None:
         if not stripped:
             continue
 
-        prev_blank = True if i <= 0 else (not scan_lines[i - 1].strip())
-        next_blank = True if (i + 1) >= len(scan_lines) else (not scan_lines[i + 1].strip())
-
         kind, include, _prio = classify_heading(stripped)
         structural = bool(include and kind is not None)
         entryish = looks_like_toc_entry_line(stripped)
@@ -250,7 +249,8 @@ def detect_toc_end_offset(normalized_text: str) -> int | None:
             for v in lookahead
         )
         wrapped_tail = bool(
-            nxt is not None and looks_like_wrapped_toc_entry(line=stripped, next_line=nxt)
+            nxt is not None
+            and looks_like_wrapped_toc_entry(line=stripped, next_line=nxt)
         )
         if wrapped_tail or (not tocish and has_tail_evidence):
             tocish = True
@@ -335,4 +335,3 @@ def detect_toc_end_offset(normalized_text: str) -> int | None:
     if consumed_any and structural_entries >= 2:
         return int(scan_offset)
     return None
-

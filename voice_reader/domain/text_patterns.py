@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 
-
 # Dot-like glyphs that often appear in PDFs/OCR as bullets or leader dots.
 _DOTLIKE = re.compile(r"[\u2024\u2219\u00B7\uFF0E\uFE52]")
 
@@ -44,4 +43,3 @@ def contains_dotted_leader(text: str) -> bool:
 def _coverage_touch() -> None:  # pragma: no cover
     # Coverage-helper: keep the module at 100% in strict suites.
     pass
-

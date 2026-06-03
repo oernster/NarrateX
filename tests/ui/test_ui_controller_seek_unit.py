@@ -21,7 +21,9 @@ def test_seek_invalid_offset_returns_early() -> None:
 
 def test_seek_reader_to_plain_text_exception_returns_early() -> None:
     c = _controller(text="hello")
-    c.window.reader = SimpleNamespace(toPlainText=lambda: (_ for _ in ()).throw(Exception()))
+    c.window.reader = SimpleNamespace(
+        toPlainText=lambda: (_ for _ in ()).throw(Exception())
+    )
     seek_to_char_offset(c, 1)
     assert c.narration_service.prepare_calls == []
 
@@ -51,7 +53,9 @@ def test_seek_no_chunks_returns_early() -> None:
     assert c.narration_service.prepare_calls == []
 
 
-def test_seek_resolve_mapping_exception_falls_back_to_zero_and_works(monkeypatch) -> None:
+def test_seek_resolve_mapping_exception_falls_back_to_zero_and_works(
+    monkeypatch,
+) -> None:
     svc = NarrationSvcFake(stop_calls=[], prepare_calls=[])
     delattr(svc, "loaded_book_id_exc")  # keep as simple object
 
@@ -103,7 +107,9 @@ def test_seek_clamp_sets_status_and_can_ignore_status_failures() -> None:
         ),
     )
     # Make setText fail to cover the exception handler.
-    c.window.lbl_status = SimpleNamespace(setText=lambda *_: (_ for _ in ()).throw(Exception()))
+    c.window.lbl_status = SimpleNamespace(
+        setText=lambda *_: (_ for _ in ()).throw(Exception())
+    )
 
     seek_to_char_offset(c, 0)
     assert c.narration_service.prepare_calls
@@ -112,7 +118,9 @@ def test_seek_clamp_sets_status_and_can_ignore_status_failures() -> None:
 def test_seek_selected_voice_exception_is_handled() -> None:
     c = _controller(
         text="x" * 200,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     c._selected_voice = lambda: (_ for _ in ()).throw(Exception())
     seek_to_char_offset(c, 15)
@@ -122,7 +130,9 @@ def test_seek_selected_voice_exception_is_handled() -> None:
 def test_seek_selected_voice_none_returns_early() -> None:
     c = _controller(
         text="x" * 200,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     c._selected_voice = lambda: None
     seek_to_char_offset(c, 15)
@@ -140,7 +150,9 @@ def test_seek_stop_type_error_falls_back_to_stop_no_args() -> None:
     c = _controller(
         text="x" * 200,
         svc=svc,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     seek_to_char_offset(c, 15)
     assert "stop" in calls
@@ -155,7 +167,9 @@ def test_seek_stop_unexpected_exception_is_ignored() -> None:
     c = _controller(
         text="x" * 200,
         svc=svc,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     seek_to_char_offset(c, 15)
     assert c.narration_service.prepare_calls
@@ -181,14 +195,18 @@ def test_seek_assignment_of_last_prepared_voice_id_can_fail_and_is_ignored() -> 
 
 def test_seek_prepare_failure_returns_early() -> None:
     class _SvcBadPrepare(NarrationSvcFake):
-        def prepare(self, *, voice, start_playback_index: int, persist_resume: bool = True):
+        def prepare(
+            self, *, voice, start_playback_index: int, persist_resume: bool = True
+        ):
             raise RuntimeError("boom")
 
     svc = _SvcBadPrepare(stop_calls=[], prepare_calls=[])
     c = _controller(
         text="x" * 200,
         svc=svc,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     seek_to_char_offset(c, 15)
     assert c.narration_service.start_calls == 0
@@ -199,7 +217,9 @@ def test_seek_highlight_failure_is_ignored() -> None:
     c = _controller(
         text="x" * 200,
         svc=svc,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     c.window.highlight_range = lambda *_: (_ for _ in ()).throw(Exception())
     seek_to_char_offset(c, 15)
@@ -215,18 +235,24 @@ def test_seek_start_failure_returns_early() -> None:
     c = _controller(
         text="x" * 200,
         svc=svc,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     seek_to_char_offset(c, 15)
     assert c.narration_service.start_calls == 0
 
 
 def test_seek_loaded_book_id_exception_skips_persistence() -> None:
-    svc = NarrationSvcFake(stop_calls=[], prepare_calls=[], loaded_book_id_exc=RuntimeError("x"))
+    svc = NarrationSvcFake(
+        stop_calls=[], prepare_calls=[], loaded_book_id_exc=RuntimeError("x")
+    )
     c = _controller(
         text="x" * 200,
         svc=svc,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     seek_to_char_offset(c, 15)
     assert c.narration_service.start_calls == 1
@@ -237,7 +263,9 @@ def test_seek_resume_persist_exception_is_caught() -> None:
     c = _controller(
         text="x" * 200,
         svc=svc,
-        nav=NavFake(chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]),
+        nav=NavFake(
+            chunks=[TextChunk(chunk_id=0, text="A", start_char=10, end_char=20)]
+        ),
     )
     c.bookmark_service = SimpleNamespace(
         save_resume_position=lambda **_: (_ for _ in ()).throw(Exception())
@@ -269,7 +297,9 @@ def test_seek_first_start_exception_path_is_covered(monkeypatch) -> None:
     assert c.narration_service.prepare_calls
 
 
-def test_seek_candidate_filtering_exception_falls_back_to_all_chunks(monkeypatch) -> None:
+def test_seek_candidate_filtering_exception_falls_back_to_all_chunks(
+    monkeypatch,
+) -> None:
     class _MapperExplodes:
         def sanitize_with_mapping(self, *, original_text: str):
             del original_text
@@ -307,7 +337,9 @@ def test_seek_stop_kw_type_error_then_stop_raises_is_ignored() -> None:
             calls.append("stop")
             raise RuntimeError("boom")
 
-        def prepare(self, *, voice, start_playback_index: int, persist_resume: bool = True):
+        def prepare(
+            self, *, voice, start_playback_index: int, persist_resume: bool = True
+        ):
             calls.append(f"prepare:{int(start_playback_index)}")
 
         def start(self):
@@ -338,4 +370,3 @@ def test_seek_stop_kw_type_error_then_stop_raises_is_ignored() -> None:
     # stop was attempted but its failure must not prevent restarting.
     assert "prepare:0" in calls
     assert "start" in calls
-

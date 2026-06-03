@@ -155,4 +155,3 @@ def seek_to_char_offset(controller, offset: int) -> None:
             )
         except Exception:
             log.exception("Failed persisting resume after click-to-seek")
-

@@ -58,6 +58,9 @@ def _count_physical_lines(path: Path) -> int:
     return sum(1 for _ in path.open("r", encoding="utf-8", errors="ignore"))
 
 
+# REFACTORING GUIDELINE: When a file is approaching 400 lines, target ~350 lines,
+# not 399. Skimming 1-2 lines at a time to stay just under 400 wastes effort on
+# repeated micro-refactors of the same file. A meaningful reduction buys headroom.
 def test_all_in_scope_python_files_are_at_most_400_lines() -> None:
     root = _repo_root()
     offenders: list[LocOffender] = []

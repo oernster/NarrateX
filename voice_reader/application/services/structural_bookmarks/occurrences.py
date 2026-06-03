@@ -12,7 +12,10 @@ from voice_reader.application.services.structural_bookmarks.classification impor
 )
 import re
 
-from voice_reader.application.text_patterns import contains_dotted_leader, normalize_dotlikes
+from voice_reader.application.text_patterns import (
+    contains_dotted_leader,
+    normalize_dotlikes,
+)
 from voice_reader.application.services.structural_bookmarks.types import (
     HeadingOccurrence,
 )
@@ -44,9 +47,13 @@ def find_exact_heading_occurrences(
             str(cleaned or label or "").strip(),
             flags=re.IGNORECASE,
         )
-        if m is not None and (":" in str(cleaned or label) or "-" in str(cleaned or label)):
+        if m is not None and (
+            ":" in str(cleaned or label) or "-" in str(cleaned or label)
+        ):
             prefix = f"{m.group(1)} {m.group('num')}"
-            prefix_norm = normalize_label_for_compare(clean_heading_label(prefix) or prefix)
+            prefix_norm = normalize_label_for_compare(
+                clean_heading_label(prefix) or prefix
+            )
     except Exception:
         prefix_norm = None
 
@@ -155,9 +162,9 @@ def find_exact_heading_occurrences(
                         if str(stripped).endswith("-")
                         else f"{stripped} {nxt}"
                     )
-                    joined_clean = clean_heading_label(joined) or normalize_label_for_match(
+                    joined_clean = clean_heading_label(
                         joined
-                    )
+                    ) or normalize_label_for_match(joined)
                     joined_cmp = normalize_label_for_compare(joined_clean)
                     if joined_cmp == norm_label and not _is_probable_toc_occurrence(
                         i, stripped_line=stripped
@@ -199,7 +206,8 @@ def find_exact_heading_occurrences(
         out.append(
             HeadingOccurrence(
                 char_offset=int(line_offset),
-                label=clean_heading_label(stripped) or normalize_label_for_match(stripped),
+                label=clean_heading_label(stripped)
+                or normalize_label_for_match(stripped),
                 prev_blank=bool(is_blank(i - 1)),
                 next_blank=bool(is_blank(i + 1)),
             )
@@ -210,7 +218,6 @@ def find_exact_heading_occurrences(
     if wrapped_out:
         return wrapped_out
     return prefix_out
-
 
 
 def choose_best_occurrence(

@@ -12,15 +12,20 @@ from voice_reader.application.services.structural_bookmarks.normalization import
     normalize_label_for_compare,
     normalize_label_for_match,
 )
-from voice_reader.application.services.structural_bookmarks.types import HeadingOccurrence
-from voice_reader.application.text_patterns import contains_dotted_leader, normalize_dotlikes
+from voice_reader.application.services.structural_bookmarks.types import (
+    HeadingOccurrence,
+)
+from voice_reader.application.text_patterns import (
+    contains_dotted_leader,
+    normalize_dotlikes,
+)
 
 
 @dataclass(frozen=True, slots=True)
 class HeadingOccurrenceIndex:
     """One-pass heading occurrence index for a single document.
 
-    Motivation: [`find_exact_heading_occurrences()`](voice_reader/application/services/structural_bookmarks/occurrences.py:21)
+    Motivation: `find_exact_heading_occurrences()` (occurrences.py:21)
     scans the entire document per label. On omnibus PDFs with 100+ labels, that can
     become slow enough to appear as a UI hang.
 
@@ -98,7 +103,9 @@ class HeadingOccurrenceIndex:
                         if v:
                             look.append(v)
                         j += 1
-                    if any(_is_leader_only(v) or contains_dotted_leader(v) for v in look):
+                    if any(
+                        _is_leader_only(v) or contains_dotted_leader(v) for v in look
+                    ):
                         return True
                     if any(page_only_re.fullmatch(v) for v in look) and any(
                         _is_leader_only(v) or contains_dotted_leader(v) for v in look
@@ -152,11 +159,13 @@ class HeadingOccurrenceIndex:
                 nxt_s = stripped_lines[int(nb_next)]
                 if nxt_s:
                     joined = (
-                        f"{stripped[:-1]}{nxt_s}" if stripped.endswith("-") else f"{stripped} {nxt_s}"
+                        f"{stripped[:-1]}{nxt_s}"
+                        if stripped.endswith("-")
+                        else f"{stripped} {nxt_s}"
                     )
-                    joined_clean = clean_heading_label(joined) or normalize_label_for_match(
+                    joined_clean = clean_heading_label(
                         joined
-                    )
+                    ) or normalize_label_for_match(joined)
                     joined_cmp = normalize_label_for_compare(joined_clean)
                     if (not probable_toc) and joined_cmp in wanted:
                         wrapped.setdefault(joined_cmp, []).append(
@@ -214,7 +223,7 @@ class HeadingOccurrenceIndex:
     def occurrences_for_label(self, *, label: str) -> list[HeadingOccurrence]:
         """Return occurrences for `label` using legacy precedence rules.
 
-        This mirrors [`find_exact_heading_occurrences()`](voice_reader/application/services/structural_bookmarks/occurrences.py:21)
+        This mirrors `find_exact_heading_occurrences()` (occurrences.py:21)
         but uses the one-pass index.
         """
 
@@ -238,5 +247,6 @@ class HeadingOccurrenceIndex:
         except Exception:
             prefix_norm = None
 
-        return self.occurrences_for(cleaned_label=cleaned_label, prefix_norm=prefix_norm)
-
+        return self.occurrences_for(
+            cleaned_label=cleaned_label, prefix_norm=prefix_norm
+        )

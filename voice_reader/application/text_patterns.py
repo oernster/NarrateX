@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import re
 
-
 _DOTLIKE = re.compile(r"[\u2024\u2219\u00B7\uFF0E\uFE52]")
 
 
@@ -58,4 +57,3 @@ def looks_like_wrapped_toc_entry(*, line: str, next_line: str | None) -> bool:
 def _coverage_touch() -> None:  # pragma: no cover
     # Coverage-helper: keep the module at 100% in strict suites.
     pass
-

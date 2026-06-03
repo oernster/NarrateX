@@ -14,8 +14,8 @@ def test_includes_axiom_headings() -> None:
     assert "prologue" in kinds
     assert "axiom" in kinds
     labels = [b.label for b in out]
-    assert any(l.startswith("Axiom 1") for l in labels)
-    assert any(l.startswith("Axiom 2") for l in labels)
+    assert any(lbl.startswith("Axiom 1") for lbl in labels)
+    assert any(lbl.startswith("Axiom 2") for lbl in labels)
 
 
 def test_includes_title_case_section_headings_without_chapter_prefix() -> None:
@@ -118,4 +118,3 @@ def test_includes_book_headings() -> None:
     assert "book" in kinds
     assert "Book 1: Decision Architecture" in labels
     assert "Book 2: Another" in labels
-

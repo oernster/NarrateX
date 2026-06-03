@@ -80,4 +80,3 @@ def make_controller(
         bookmark_service=bookmark_service,
         _selected_voice=lambda: voice,
     )
-

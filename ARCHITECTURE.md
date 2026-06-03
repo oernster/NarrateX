@@ -120,6 +120,7 @@ Startup is in [`main()`](app.py:55):
 - audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72)
 4. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py:36)
 5. Create UI: [`MainWindow`](voice_reader/ui/main_window.py:38) + [`UiController`](voice_reader/ui/ui_controller.py:21)
+6. Show window via `window.show()`, then center it on the primary screen via [`center_window_on_screen()`](voice_reader/shared/startup_ui.py:126). Centering is best-effort (swallows exceptions so fakes/tests are unaffected).
 
 ### 2) Book selection and cover handling
 

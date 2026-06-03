@@ -43,8 +43,10 @@ class SpokenTextSanitizer:
             # Drop separator-only structure lines (e.g. "---", "--", "____").
             # This is semantic (no words), not based on a specific dash count.
             stripped = str(raw or "").strip()
-            if stripped and _SEPARATOR_ONLY.fullmatch(stripped) and not any(
-                ch.isalnum() for ch in stripped
+            if (
+                stripped
+                and _SEPARATOR_ONLY.fullmatch(stripped)
+                and not any(ch.isalnum() for ch in stripped)
             ):
                 continue
 

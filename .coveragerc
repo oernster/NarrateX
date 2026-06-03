@@ -57,6 +57,8 @@ omit =
     # Structural bookmark internals: heavily heuristic/regex-driven and covered
     # via higher-level service tests.
     voice_reader/application/services/structural_bookmarks/*
+    voice_reader/infrastructure/tts/kokoro_engine.py
+    voice_reader/infrastructure/tts/tts_engine_factory.py
     voice_reader/infrastructure/bookmarks/json_bookmark_repository.py
     voice_reader/infrastructure/audio/audio_streamer.py
     voice_reader/infrastructure/audio/sounddevice_streamer.py

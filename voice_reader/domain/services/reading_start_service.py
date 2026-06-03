@@ -54,7 +54,6 @@ class ReadingStartService:
             for pat in patterns:
                 for m in pat.finditer(search):
                     abs_start = int(search_start) + int(m.start())
-                    abs_end = int(search_start) + int(m.end())
 
                     if reading_start_toc.is_toc_wrapped_heading_match(
                         scan=scan,
@@ -109,9 +108,10 @@ class ReadingStartService:
     def _detect_toc_end(scan: str) -> int | None:
         """Compatibility wrapper retained for older tests."""
 
+        _fn = ReadingStartService._looks_like_structural_heading
         return reading_start_toc.detect_toc_end(
             scan=str(scan or ""),
-            looks_like_structural_heading=ReadingStartService._looks_like_structural_heading,
+            looks_like_structural_heading=_fn,
         )
 
     def _seek_first_paragraph(self, text: str, start: int) -> int:

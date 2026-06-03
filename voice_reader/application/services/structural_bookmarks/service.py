@@ -48,16 +48,24 @@ class StructuralBookmarkService:
                 # Defensive: treat invalid min_char_offset as unset.
                 pass
 
-        # HARD REQUIREMENT: if a TOC is detected, bookmark anchors must never resolve inside it.
+        # HARD REQUIREMENT: if a TOC is detected, bookmark anchors must not
+        # resolve inside it.
         min_anchor_offset = 0
         if toc_end_offset is not None:
             min_anchor_offset = max(min_anchor_offset, int(toc_end_offset))
-        # Always apply body cutoff; if TOC ends after body_start, don't clamp away the heading.
+        # Always apply body cutoff; if TOC ends after body_start, don't
+        # clamp away the heading.
         if int(body_start_offset) > 0 and (
             toc_end_offset is None or int(body_start_offset) >= int(toc_end_offset)
         ):
             min_anchor_offset = max(min_anchor_offset, int(body_start_offset))
-        if toc_end_offset is not None and 0 < int(body_start_offset) <= int(toc_end_offset) <= int(body_start_offset) + 24:
+        if (
+            toc_end_offset is not None
+            and 0
+            < int(body_start_offset)
+            <= int(toc_end_offset)
+            <= int(body_start_offset) + 24
+        ):
             min_anchor_offset = min(int(min_anchor_offset), int(body_start_offset))
 
         raw: list[RawHeadingCandidate] = []
@@ -86,7 +94,9 @@ class StructuralBookmarkService:
             min_char_offset=min_char_offset,
             body_start_offset=int(body_start_offset),
             front_matter_present=bool(front_matter_present),
-            toc_end_offset=(int(toc_end_offset) if toc_end_offset is not None else None),
+            toc_end_offset=(
+                int(toc_end_offset) if toc_end_offset is not None else None
+            ),
             prefer_min_offset=int(prefer_min_offset),
             min_anchor_offset=int(min_anchor_offset),
         )

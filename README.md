@@ -42,7 +42,8 @@ For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITEC
 
 ## Requirements
 
-- Python 3.11
+- Python 3.10+ (Windows: **3.11 required** — 3.12 and 3.13 are incompatible due to `kokoro` requiring `Python<3.13`)
+- spaCy `en_core_web_sm` model — installed automatically via `requirements.txt` using the PEP 440 URL format (no separate download step needed)
 
 Optional:
 
@@ -67,6 +68,7 @@ python app.py
 - Splash screen: enabled by default. Disable with `NARRATEX_DISABLE_SPLASH=1`.
 - Single-instance: enabled by default. To allow multiple instances (dev/testing),
   set `NARRATEX_ALLOW_MULTIINSTANCE=1`.
+- Window position: the main window is centered on the primary screen automatically at launch.
 
 ## Tests / Coverage
 

@@ -68,7 +68,8 @@ class BookParser:
                 # EbookLib can raise in nav parsing with ignore_ncx=True.
                 # Keep the console clean (no full traceback) unless DEBUG is enabled.
                 log.warning(
-                    "EPUB read failed (ignore_ncx=True); retrying with ignore_ncx=False: %s (%s)",
+                    "EPUB read failed (ignore_ncx=True);"
+                    " retrying with ignore_ncx=False: %s (%s)",
                     path,
                     exc,
                     exc_info=log.isEnabledFor(logging.DEBUG),
@@ -95,7 +96,10 @@ class BookParser:
                         if it is None:
                             continue
                         try:
-                            if getattr(it, "get_type", None) and it.get_type() != ebooklib.ITEM_DOCUMENT:
+                            if (
+                                getattr(it, "get_type", None)
+                                and it.get_type() != ebooklib.ITEM_DOCUMENT
+                            ):
                                 continue
                         except Exception:
                             pass
@@ -187,17 +191,19 @@ def _html_to_text(html_bytes: bytes) -> str:
 
     # Fallback: lxml.html
     try:
-        from lxml import etree, html
+        from lxml import html
 
         doc = html.fromstring(html_bytes)
         # Insert newlines after common block elements.
-        block_xpath = "//p|//div|//section|//article|//li|//h1|//h2|//h3|//h4|//h5|//h6|//br"
+        block_xpath = (
+            "//p|//div|//section|//article|//li|//h1|//h2|//h3|//h4|//h5|//h6|//br"
+        )
         for el in doc.xpath(block_xpath):
             try:
                 if el.tag.lower() == "br":
-                    el.tail = ("\n" + (el.tail or ""))
+                    el.tail = "\n" + (el.tail or "")
                 else:
-                    el.tail = ("\n\n" + (el.tail or ""))
+                    el.tail = "\n\n" + (el.tail or "")
             except Exception:
                 continue
         text = (doc.text_content() or "").strip()

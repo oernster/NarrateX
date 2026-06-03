@@ -68,16 +68,15 @@ class StructuralBookmarksDialog(QDialog):
             self.setAttribute(Qt.WA_StyledBackground, True)
         except Exception:  # pragma: no cover
             pass
-        self.setStyleSheet(
-            """
+        self.setStyleSheet("""
             QDialog#sectionsDialog { background: #0b0f17; }
             QListWidget { background: #121826; border: 1px solid #1f2937; }
             QListWidget::item:selected { background: #1f2a44; }
-            QPushButton { background: #121826; border: 1px solid #1f2937; padding: 6px 10px; border-radius: 6px; }
+            QPushButton { background: #121826; border: 1px solid #1f2937;
+                padding: 6px 10px; border-radius: 6px; }
             QPushButton:hover { border-color: #8b5cf6; }
             QPushButton:disabled { color: #94a3b8; }
-            """
-        )
+            """)
 
         # On some Windows configurations Qt can briefly show an unstyled (white)
         # window background before the first paint with styles applied. Avoid that

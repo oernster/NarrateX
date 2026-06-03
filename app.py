@@ -23,7 +23,11 @@ from voice_reader.shared.startup_diagnostics import (
     preflight_imports as _preflight_imports,
     program_base_dir as _program_base_dir,
 )
-from voice_reader.shared.startup_ui import default_lock_dir, maybe_show_splash
+from voice_reader.shared.startup_ui import (
+    center_window_on_screen,
+    default_lock_dir,
+    maybe_show_splash,
+)
 from voice_reader.bootstrap import resolve_app_wiring
 from voice_reader.version import APP_APPUSERMODELID, APP_NAME
 
@@ -93,13 +97,7 @@ _ICON_PNG_SIZES = (16, 32, 48, 64, 128, 256, 512)
 
 
 def build_runtime_icon() -> QIcon:
-    """
-    Build a multi-resolution QIcon from all shipped PNG sizes.
-
-    Qt sometimes fails to decode ICO files in frozen apps, so we use PNGs.
-    Providing all sizes lets Windows/Qt pick the sharpest match for each
-    use (taskbar, title bar, Alt+Tab), avoiding scaled-down artefacts.
-    """
+    """Build multi-resolution QIcon from shipped PNGs (avoids ICO decode failures in frozen builds)."""
     base = exe_dir()
     icon = QIcon()
     for size in _ICON_PNG_SIZES:
@@ -361,6 +359,8 @@ def main() -> int:
             log.exception("Failed connecting aboutToQuit")
 
         window.show()
+
+        center_window_on_screen(app, window)
 
         # Ensure the first paint happens before we hide the splash.
         try:

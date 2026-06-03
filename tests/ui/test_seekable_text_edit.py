@@ -184,4 +184,3 @@ def test_seekable_text_edit_ignores_non_left_release_and_none_event(qapp) -> Non
     # None event should also be ignored and not crash.
     w.mouseReleaseEvent(None)
     assert got == []
-

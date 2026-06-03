@@ -14,4 +14,3 @@ def test_front_matter_marker_allows_parenthetical_variants() -> None:
     # Ensure markers don't create spurious sections.
     assert any(b.kind == "prologue" for b in out)
     assert all("essay index" not in b.label.casefold() for b in out)
-

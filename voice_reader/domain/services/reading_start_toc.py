@@ -1,6 +1,7 @@
 """Domain-level Table-of-Contents (ToC) heuristics.
 
-This module exists to keep :class:`~voice_reader.domain.services.reading_start_service.ReadingStartService`
+This module exists to keep
+:class:`~voice_reader.domain.services.reading_start_service.ReadingStartService`
 small (the repo enforces per-file LoC limits) while keeping the heuristics
 testable and reusable.
 
@@ -177,7 +178,7 @@ def detect_toc_end(*, scan: str, looks_like_structural_heading) -> int | None:
 
     Args:
         scan: Prefix slice of the full book text.
-        looks_like_structural_heading: Callable(str)->bool used to detect clean headings.
+        looks_like_structural_heading: Callable(str)->bool. Detects headings.
 
     Returns:
         Absolute char offset into `scan` where TOC ends, or None.
@@ -199,7 +200,9 @@ def detect_toc_end(*, scan: str, looks_like_structural_heading) -> int | None:
             continue
 
         nxt = next_nonblank_value(lines, i + 1)
-        wrapped_tail = looks_like_wrapped_toc_tail(nxt.strip() if nxt is not None else None)
+        wrapped_tail = looks_like_wrapped_toc_tail(
+            nxt.strip() if nxt is not None else None
+        )
 
         # If we've already consumed ToC-looking entries and we now see what looks like
         # a structural heading, it might still be a wrapped TOC entry (label line).
@@ -211,7 +214,11 @@ def detect_toc_end(*, scan: str, looks_like_structural_heading) -> int | None:
                 continue
             break
 
-        if looks_like_toc_entry(stripped) or looks_like_outline_line(stripped) or wrapped_tail:
+        if (
+            looks_like_toc_entry(stripped)
+            or looks_like_outline_line(stripped)
+            or wrapped_tail
+        ):
             consumed_any = True
             offset += len(line)
             continue
@@ -236,11 +243,12 @@ def _nocover_marker() -> None:  # pragma: no cover
 # Coverage helper: keep a small, deterministic smoke test for strict suites.
 def _coverage_smoke() -> None:  # pragma: no cover
     sample = "Contents\nChapter 1 .... 1\n\nCHAPTER 1\nBody."
-    _ = detect_toc_end(scan=sample, looks_like_structural_heading=lambda s: s == "CHAPTER 1")
+    _ = detect_toc_end(
+        scan=sample, looks_like_structural_heading=lambda s: s == "CHAPTER 1"
+    )
     _ = is_toc_wrapped_heading_match(scan=sample, absolute_match_start=10)
     _ = looks_like_toc_entry(". . . .")
     _ = looks_like_wrapped_toc_tail("42")
     _ = looks_like_outline_line("1.2")
     _ = next_nonblank_value(["", "x"], 0)
     _ = line_at(sample, 0)
-

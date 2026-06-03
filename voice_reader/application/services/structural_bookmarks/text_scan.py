@@ -169,7 +169,8 @@ def scan_structural_headings(*, normalized_text: str) -> list[RawHeadingCandidat
         # - the marker already contains some subtitle text ("Chapter 35: ...").
         bare_marker = bool(
             re.fullmatch(
-                r"(?i)(chapter|part|axiom)\s+[0-9ivxlcdm]+\s*(?:[:\-\u2013\u2014])?\s*$",
+                r"(?i)(chapter|part|axiom)\s+[0-9ivxlcdm]+"
+                r"\s*(?:[:\-\u2013\u2014])?\s*$",
                 label,
             )
             or re.fullmatch(

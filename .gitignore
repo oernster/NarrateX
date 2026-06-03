@@ -52,7 +52,7 @@ coverage.xml
 *.py.cover
 .hypothesis/
 .pytest_cache/
-cover/
+/cover/
 
 # Translations
 *.mo
@@ -60,6 +60,11 @@ cover/
 
 # Django stuff:
 *.log
+NarrateX.startup.log.txt
+NarrateX.startup.err.txt
+
+# Runtime data directories
+/bookmarks/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal

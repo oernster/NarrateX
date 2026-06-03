@@ -8,7 +8,6 @@ from voice_reader.application.services.structural_bookmarks.normalization import
 )
 from voice_reader.domain.entities.structural_bookmark import StructuralBookmark
 
-
 _CHAPTER_OR_PART_PREFIX_RE = re.compile(
     r"(?i)^(chapter|part)\s+[0-9ivxlcdm]+\s*(?:[:\-\u2013\u2014])?\s*(?P<rest>.*)$"
 )
@@ -41,14 +40,15 @@ def suppress_redundant_title_sections(
             except Exception:
                 close = False
             if close:
-                prev_lab = clean_heading_label(str(prev.label or "").strip()) or str(
-                    prev.label or ""
-                ).strip()
+                prev_lab = (
+                    clean_heading_label(str(prev.label or "").strip())
+                    or str(prev.label or "").strip()
+                )
                 m = _CHAPTER_OR_PART_PREFIX_RE.match(prev_lab)
                 rest = str(m.group("rest") or "").strip() if m is not None else ""
-                if rest and normalize_label_for_compare(rest) == normalize_label_for_compare(
-                    str(b.label or "")
-                ):
+                if rest and normalize_label_for_compare(
+                    rest
+                ) == normalize_label_for_compare(str(b.label or "")):
                     continue
 
         out.append(b)
@@ -142,4 +142,3 @@ def inject_prologue_after_each_book(
 
     out.sort(key=lambda b: int(b.char_offset))
     return out
-

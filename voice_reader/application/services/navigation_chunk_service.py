@@ -10,7 +10,10 @@ from voice_reader.domain.interfaces.reading_start_detector import ReadingStartDe
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.domain.services.reading_start_service import ReadingStart
 
-from voice_reader.application.text_patterns import contains_dotted_leader, normalize_dotlikes
+from voice_reader.application.text_patterns import (
+    contains_dotted_leader,
+    normalize_dotlikes,
+)
 
 
 @dataclass(frozen=True, slots=True)

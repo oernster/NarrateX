@@ -66,7 +66,9 @@ def open_structural_bookmarks_dialog(controller) -> None:
     def _on_destroyed(_obj=None) -> None:
         # Invalidate the pending compute so the UI won't be updated after close.
         try:
-            if getattr(controller, "_sections_compute_token", None) is token:  # noqa: SLF001
+            if (
+                getattr(controller, "_sections_compute_token", None) is token
+            ):  # noqa: SLF001
                 controller._sections_compute_token = None  # noqa: SLF001
         except Exception:
             return
@@ -92,7 +94,9 @@ def open_structural_bookmarks_dialog(controller) -> None:
 
         def _apply() -> None:
             # Cancel if user closed/re-opened the dialog or a new job started.
-            if getattr(controller, "_sections_compute_token", None) is not token:  # noqa: SLF001
+            if (
+                getattr(controller, "_sections_compute_token", None) is not token
+            ):  # noqa: SLF001
                 return
             cur = getattr(controller, "_sections_dialog", None)  # noqa: SLF001
             if cur is None or cur is not dlg:

@@ -8,7 +8,9 @@ def test_compute_structural_bookmarks_filters_book_title_heading() -> None:
     from types import SimpleNamespace
 
     from voice_reader.domain.entities.structural_bookmark import StructuralBookmark
-    from voice_reader.ui.structural_bookmarks_helpers import compute_structural_bookmarks
+    from voice_reader.ui.structural_bookmarks_helpers import (
+        compute_structural_bookmarks,
+    )
 
     class _Svc:
         def build_for_loaded_book(self, **_):
@@ -63,4 +65,3 @@ def test_compute_structural_bookmarks_filters_book_title_heading() -> None:
 
     labels = [b.label for b in comp.bookmarks]
     assert "Decision Architecture" not in labels
-

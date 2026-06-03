@@ -29,7 +29,9 @@ from voice_reader.application.services.structural_bookmarks.postprocess import (
     suppress_redundant_title_sections,
     suppress_sections_between_chapters,
 )
-from voice_reader.application.services.structural_bookmarks.types import RawHeadingCandidate
+from voice_reader.application.services.structural_bookmarks.types import (
+    RawHeadingCandidate,
+)
 from voice_reader.domain.entities.structural_bookmark import StructuralBookmark
 from voice_reader.domain.entities.text_chunk import TextChunk
 
@@ -152,7 +154,9 @@ def resolve_structural_bookmarks(
         best_offset: int | None = None
         post_meta = [o for o in meta_offsets if int(o) >= int(prefer_min_offset)]
         best_meta_post = min(post_meta) if post_meta else None
-        if best_text is not None and int(best_text.char_offset) >= int(prefer_min_offset):
+        if best_text is not None and int(best_text.char_offset) >= int(
+            prefer_min_offset
+        ):
             best_offset = int(best_text.char_offset)
         if best_meta_post is not None and (
             best_offset is None or int(best_meta_post) < int(best_offset)
@@ -173,7 +177,11 @@ def resolve_structural_bookmarks(
                 char_offset=int(canonical_offset),
                 chunks=chunks,
             )
-        if chunks is not None and min_char_offset is not None and best_chunk_index is not None:
+        if (
+            chunks is not None
+            and min_char_offset is not None
+            and best_chunk_index is not None
+        ):
             try:
                 if int(chunks[int(best_chunk_index)].end_char) < int(min_char_offset):
                     continue
@@ -191,7 +199,9 @@ def resolve_structural_bookmarks(
             StructuralBookmark(
                 label=label_disp,
                 char_offset=int(canonical_offset),
-                chunk_index=(int(best_chunk_index) if best_chunk_index is not None else None),
+                chunk_index=(
+                    int(best_chunk_index) if best_chunk_index is not None else None
+                ),
                 kind=str(kind),
                 level=0,
             )
@@ -240,4 +250,3 @@ def resolve_structural_bookmarks(
     out2 = suppress_sections_between_chapters(bookmarks=out2)
     out2 = inject_prologue_after_each_book(bookmarks=out2, normalized_text=text)
     return out2
-

@@ -200,4 +200,3 @@ def test_click_to_seek_before_reading_start_is_clamped(qapp) -> None:
 
     # UX hint (best-effort; may be overwritten quickly in real playback).
     assert "clamped" in (w.lbl_status.text() or "").lower()
-

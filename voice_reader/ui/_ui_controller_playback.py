@@ -10,7 +10,6 @@ import logging
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 from voice_reader.domain.value_objects.playback_volume import PlaybackVolume
-
 from voice_reader.ui.structural_bookmarks_helpers import compute_structural_bookmarks
 
 
@@ -85,8 +84,8 @@ def play(controller) -> None:
         controller._log.warning("No voice profiles available")  # noqa: SLF001
         return
 
-    # If we're starting from scratch (no explicit index and no saved resume),
-    # prefer the same deterministic first Section shown in the 🧠 dialog.
+    # If starting from scratch (no explicit index and no saved resume),
+    # prefer the deterministic first Section shown in the structural bookmarks dialog.
     if start_playback_index is None:
         try:
             book_id = controller.narration_service.loaded_book_id()
@@ -112,9 +111,6 @@ def play(controller) -> None:
                 except Exception:
                     start_char_offset = None
 
-                # Defensive: never start playback from a pre-boundary structural
-                # bookmark (e.g. a PDF TOC duplicate). Prefer the computed safe
-                # boundary instead, which is based on the reading-start detector.
                 if (
                     start_char_offset is not None
                     and comp.min_char_offset is not None
@@ -123,7 +119,6 @@ def play(controller) -> None:
                     start_char_offset = int(comp.min_char_offset)
 
                 if start_char_offset is not None:
-                    # Force chunking to begin exactly at the target.
                     controller._last_prepared_voice_id = voice.name  # noqa: SLF001
                     controller.narration_service.prepare(
                         voice=voice,

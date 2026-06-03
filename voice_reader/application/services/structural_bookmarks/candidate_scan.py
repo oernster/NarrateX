@@ -31,4 +31,3 @@ def extract_heading_labels_from_text(*, normalized_text: str) -> list[str]:
         seen.add(key)
         labels.append(lab)
     return labels
-

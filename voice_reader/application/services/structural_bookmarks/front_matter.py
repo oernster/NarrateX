@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 """Front-matter/body boundary heuristics.
 
 TOC end detection is implemented in a small helper module to keep this file
@@ -18,9 +16,6 @@ from voice_reader.application.services.structural_bookmarks.classification impor
 )
 from voice_reader.application.services.structural_bookmarks.normalization import (
     normalize_marker_line,
-)
-from voice_reader.application.services.structural_bookmarks.text_scan import (
-    looks_like_paragraph_line,
 )
 
 FRONT_MATTER_MARKERS = {
@@ -47,8 +42,6 @@ def has_front_matter_marker(*, normalized_text: str) -> bool:
         if s in FRONT_MATTER_MARKERS:
             return True
     return False
-
-
 
 
 def detect_body_start_offset(normalized_text: str) -> int:

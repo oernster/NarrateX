@@ -4,7 +4,9 @@ from voice_reader.application.text_patterns import looks_like_wrapped_toc_entry
 
 
 def test_looks_like_wrapped_toc_entry_true_for_leader_only_next_line() -> None:
-    assert looks_like_wrapped_toc_entry(line="Experience", next_line=". . . . .") is True
+    assert (
+        looks_like_wrapped_toc_entry(line="Experience", next_line=". . . . .") is True
+    )
 
 
 def test_looks_like_wrapped_toc_entry_true_for_page_only_next_line() -> None:
@@ -21,7 +23,8 @@ def test_looks_like_wrapped_toc_entry_false_for_blank_label() -> None:
 
 def test_looks_like_wrapped_toc_entry_false_for_normal_text_next_line() -> None:
     assert (
-        looks_like_wrapped_toc_entry(line="Experience", next_line="This is normal prose")
+        looks_like_wrapped_toc_entry(
+            line="Experience", next_line="This is normal prose"
+        )
         is False
     )
-

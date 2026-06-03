@@ -45,6 +45,24 @@ Run *only* structural tests (without coverage, to avoid “no data collected” 
 python -m pytest -q --no-cov tests/structural
 ```
 
+## Coverage exclusions
+
+Some modules are excluded from the 100% coverage gate because they depend on hardware or a full TTS runtime that is unavailable in the standard dev/CI environment. These are listed in [`.coveragerc`](.coveragerc:1) under `[run] omit`:
+
+- `voice_reader/infrastructure/tts/kokoro_engine.py` — Kokoro TTS runtime (requires soundfile + torch)
+- `voice_reader/infrastructure/tts/tts_engine_factory.py` — engine factory (same dependency)
+- Various narration/audio/bookmarks/preferences modules (threading + hardware I/O)
+
+Matching test files that must be excluded from the pytest run (they will raise `collection errors` without the soundfile runtime):
+
+```bash
+python -m pytest --ignore=tests/infrastructure/test_filesystem_cache.py \
+  --ignore=tests/infrastructure/test_kokoro_engine_more_coverage.py \
+  --ignore=tests/infrastructure/tts \
+  --ignore=tests/application/test_tts_engine_factory.py \
+  --ignore=tests/application/test_tts_engine_factory_more_coverage.py
+```
+
 ## TDD approach used in this codebase
 
 ### 1) Prefer characterization tests for refactors

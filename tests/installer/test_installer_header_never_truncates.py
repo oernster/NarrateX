@@ -27,7 +27,9 @@ def test_installer_header_title_fits_without_eliding(qapp, monkeypatch) -> None:
     qapp.processEvents()
 
     title = getattr(win, "_header_title", None)
-    assert title is not None, "Expected installer to keep a reference to the header title label"
+    assert (
+        title is not None
+    ), "Expected installer to keep a reference to the header title label"
 
     # Let any deferred resize/font-fitting run.
     qapp.processEvents()
@@ -38,4 +40,3 @@ def test_installer_header_title_fits_without_eliding(qapp, monkeypatch) -> None:
     assert (
         elided == title.text()
     ), f"Expected header title to fit without truncation; got {elided!r}"
-

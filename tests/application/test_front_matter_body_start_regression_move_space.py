@@ -7,7 +7,9 @@ from voice_reader.application.services.structural_bookmark_service import (
 )
 
 
-def test_body_start_ignores_toc_like_entries_and_handles_running_contents_header() -> None:
+def test_body_start_ignores_toc_like_entries_and_handles_running_contents_header() -> (
+    None
+):
     # Regression fixture modeled on `decision-architecture-the-move-space.pdf`.
     #
     # PDF extracts can contain:
@@ -58,4 +60,3 @@ def test_epub_style_toc_does_not_leak_last_entry_as_first_section() -> None:
     assert out
     assert out[0].kind == "prologue"
     assert out[0].char_offset == text.index("\nPrologue\n\n") + 1
-

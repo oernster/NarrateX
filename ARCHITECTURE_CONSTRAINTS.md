@@ -41,6 +41,8 @@ Enforced by [`test_all_in_scope_python_files_are_at_most_400_lines()`](tests/str
 
 This is a pragmatic guardrail to encourage extracting cohesive submodules and avoiding "god" modules.
 
+**Refactoring guideline:** When a file approaches 400 lines, target **~350 lines**, not 399. Trimming 1-2 lines repeatedly to stay just under 400 wastes effort on repeated micro-refactors of the same file. A meaningful reduction (extract a helper module, split a test file) buys real headroom.
+
 ## Running the structural tests
 
 The repo is configured to run pytest with a strict coverage gate by default (see pytest `addopts` in [`pyproject.toml`](pyproject.toml:1)).

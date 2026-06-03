@@ -89,4 +89,3 @@ class SeekableTextEdit(QTextEdit):
         finally:
             self._press_pos = None
             self._dragging = False
-

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 
-from voice_reader.application.text_patterns import contains_dotted_leader, normalize_dotlikes
+from voice_reader.application.text_patterns import (
+    contains_dotted_leader,
+    normalize_dotlikes,
+)
 
 
 def normalize_label_for_match(label: str) -> str:

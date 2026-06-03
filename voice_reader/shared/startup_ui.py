@@ -123,6 +123,19 @@ def maybe_show_splash(
         return None  # pragma: no cover
 
 
+def center_window_on_screen(app: object, window: object) -> None:
+    """Move window to the center of the primary screen (best-effort)."""
+
+    try:
+        screen = app.primaryScreen()  # type: ignore[union-attr]
+        if screen is not None:
+            frame = window.frameGeometry()  # type: ignore[union-attr]
+            frame.moveCenter(screen.availableGeometry().center())
+            window.move(frame.topLeft())  # type: ignore[union-attr]
+    except Exception:
+        pass
+
+
 def default_lock_dir(*, app_name: str) -> Path:
     """Choose a stable per-user location for locks.
 

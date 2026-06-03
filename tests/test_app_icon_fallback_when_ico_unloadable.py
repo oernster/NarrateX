@@ -49,9 +49,15 @@ class _FakeQIcon:
 
     def __init__(self, path: str | None = None) -> None:
         self._path = path or ""
+        self._files: list[str] = []
+
+    def addFile(self, path: str, *args) -> None:
+        self._files.append(path)
 
     def isNull(self) -> bool:
-        return self._path.lower().endswith(".ico") or not self._path
+        if self._path:
+            return self._path.lower().endswith(".ico")
+        return len(self._files) == 0
 
 
 def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(
@@ -131,6 +137,6 @@ def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(
 
     chosen = fake_qapp.window_icons[-1]
     assert isinstance(chosen, _FakeQIcon)
-    assert chosen._path.lower().endswith(
-        ".png"
+    assert any(
+        f.lower().endswith(".png") for f in chosen._files
     ), "Expected fallback to a PNG-based icon"
