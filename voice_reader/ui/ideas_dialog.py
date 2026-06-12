@@ -60,15 +60,12 @@ class IdeasDialog(QDialog):
         self._actions = actions
 
         self.setWindowTitle("Ideas")
+        # FramelessWindowHint removes the title bar including the minimize button
+        # which Ubuntu Yaru renders as an em dash.  The dialog has its own
+        # "Ideas" QLabel and a "Close" button so no functionality is lost.
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setModal(True)
         self.resize(520, 420)
-
-        try:
-            self.setWindowFlag(Qt.WindowMinimizeButtonHint, False)
-            self.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
-        except Exception:  # pragma: no cover
-            # Some environments / test doubles may not support these window flags.
-            pass  # pragma: no cover
 
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -137,5 +134,6 @@ class IdeasDialog(QDialog):
             if not _in_tests():
                 box = QMessageBox(self)
                 box.setWindowTitle("Ideas")
+                box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
                 box.setText(f"Failed jumping to idea: {exc}")
                 box.open()

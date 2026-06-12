@@ -49,9 +49,10 @@ python -m pytest -q --no-cov tests/structural
 
 Some modules are excluded from the 100% coverage gate because they depend on hardware or a full TTS runtime that is unavailable in the standard dev/CI environment. These are listed in [`.coveragerc`](.coveragerc:1) under `[run] omit`:
 
-- `voice_reader/infrastructure/tts/kokoro_engine.py` — Kokoro TTS runtime (requires soundfile + torch)
-- `voice_reader/infrastructure/tts/tts_engine_factory.py` — engine factory (same dependency)
+- `voice_reader/infrastructure/tts/kokoro_engine.py` - Kokoro TTS runtime (requires soundfile + torch)
+- `voice_reader/infrastructure/tts/tts_engine_factory.py` - engine factory (same dependency)
 - Various narration/audio/bookmarks/preferences modules (threading + hardware I/O)
+- Qt-threaded UI dialogs (e.g. the first-run model download dialog) that drive a background worker and an event loop
 
 Matching test files that must be excluded from the pytest run (they will raise `collection errors` without the soundfile runtime):
 

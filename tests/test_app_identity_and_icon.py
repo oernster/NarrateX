@@ -48,7 +48,7 @@ class _FakeQApplication:
 def test_main_sets_application_display_name_when_supported(
     monkeypatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(app, "__file__", str(tmp_path / "app.py"))
+    monkeypatch.setattr(app, "_run_model_preflight", lambda a: True)
 
     class _FakeConfig:
         def __init__(self) -> None:
@@ -120,7 +120,7 @@ def test_main_sets_application_display_name_when_supported(
 def test_main_sets_qt_desktop_file_name_to_match_appusermodelid(
     monkeypatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(app, "__file__", str(tmp_path / "app.py"))
+    monkeypatch.setattr(app, "_run_model_preflight", lambda a: True)
 
     class _FakeConfig:
         def __init__(self) -> None:

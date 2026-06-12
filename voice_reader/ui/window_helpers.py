@@ -13,7 +13,13 @@ from voice_reader.version import APP_AUTHOR, APP_COPYRIGHT, APP_NAME, __version_
 
 
 def apply_main_window_theme(window) -> None:
-    """Apply the app stylesheet to the given QMainWindow."""
+    """Apply the app stylesheet to the given QMainWindow and the QApplication.
+
+    Setting the stylesheet on QApplication ensures all dialogs (QMessageBox,
+    QProgressDialog, etc.) inherit the dark theme rather than getting the
+    platform's default white background.
+    """
+    from PySide6.QtWidgets import QApplication
 
     # Dark theme with purple accents.
     purple = "#8b5cf6"
@@ -37,6 +43,14 @@ def apply_main_window_theme(window) -> None:
                 background: {panel};
                 border: 1px solid #1f2937;
                 padding: 4px 8px;
+            }}
+            QComboBox QAbstractItemView {{
+                background: {panel};
+                color: {text};
+                selection-background-color: {blue};
+                selection-color: {text};
+                border: 1px solid #374151;
+                outline: 0;
             }}
 
             /* Clearly indicate "locked while playing" dropdowns. */
@@ -138,12 +152,70 @@ def apply_main_window_theme(window) -> None:
             QProgressBar::chunk {{ background: {purple}; }}
 
             /* Ideas progress bar removed (Sections-only brain button). */
+
+            QMessageBox {{ background: {bg}; color: {text}; }}
+            QMessageBox QLabel {{ color: {text}; }}
+            QDialog {{ background: {bg}; color: {text}; }}
+            QDialog QLabel {{ color: {text}; }}
+            QDialog QPlainTextEdit {{ background: {panel}; color: {text}; border: 1px solid #1f2937; }}
+
+            QScrollBar:vertical {{
+                background: {panel};
+                width: 10px;
+                border-radius: 5px;
+                margin: 0;
+            }}
+            QScrollBar::handle:vertical {{
+                background: #475569;
+                min-height: 24px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: #64748b;
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0;
+            }}
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+                background: none;
+            }}
+
+            QScrollBar:horizontal {{
+                background: {panel};
+                height: 10px;
+                border-radius: 5px;
+                margin: 0;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: #475569;
+                min-width: 24px;
+                border-radius: 5px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: #64748b;
+            }}
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                width: 0;
+            }}
+            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+                background: none;
+            }}
             """)
+
+    try:
+        app = QApplication.instance()
+        if app is not None:
+            app.setStyleSheet(window.styleSheet())
+    except Exception:
+        pass
 
 
 def build_about_dialog(*, parent: QWidget) -> QMessageBox:
+    from PySide6.QtCore import Qt
+
     box = QMessageBox(parent)
     box.setWindowTitle(f"About {APP_NAME}")
+    box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
     box.setTextFormat(Qt.RichText)
 
     # Prefer the runtime-set window icon.

@@ -69,6 +69,7 @@ omit =
     voice_reader/shared/resources.py
     voice_reader/ui/licence_dialog.py
     voice_reader/ui/main_window.py
+    voice_reader/ui/model_download_dialog.py
     voice_reader/ui/ui_controller.py
     voice_reader/ui/_ui_controller_bookmarks.py
     voice_reader/ui/_ui_controller_chapters.py

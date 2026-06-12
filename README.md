@@ -42,12 +42,15 @@ For a codebase overview (layers, runtime flow, and test mapping), see [`ARCHITEC
 
 ## Requirements
 
-- Python 3.10+ (Windows: **3.11 required** — 3.12 and 3.13 are incompatible due to `kokoro` requiring `Python<3.13`)
-- spaCy `en_core_web_sm` model — installed automatically via `requirements.txt` using the PEP 440 URL format (no separate download step needed)
+- Python 3.10, 3.11, or 3.12 (`kokoro` requires `Python<3.13`)
+- spaCy `en_core_web_sm` model - installed automatically via `requirements.txt` using the PEP 440 URL format (no separate download step needed)
 
 Optional:
 
 - Calibre (for converting Kindle formats using `ebook-convert`)
+
+**Linux:** system libraries (PortAudio, etc.) must be installed before the Python setup.
+See [LINUX-INSTALLATION.md](LINUX-INSTALLATION.md) for distro-specific instructions.
 
 ## Install
 
@@ -158,6 +161,20 @@ ie4uinit.exe -ClearIconCache
 taskkill /IM explorer.exe /F
 start explorer.exe
 ```
+
+## Linux builds
+
+Two build paths are provided for Linux:
+
+- Flatpak (sandboxed, self-contained): build and install with
+  [`build_flatpak.sh`](build_flatpak.sh). The Flatpak bundles the audio backend,
+  the espeak-ng phonemizer, and the spaCy model, so no system dependencies are
+  required at run time.
+- Native onedir bundle (PyInstaller): build with [`buildlinux.py`](buildlinux.py:1),
+  producing `dist-pyinstaller/NarrateX/`.
+
+Running from source on Linux is covered in
+[LINUX-INSTALLATION.md](LINUX-INSTALLATION.md).
 
 ## Tests
 

@@ -7,13 +7,13 @@ import multiprocessing as mp
 import os
 import shutil
 import sys
+import threading
 import traceback
 from pathlib import Path
 
-from PySide6.QtCore import QSize
-from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QApplication
 
+from voice_reader.ui._app_icon import build_runtime_icon, set_windows_app_identity
 from voice_reader.shared.config import Config
 from voice_reader.shared.external_runtime import configure_packaged_runtime
 from voice_reader.shared.logging_utils import configure_logging
@@ -61,50 +61,18 @@ for _sym in [
     globals().setdefault(_sym, None)
 
 
+def _run_model_preflight(app) -> bool:  # noqa: ANN001
+    from voice_reader.ui.model_download_dialog import maybe_download_model
+
+    return maybe_download_model(app)
+
+
 def _env_truthy(name: str) -> bool:
     try:
         v = os.getenv(name, "")
     except Exception:
         return False
     return v.strip().lower() in {"1", "true", "yes", "y", "on"}
-
-
-def exe_dir() -> Path:
-    """Return directory containing the executable."""
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
-
-
-def set_windows_app_identity() -> None:
-    """Ensure Windows groups the app correctly in the taskbar."""
-    if os.name != "nt":
-        return
-    try:
-        # Import inside the function so tests can monkeypatch `ctypes` via
-        # `sys.modules` without having to reach into this module's globals.
-        import ctypes  # noqa: WPS433 (intentional dynamic import for testability)
-
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(
-            APP_APPUSERMODELID
-        )
-    except Exception:
-        pass
-
-
-# Shipped PNG sizes (must match buildexe.py add_data list).
-_ICON_PNG_SIZES = (16, 32, 48, 64, 128, 256, 512)
-
-
-def build_runtime_icon() -> QIcon:
-    """Build QIcon from shipped PNGs (avoids ICO decode failures in frozen builds)."""
-    base = exe_dir()
-    icon = QIcon()
-    for size in _ICON_PNG_SIZES:
-        candidate = base / f"narratex_{size}.png"
-        if candidate.exists():
-            icon.addFile(str(candidate), QSize(size, size))
-    return icon
 
 
 def program_base_dir() -> Path:
@@ -171,6 +139,11 @@ def main() -> int:
             return rc
 
         # ----- Qt startup -----
+
+        # Suppress a spurious D-Bus portal registration warning emitted on some
+        # desktops when the session bus already associates an app ID before Qt
+        # tries to register one (benign, no functional impact).
+        os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.services=false")
 
         app = QApplication(sys.argv)
 
@@ -250,9 +223,14 @@ def main() -> int:
             enabled=(not _env_truthy("NARRATEX_DISABLE_SPLASH")),
         )
 
+        # ----- Model pre-flight: download Kokoro weights if not cached -----
+        # Runs once on first launch; shows a progress dialog while downloading.
+        if not _run_model_preflight(app):
+            return 1  # user was shown an error dialog; exit cleanly
+
         # ----- Heavy app wiring (after splash is visible) -----
 
-        resolve_app_wiring(globals())
+        resolve_app_wiring(globals(), tick_fn=app.processEvents)
 
         def _g(name: str):  # noqa: ANN001
             return globals()[name]
@@ -381,6 +359,23 @@ def main() -> int:
             activate_window(window)
 
         append_startup_log("NarrateX.startup.log.txt", "window shown")
+
+        # Pre-warm the TTS model in the background so the first Play is instant.
+        # NarrationService emits SYNTHESIZING→IDLE so the UI progress bar animates.
+        def _startup_tts_warmup() -> None:
+            try:
+                voices = voice_service.list_profiles()
+                if not voices:
+                    return
+                narration_service.startup_warmup(voices[0])
+            except Exception:
+                log.debug("Startup TTS warmup failed", exc_info=True)
+
+        threading.Thread(
+            target=_startup_tts_warmup,
+            name="tts-startup-warmup",
+            daemon=True,
+        ).start()
 
         return app.exec()
     except SystemExit:

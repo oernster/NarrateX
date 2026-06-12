@@ -41,6 +41,10 @@ from voice_reader.application.services.narration.prepare import (
     resolve_playback_index_for_char_offset as _resolve_playback_index_for_char_offset,
 )
 from voice_reader.application.services.narration.run import run as _run
+from voice_reader.application.services.narration.synthesis_common import (
+    presynthesize_start_chunks as _presynthesize_start_chunks,
+    startup_warmup_tts as _startup_warmup_tts,
+)
 from voice_reader.application.services.playback_synchronizer import PlaybackSynchronizer
 from voice_reader.domain.alignment.alignment_io import AlignmentIO
 from voice_reader.domain.alignment.estimated_aligner import EstimatedAligner
@@ -186,6 +190,26 @@ class NarrationService:
 
     def stop(self, *, persist_resume: bool = True) -> None:
         _stop(self, persist_resume=bool(persist_resume))
+
+    def startup_warmup(self, voice: VoiceProfile) -> None:
+        """Pre-load TTS model in background; emits SYNTHESIZING→IDLE state."""
+        _startup_warmup_tts(self, voice=voice, tts_engine=self.tts_engine)
+
+    def presynthesize_start(
+        self,
+        voice: VoiceProfile,
+        *,
+        cancel_event: "threading.Event",
+        n_chunks: int = 2,
+    ) -> None:
+        """Cache first n_chunks at the playback start position; call in a background thread."""
+        _presynthesize_start_chunks(
+            self,
+            voice=voice,
+            tts_engine=self.tts_engine,
+            cancel_event=cancel_event,
+            n_chunks=n_chunks,
+        )
 
     def on_app_exit(self) -> None:
         _on_app_exit(self)

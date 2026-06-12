@@ -202,6 +202,9 @@ cython_debug/
 # NarrateX runtime user state (dev mode writes beside project root).
 preferences.json
 
+# Working release notes (regenerated per release; version handled separately).
+NOTES.md
+
 # PyPI configuration file
 .pypirc
 
@@ -238,3 +241,16 @@ decision_architecture_hardback.pdf
 dist-installer/
 installer/payload/payload.zip
 installer/payload/manifest.json
+
+# Flatpak build artifacts
+.flatpak-build/
+.flatpak-repo/
+.flatpak-builder/
+.flatpak-wheels/
+packaging/
+com.oliverernster.narratex.yml
+narratex.flatpak
+
+# PyInstaller Linux build output
+dist-pyinstaller/
+build/pyinstaller/

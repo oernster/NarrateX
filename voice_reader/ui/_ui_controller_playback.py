@@ -79,6 +79,12 @@ def play(controller) -> None:
         if st.status == NarrationStatus.PLAYING:
             return
 
+    # Cancel any in-flight pre-synthesis so it doesn't hold the TTS pipeline
+    # lock and block the synthesis worker that is about to start.
+    cancel = getattr(controller, "_presynth_cancel", None)
+    if cancel is not None:
+        cancel.set()
+
     voice = controller._selected_voice()  # noqa: SLF001
     if voice is None:
         controller._log.warning("No voice profiles available")  # noqa: SLF001

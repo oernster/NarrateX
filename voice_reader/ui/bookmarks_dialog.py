@@ -62,15 +62,12 @@ class BookmarksDialog(QDialog):
         self._actions = actions
 
         self.setWindowTitle("Bookmarks")
+        # FramelessWindowHint removes the title bar including the minimize button
+        # which Ubuntu Yaru renders as an em dash.  The dialog has its own
+        # "Bookmarks" QLabel and a "Close" button so no functionality is lost.
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setModal(True)
         self.resize(420, 360)
-
-        # Dialog chrome: keep only the close button (no minimize/maximize).
-        try:
-            self.setWindowFlag(Qt.WindowMinimizeButtonHint, False)
-            self.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
-        except Exception:
-            pass
 
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -139,6 +136,7 @@ class BookmarksDialog(QDialog):
                 # Non-blocking (do not use QMessageBox.warning, which is modal).
                 box = QMessageBox(self)
                 box.setWindowTitle("Bookmarks")
+                box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
                 box.setText(f"Failed adding bookmark: {exc}")
                 box.open()
         self.refresh()
@@ -154,6 +152,7 @@ class BookmarksDialog(QDialog):
             if not _in_tests():
                 box = QMessageBox(self)
                 box.setWindowTitle("Bookmarks")
+                box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
                 box.setText(f"Failed jumping to bookmark: {exc}")
                 box.open()
 
@@ -168,6 +167,7 @@ class BookmarksDialog(QDialog):
             if not _in_tests():
                 box = QMessageBox(self)
                 box.setWindowTitle("Bookmarks")
+                box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
                 box.setText(f"Failed deleting bookmark: {exc}")
                 box.open()
         self.refresh()

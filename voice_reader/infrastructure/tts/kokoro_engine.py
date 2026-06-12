@@ -183,14 +183,13 @@ class KokoroEngine(TTSEngine):
 
         self._default_lang_code = language
         self._repo_id = "hexgrad/Kokoro-82M"
-        # Engine-level pipeline cache, shared across synthesis threads.
-        # Using threading.local() caused a full model reload (and MPS JIT
-        # recompilation, ~11 s) on every play press because each new synthesis
-        # thread starts with an empty thread-local store.  A shared dict with a
-        # lock is safe for sequential synthesis (one thread at a time) and
-        # still correct for parallel synthesis (threads share one pipeline
-        # instance, which kokoro supports for concurrent read-only inference).
-        self._pipeline_cache: dict = {}
+        # Shared pipeline cache keyed by lang_code. A lock serialises both
+        # creation and inference so concurrent synthesis threads (e.g. startup
+        # warmup + Play) don't race on shared PyTorch model state.  Using
+        # threading.local() instead caused a full model reload (and ~11 s MPS
+        # JIT recompilation on Apple Silicon) on every play press, because each
+        # synthesis thread starts with an empty thread-local store.
+        self._pipeline_cache: dict[str, object] = {}
         self._pipeline_lock = threading.Lock()
         # Pre-load the pipeline at engine-creation time so the model is ready
         # before the user presses play (avoids a 4-11 s cold-start stall that
@@ -202,11 +201,14 @@ class KokoroEngine(TTSEngine):
             try:
                 from kokoro import KPipeline  # type: ignore
 
-                self._get_pipeline(
-                    KPipeline=KPipeline,
-                    lang_code=self._default_lang_code,
-                    repo_id=self._repo_id,
-                )
+                # Honour the caller-holds-the-lock contract of _get_pipeline so
+                # the prewarm thread can't race the first synthesis call.
+                with self._pipeline_lock:
+                    self._get_pipeline(
+                        KPipeline=KPipeline,
+                        lang_code=self._default_lang_code,
+                        repo_id=self._repo_id,
+                    )
             except Exception:
                 pass  # Best-effort; synthesis retries on first use.
 
@@ -287,6 +289,12 @@ class KokoroEngine(TTSEngine):
         voice_profile: VoiceProfile,
         lang_code: str,
     ) -> Iterator[np.ndarray]:
+        # Ensure phonemizer can find an espeak-ng library before misaki's G2P
+        # fallback runs; otherwise out-of-dictionary words yield None phonemes.
+        from voice_reader.infrastructure.tts._espeak_setup import configure_espeak
+
+        configure_espeak()
+
         # Import lazily so the rest of the app can run without Kokoro installed.
         try:
             from kokoro import KPipeline  # type: ignore
@@ -295,44 +303,40 @@ class KokoroEngine(TTSEngine):
                 "Kokoro is not installed. Install with `pip install kokoro soundfile`."
             ) from exc
 
-        pipeline = self._get_pipeline(
-            KPipeline=KPipeline,
-            lang_code=lang_code,
-            repo_id=self._repo_id,
-        )
+        # Acquire the lock for both pipeline creation and inference. PyTorch
+        # models are not safe for concurrent calls from multiple threads, and
+        # serialising here prevents races between e.g. startup warmup and the
+        # synthesis worker. Results are collected inside the lock so the lock is
+        # released before yielding to callers.
+        with self._pipeline_lock:
+            pipeline = self._get_pipeline(
+                KPipeline=KPipeline,
+                lang_code=lang_code,
+                repo_id=self._repo_id,
+            )
+            results = list(pipeline(text, voice=voice_profile.name, speed=1.0))
 
-        generator = pipeline(
-            text,
-            voice=voice_profile.name,
-            speed=1.0,
-        )
-
-        for _, _, audio in generator:
+        for _, _, audio in results:
             # Kokoro yields numpy arrays already; normalize to 1D float32.
             yield np.asarray(audio, dtype=np.float32).reshape(-1)
 
     def _get_pipeline(self, *, KPipeline, lang_code: str, repo_id: str):
-        # Fast path: already cached.
+        # Must be called with self._pipeline_lock held (see _stream and
+        # _start_prewarm, which both acquire the lock before calling this).
         pipeline = self._pipeline_cache.get(lang_code)
-        if pipeline is not None:
-            return pipeline
-        # Slow path: first call — create and cache under the lock so concurrent
-        # threads don't each pay the model-load cost.
-        with self._pipeline_lock:
-            pipeline = self._pipeline_cache.get(lang_code)
-            if pipeline is None:
-                # Pin the default repo_id to suppress noisy Kokoro warnings.
-                # Keep compatibility with older Kokoro versions / test fakes
-                # that don't accept the `repo_id` kwarg.
+        if pipeline is None:
+            # Pin the default repo_id to suppress noisy Kokoro warnings.
+            # Keep compatibility with older Kokoro versions / test fakes that
+            # don't accept the `repo_id` kwarg.
+            try:
+                pipeline = KPipeline(lang_code=lang_code, repo_id=repo_id)
+            except TypeError:
+                # repo_id not accepted (kokoro <0.8.x). Pass the best
+                # available device: CUDA > MPS (Apple Silicon) > CPU.
+                device = _best_torch_device()
                 try:
-                    pipeline = KPipeline(lang_code=lang_code, repo_id=repo_id)
+                    pipeline = KPipeline(lang_code=lang_code, device=device)
                 except TypeError:
-                    # repo_id not accepted (kokoro <0.8.x). Pass the best
-                    # available device: CUDA > MPS (Apple Silicon) > CPU.
-                    device = _best_torch_device()
-                    try:
-                        pipeline = KPipeline(lang_code=lang_code, device=device)
-                    except TypeError:
-                        pipeline = KPipeline(lang_code=lang_code)
-                self._pipeline_cache[lang_code] = pipeline
+                    pipeline = KPipeline(lang_code=lang_code)
+            self._pipeline_cache[lang_code] = pipeline
         return pipeline

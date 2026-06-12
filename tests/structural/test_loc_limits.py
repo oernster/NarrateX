@@ -28,6 +28,10 @@ def _is_in_scope_python_file(path: Path, *, repo_root: Path) -> bool:
         "build",
         "dist",
         "dist-pyinstaller",
+        ".flatpak-build",
+        ".flatpak-builder",
+        ".flatpak-repo",
+        ".flatpak-wheels",
     }
     if parts & excluded:
         return False

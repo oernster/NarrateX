@@ -51,6 +51,9 @@ class FakeNarration:
     def set_volume(self, volume) -> None:
         self.last_volume = float(getattr(volume, "multiplier", volume))
 
+    def startup_warmup(self, *, voice) -> None:
+        del voice
+
     def loaded_book_id(self):
         return "b1"
 

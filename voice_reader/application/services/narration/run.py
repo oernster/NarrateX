@@ -88,6 +88,7 @@ def run(service: NarrationService) -> None:
             prefetch = 2
         if prefetch > 0:
             t0_prefetch = time.perf_counter()
+            _last_emit_time = t0_prefetch - 0.5  # trigger an emission on first tick
             while (
                 not stream.synth_done.is_set()
                 and stream.path_q.qsize() < int(prefetch)
@@ -95,6 +96,25 @@ def run(service: NarrationService) -> None:
                 and (time.perf_counter() - t0_prefetch) < 30.0
             ):
                 time.sleep(0.05)
+                now = time.perf_counter()
+                if now - _last_emit_time >= 0.5:
+                    _last_emit_time = now
+                    st = service.state
+                    service._set_state(  # noqa: SLF001
+                        NarrationState(
+                            status=NarrationStatus.SYNTHESIZING,
+                            current_chunk_id=st.current_chunk_id,
+                            prefetch_chunk_id=st.prefetch_chunk_id,
+                            playback_chunk_id=st.playback_chunk_id,
+                            total_chunks=st.total_chunks,
+                            progress=0.0,
+                            message="Preparing audio...",
+                            audible_start=st.audible_start,
+                            audible_end=st.audible_end,
+                            highlight_start=st.highlight_start,
+                            highlight_end=st.highlight_end,
+                        )
+                    )
 
         play(
             service,

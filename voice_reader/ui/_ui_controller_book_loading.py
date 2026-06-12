@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import threading
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 
@@ -39,6 +40,14 @@ def prepare_for_book_switch(controller) -> None:
     except Exception:  # pragma: no cover
         pass
     controller._ideas_launch_inflight = False  # noqa: SLF001
+
+    # Cancel any in-flight pre-synthesis from the previous book.
+    try:
+        cancel = getattr(controller, "_presynth_cancel", None)
+        if cancel is not None:
+            cancel.set()
+    except Exception:
+        pass
 
 
 def load_selected_book(controller, *, path: Path) -> None:
@@ -153,5 +162,22 @@ def load_selected_book(controller, *, path: Path) -> None:
     # Search enablement depends on idea indexing availability for this book.
     try:
         controller._apply_search_enabled_state()  # noqa: SLF001
+    except Exception:
+        pass
+
+    # Pre-synthesise the first chunks to cache so pressing Play is near-instant.
+    try:
+        presynth_fn = getattr(controller.narration_service, "presynthesize_start", None)
+        voice = controller._selected_voice()  # noqa: SLF001
+        if callable(presynth_fn) and voice is not None:
+            cancel = threading.Event()
+            controller._presynth_cancel = cancel  # noqa: SLF001
+            threading.Thread(
+                target=presynth_fn,
+                args=(voice,),
+                kwargs={"cancel_event": cancel},
+                daemon=True,
+                name="tts-presynth",
+            ).start()
     except Exception:
         pass

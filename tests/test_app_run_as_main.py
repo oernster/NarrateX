@@ -27,6 +27,9 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
         def exec(self) -> int:
             return 0
 
+        def processEvents(self) -> None:
+            return
+
         @staticmethod
         def instance():
             return None
@@ -46,8 +49,11 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
         "voice_reader.infrastructure",
         "voice_reader.infrastructure.audio",
         "voice_reader.infrastructure.books",
-        "voice_reader.infrastructure.tts",
+        "voice_reader.infrastructure.bookmarks",
         "voice_reader.infrastructure.cache",
+        "voice_reader.infrastructure.ideas",
+        "voice_reader.infrastructure.preferences",
+        "voice_reader.infrastructure.tts",
         "voice_reader.shared",
         "voice_reader.ui",
     ]:
@@ -64,13 +70,28 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
     _m("voice_reader.application.services.narration_service").NarrationService = (
         lambda **kwargs: SimpleNamespace(stop=lambda: None)
     )
-    _m("voice_reader.infrastructure.tts.tts_engine_factory").TTSEngineFactory = (
-        lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e"))
+    _m("voice_reader.application.services.bookmark_service").BookmarkService = (
+        lambda **kwargs: SimpleNamespace()
     )
+    _m("voice_reader.application.services.idea_map_service").IdeaMapService = (
+        lambda **kwargs: SimpleNamespace()
+    )
+    _m(
+        "voice_reader.application.services.idea_indexing_manager"
+    ).IdeaIndexingManager = lambda **kwargs: SimpleNamespace()
+    _m(
+        "voice_reader.application.services.structural_bookmark_service"
+    ).StructuralBookmarkService = lambda **kwargs: SimpleNamespace()
     _m(
         "voice_reader.application.services.voice_profile_service"
     ).VoiceProfileService = lambda **kwargs: SimpleNamespace()
     _m("voice_reader.domain.services.chunking_service").ChunkingService = (
+        lambda **kwargs: SimpleNamespace()
+    )
+    _m("voice_reader.infrastructure.tts.tts_engine_factory").TTSEngineFactory = (
+        lambda: SimpleNamespace(create=lambda: SimpleNamespace(engine_name="e"))
+    )
+    _m("voice_reader.infrastructure.books.cover_extractor").CoverExtractor = (
         lambda **kwargs: SimpleNamespace()
     )
     _m("voice_reader.infrastructure.audio.audio_streamer").SoundDeviceAudioStreamer = (
@@ -89,14 +110,17 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
         "voice_reader.infrastructure.cache.filesystem_cache"
     ).FilesystemCacheRepository = lambda **kwargs: SimpleNamespace()
     _m(
-        "voice_reader.infrastructure.tts.voice_profile_repository"
-    ).KokoroVoiceProfileRepository = lambda **kwargs: SimpleNamespace()
-    _m("voice_reader.application.services.bookmark_service").BookmarkService = (
-        lambda **kwargs: SimpleNamespace()
-    )
-    _m(
         "voice_reader.infrastructure.bookmarks.json_bookmark_repository"
     ).JSONBookmarkRepository = lambda **kwargs: SimpleNamespace()
+    _m(
+        "voice_reader.infrastructure.ideas.json_idea_index_repository"
+    ).JSONIdeaIndexRepository = lambda **kwargs: SimpleNamespace()
+    _m(
+        "voice_reader.infrastructure.preferences.json_preferences_repository"
+    ).JSONPreferencesRepository = lambda **kwargs: SimpleNamespace()
+    _m(
+        "voice_reader.infrastructure.tts.voice_profile_repository"
+    ).KokoroVoiceProfileRepository = lambda **kwargs: SimpleNamespace()
 
     class _Cfg:
         def __init__(self) -> None:
@@ -123,6 +147,7 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
     _m("voice_reader.shared.logging_utils").configure_logging = lambda level=None: None
     _m("voice_reader.ui.main_window").MainWindow = FakeWindow
     _m("voice_reader.ui.ui_controller").UiController = FakeUiController
+    _m("voice_reader.ui.model_download_dialog").maybe_download_model = lambda a: True
 
     monkeypatch.setenv("NARRATEX_PRESERVE_CACHE", "1")
     with pytest.raises(SystemExit) as excinfo:

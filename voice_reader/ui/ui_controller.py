@@ -11,7 +11,7 @@ from pathlib import Path
 import threading
 from typing import Sequence
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QObject, QTimer, Signal, Slot
 from PySide6.QtWidgets import QFileDialog
 
 from voice_reader.application.dto.narration_state import NarrationState
@@ -50,6 +50,7 @@ from voice_reader.ui._ui_controller_book_loading import (
     load_selected_book,
     prepare_for_book_switch,
 )
+from voice_reader.ui._ui_controller_wiring import connect_signals
 from voice_reader.ui._ui_controller_idea_indexing import (
     can_show_idea_progress,
     poll_ideas_indexing,
@@ -136,7 +137,7 @@ class UiController(QObject):
         except Exception:
             pass
 
-        self._connect_signals()
+        connect_signals(self)
 
         # v1: search remains disabled until indexing exists. This is only a hook.
         try:
@@ -170,6 +171,31 @@ class UiController(QObject):
                 self.set_volume(25)
             except Exception:
                 pass
+
+        # Pre-load the TTS model in the background so the first Play is near-instant.
+        try:
+            _voice_for_warmup = self._selected_voice()
+            _warmup_fn = getattr(self.narration_service, "startup_warmup", None)
+            if _voice_for_warmup is not None and callable(_warmup_fn):
+                threading.Thread(
+                    target=_warmup_fn,
+                    kwargs={"voice": _voice_for_warmup},
+                    daemon=True,
+                    name="tts-startup-warmup",
+                ).start()
+        except Exception:
+            pass
+
+        # Auto-load the last opened book so pre-synthesis runs on launch.
+        try:
+            prefs = getattr(self.narration_service, "preferences_repo", None)
+            _load_fn = getattr(prefs, "load_last_book_path", None)
+            if callable(_load_fn):
+                _last_path = _load_fn()
+                if _last_path is not None:
+                    QTimer.singleShot(0, lambda p=_last_path: load_selected_book(self, path=p))
+        except Exception:
+            pass
 
     @Slot(object)
     def _run_ui_callable(self, fn: object) -> None:
@@ -228,61 +254,6 @@ class UiController(QObject):
         """Apply a narration state to the UI (runs on the Qt UI thread)."""
 
         return apply_state(self, state)
-
-    def _connect_signals(self) -> None:
-        self.window.select_book_clicked.connect(self.select_book)
-
-        # Reader click-to-seek.
-        if hasattr(self.window, "reader_seek_requested"):
-            try:
-                from voice_reader.ui._ui_controller_seek import seek_to_char_offset
-
-                self.window.reader_seek_requested.connect(
-                    lambda off: seek_to_char_offset(self, int(off))
-                )
-            except Exception:
-                pass
-
-        # Playback transport:
-        # - new UI uses a single play/pause toggle
-        # - keep legacy separate play/pause signals for backwards compatibility
-        if hasattr(self.window, "play_pause_clicked"):
-            try:
-                self.window.play_pause_clicked.connect(self.toggle_play_pause)
-            except Exception:
-                pass
-        self.window.stop_clicked.connect(self.stop)
-
-        if hasattr(self.window, "previous_chapter_clicked"):
-            try:
-                self.window.previous_chapter_clicked.connect(self.previous_chapter)
-            except Exception:
-                pass
-        if hasattr(self.window, "next_chapter_clicked"):
-            try:
-                self.window.next_chapter_clicked.connect(self.next_chapter)
-            except Exception:
-                pass
-        if hasattr(self.window, "bookmarks_clicked"):
-            try:
-                self.window.bookmarks_clicked.connect(self.open_bookmarks_dialog)
-            except Exception:
-                pass
-        if hasattr(self.window, "ideas_clicked"):
-            try:
-                self.window.ideas_clicked.connect(self.open_sections_dialog)
-            except Exception:
-                pass
-        if hasattr(self.window, "speed_changed"):
-            try:
-                self.window.speed_changed.connect(self.set_speed)
-            except Exception:
-                pass
-        if hasattr(self.window, "volume_changed"):
-            try:
-                self.window.volume_changed.connect(self.set_volume)
-            except Exception:
-                pass
 
     def set_speed(self, text: str) -> None:
         return set_speed(self, text)

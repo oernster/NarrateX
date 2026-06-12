@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QDialogButtonBox, QPlainTextEdit, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QDialogButtonBox, QLabel, QPlainTextEdit, QVBoxLayout
 
 
 def _candidate_roots() -> list[Path]:
@@ -90,6 +90,7 @@ class PlainTextLicenceDialog(QDialog):
         super().__init__(parent)
 
         self.setWindowTitle(title)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setModal(True)
         self.setAttribute(Qt.WA_DeleteOnClose, True)
 
@@ -99,6 +100,10 @@ class PlainTextLicenceDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(10)
+
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet("font-size: 14px; font-weight: 600;")
+        layout.addWidget(title_lbl)
 
         editor = QPlainTextEdit(self)
         editor.setObjectName("LicenceText")

@@ -11,7 +11,7 @@ Hard rule enforced by structural tests:
 from __future__ import annotations
 
 import importlib
-from typing import Mapping
+from typing import Callable, Mapping
 
 _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
     # Application layer
@@ -92,12 +92,21 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
 }
 
 
-def resolve_app_wiring(target_globals: dict[str, object]) -> None:
+def resolve_app_wiring(
+    target_globals: dict[str, object],
+    tick_fn: Callable[[], None] | None = None,
+) -> None:
     """Populate missing app wiring symbols into an entrypoint's globals.
 
     Unit tests often monkeypatch these names on the entrypoint module to avoid
     importing heavy runtime dependencies. This helper respects those patches by
     only setting names that are currently missing/None.
+
+    Args:
+        target_globals: The module globals dict to populate.
+        tick_fn: Optional callable invoked after each module import.  Pass
+            ``app.processEvents`` to keep the Qt event loop alive during the
+            heavy import phase and prevent the GNOME "not responding" dialog.
     """
 
     for sym, (mod, attr) in _APP_WIRING_IMPORTS.items():
@@ -105,6 +114,11 @@ def resolve_app_wiring(target_globals: dict[str, object]) -> None:
             continue
         m = importlib.import_module(mod)
         target_globals[sym] = getattr(m, attr)
+        if tick_fn is not None:
+            try:
+                tick_fn()
+            except Exception:
+                pass
 
 
 def _touch() -> None:

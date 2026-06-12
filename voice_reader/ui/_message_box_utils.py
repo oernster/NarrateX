@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QMessageBox
 
 # Workaround for Windows packaged builds where the initial QMessageBox may be sized
@@ -52,6 +53,10 @@ def open_nonblocking_message_box(
     `qtimer` is typically `PySide6.QtCore.QTimer` (or None / a stub).
     """
 
+    try:
+        box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+    except Exception:  # pragma: no cover
+        pass
     _widen_message_box(box, min_width=min_width)
     if _in_tests():
         # Avoid using a QTimer in tests; it can make assertions racy.

@@ -66,6 +66,10 @@ def test_bootstrap_is_only_imported_by_entrypoints() -> None:
         "build",
         "dist",
         "dist-pyinstaller",
+        ".flatpak-build",
+        ".flatpak-builder",
+        ".flatpak-repo",
+        ".flatpak-wheels",
     }
     for p in root.rglob("*.py"):
         if excluded & {part.lower() for part in p.parts}:
@@ -110,6 +114,10 @@ def test_only_composition_roots_may_import_both_application_and_infrastructure()
         "build",
         "dist",
         "dist-pyinstaller",
+        ".flatpak-build",
+        ".flatpak-builder",
+        ".flatpak-repo",
+        ".flatpak-wheels",
     }
 
     for p in root.rglob("*.py"):

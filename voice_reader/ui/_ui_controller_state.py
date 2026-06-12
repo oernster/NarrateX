@@ -72,7 +72,18 @@ def apply_state(controller, state: object) -> None:
         pass
 
     try:
-        controller.window.progress.setValue(int(state.progress * 100))
+        # Use an animated indeterminate bar (sliding fill, not a spinner) while
+        # waiting for the first audio chunk before playback has begun.  Switch
+        # back to a real percentage bar the moment any chunk starts playing.
+        pre_playback_synth = (
+            state.status == NarrationStatus.SYNTHESIZING
+            and state.playback_chunk_id is None
+        )
+        if pre_playback_synth:
+            controller.window.progress.setRange(0, 0)
+        else:
+            controller.window.progress.setRange(0, 100)
+            controller.window.progress.setValue(int(state.progress * 100))
     except Exception:
         pass
 

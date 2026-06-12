@@ -35,6 +35,7 @@ Additionally, narration failure handling persists a best-effort resume position 
 - UI layer: [`voice_reader/ui`](voice_reader/ui:1)
   - [`MainWindow`](voice_reader/ui/main_window.py:38): widgets, theming, highlighting, cover display
   - [`UiController`](voice_reader/ui/ui_controller.py:21): file picker, wiring signals, applying narration state to UI
+  - To respect the 400-line guardrail, `UiController` is decomposed into focused helper modules: signal wiring ([`_ui_controller_wiring.py`](voice_reader/ui/_ui_controller_wiring.py:1)), book loading ([`_ui_controller_book_loading.py`](voice_reader/ui/_ui_controller_book_loading.py:1)), and playback/sections/chapters/bookmarks/state/seek/ideas handlers. Application-icon setup lives in [`_app_icon.py`](voice_reader/ui/_app_icon.py:1); first-run weight download is handled by [`model_download_dialog.py`](voice_reader/ui/model_download_dialog.py:1).
 
 - Application layer: [`voice_reader/application`](voice_reader/application:1)
   - DTOs: [`NarrationState`](voice_reader/application/dto/narration_state.py:21), [`NarrationStatus`](voice_reader/application/dto/narration_state.py:9)
@@ -68,6 +69,7 @@ Additionally, narration failure handling persists a best-effort resume position 
   - TTS engines:
     - [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30) via [`KokoroEngine.synthesize_to_file()`](voice_reader/infrastructure/tts/kokoro_engine.py:71)
     - [`TTSEngineFactory`](voice_reader/infrastructure/tts/tts_engine_factory.py:1): Kokoro engine creation + fail-fast import checks for packaged builds
+    - [`configure_espeak()`](voice_reader/infrastructure/tts/_espeak_setup.py:38): when no system phonemizer library is discoverable (packaged/sandboxed builds), points phonemizer at a bundled espeak-ng library + data directory so out-of-dictionary words can be phonemized; a working system install is never overridden. Called by [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:133) before the lazy Kokoro import.
     - Voice profiles: built-in Kokoro voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19)
   - Audio playback:
     - [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72) via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/audio_streamer.py:111)
@@ -121,6 +123,7 @@ Startup is in [`main()`](app.py:55):
 4. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py:36)
 5. Create UI: [`MainWindow`](voice_reader/ui/main_window.py:38) + [`UiController`](voice_reader/ui/ui_controller.py:21)
 6. Show window via `window.show()`, then center it on the primary screen via [`center_window_on_screen()`](voice_reader/shared/startup_ui.py:126). Centering is best-effort (swallows exceptions so fakes/tests are unaffected).
+7. Pre-warm the TTS model on a background thread via [`NarrationService.startup_warmup()`](voice_reader/application/services/narration_service.py:194) (see [`main()`](app.py:371)). This synthesises a single token to load the model into memory, emitting `SYNTHESIZING` state so the progress bar animates, so the first Play does not pay the model-load cost. Best-effort: failures are swallowed.
 
 ### 2) Book selection and cover handling
 
@@ -347,6 +350,18 @@ The build bundles:
 - the application icon ([`narratex.ico`](narratex.ico:1))
 
 Kokoro model weights are resolved at runtime by Kokoro/HuggingFace unless you pre-populate `hf-cache/`.
+
+## Packaging note (Linux)
+
+Linux ships two build paths:
+
+- **Flatpak** (sandboxed) via [`build_flatpak.sh`](build_flatpak.sh:1), producing app id `com.oliverernster.narratex`. Because the sandbox has no system libraries, the manifest bundles the runtime pieces narration needs:
+  - the **PortAudio** backend required by `sounddevice` for audio output
+  - the **spaCy `en_core_web_sm`** model required by misaki (Kokoro's grapheme-to-phoneme stage); without it misaki would attempt a network download at first synthesis and fail in the read-only sandbox
+  - an **espeak-ng** phonemizer (via `espeakng_loader`), located at runtime by [`configure_espeak()`](voice_reader/infrastructure/tts/_espeak_setup.py:38) so out-of-dictionary words narrate instead of failing
+- **Native onedir** via [`buildlinux.py`](buildlinux.py:1) (PyInstaller), producing `dist-pyinstaller/NarrateX/`.
+
+Source-installation prerequisites per distribution are documented in [`LINUX-INSTALLATION.md`](LINUX-INSTALLATION.md:1).
 
 ## Tests: mapping to layers
 

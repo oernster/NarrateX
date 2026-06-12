@@ -88,14 +88,12 @@ class StructuralBookmarksDialog(QDialog):
             self._reveal_after_show = False
 
         self.setWindowTitle("Sections")
+        # FramelessWindowHint removes the title bar including the minimize button
+        # which Ubuntu Yaru renders as an em dash.  The dialog has its own
+        # "Sections" QLabel and a "Close" button so no functionality is lost.
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         self.setModal(True)
         self.resize(520, 420)
-
-        try:
-            self.setWindowFlag(Qt.WindowMinimizeButtonHint, False)
-            self.setWindowFlag(Qt.WindowMaximizeButtonHint, False)
-        except Exception:  # pragma: no cover
-            pass
 
         root = QVBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
@@ -257,5 +255,6 @@ class StructuralBookmarksDialog(QDialog):
             if not _in_tests():
                 box = QMessageBox(self)
                 box.setWindowTitle("Sections")
+                box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
                 box.setText(f"Failed jumping to section: {exc}")
                 box.open()

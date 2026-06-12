@@ -129,8 +129,6 @@ def patch_app_main_wiring(
     The goal is to keep tests stable while avoiding heavy UI/infra imports.
     """
 
-    monkeypatch.setattr(app, "__file__", str(tmp_path / "app.py"))
-
     if preserve_cache:
         monkeypatch.setenv("NARRATEX_PRESERVE_CACHE", "1")
     else:
@@ -223,6 +221,9 @@ def patch_app_main_wiring(
     monkeypatch.setattr(
         app, "NarrationService", lambda **kwargs: SimpleNamespace(stop=_stop)
     )
+
+    # Skip model download in tests (model not cached in CI / dev environments).
+    monkeypatch.setattr(app, "_run_model_preflight", lambda a: True)
 
     # Disable splash and multi-instance in tests unless a test opts in.
     monkeypatch.setenv("NARRATEX_DISABLE_SPLASH", "1")

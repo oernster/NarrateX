@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import app
+import voice_reader.ui._app_icon as _app_icon
 
 
 class _FakeSignal:
@@ -63,7 +64,7 @@ class _FakeQIcon:
 def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(
     monkeypatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(app, "__file__", str(tmp_path / "app.py"))
+    monkeypatch.setattr(_app_icon, "exe_dir", lambda: tmp_path)
 
     class _FakeConfig:
         def __init__(self) -> None:
@@ -83,10 +84,12 @@ def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(
         app.Config, "from_project_root", lambda project_root: _FakeConfig()
     )
 
+    monkeypatch.setattr(app, "_run_model_preflight", lambda a: True)
+
     # Minimal wiring.
     fake_qapp = _FakeQApplication([])
     monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
-    monkeypatch.setattr(app, "QIcon", _FakeQIcon)
+    monkeypatch.setattr(_app_icon, "QIcon", _FakeQIcon)
     monkeypatch.setattr(
         app,
         "MainWindow",

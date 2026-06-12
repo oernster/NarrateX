@@ -91,6 +91,161 @@ def gate_synthesis_window(
         time.sleep(0.05)
 
 
+def startup_warmup_tts(
+    service: NarrationService,
+    *,
+    voice: VoiceProfile,
+    tts_engine: TTSEngine,
+) -> None:
+    """Synthesise a single word at startup to load the TTS model into memory.
+
+    Emits SYNTHESIZING state so the UI progress bar animates, then resets to
+    IDLE when done.  Safe to call from a background daemon thread.
+    """
+    service._set_state(  # noqa: SLF001
+        NarrationState(
+            status=NarrationStatus.SYNTHESIZING,
+            current_chunk_id=None,
+            prefetch_chunk_id=None,
+            playback_chunk_id=None,
+            total_chunks=None,
+            progress=0.0,
+            message="Preparing audio...",
+        )
+    )
+    try:
+        tmp = (
+            service.cache_repo.audio_path(
+                book_id="__startup__",
+                voice_name=voice.name,
+                chunk_id=-999999,
+            )
+        ).with_name("__startup_warmup.wav")
+        service.cache_repo.ensure_parent_dir(tmp)
+        tts_engine.synthesize_to_file(
+            text=".",
+            voice_profile=voice,
+            output_path=tmp,
+            device=service.device,
+            language=service.language,
+        )
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+    except Exception:
+        service._log.debug("Startup TTS warmup failed", exc_info=True)  # noqa: SLF001
+    finally:
+        service._set_state(  # noqa: SLF001
+            NarrationState(
+                status=NarrationStatus.IDLE,
+                current_chunk_id=None,
+                prefetch_chunk_id=None,
+                playback_chunk_id=None,
+                total_chunks=None,
+                progress=0.0,
+                message="",
+            )
+        )
+
+
+def presynthesize_start_chunks(
+    service: NarrationService,
+    *,
+    voice: VoiceProfile,
+    tts_engine: TTSEngine,
+    cancel_event: threading.Event,
+    n_chunks: int = 2,
+) -> None:
+    """Synthesise and cache the first n_chunks at the playback start position.
+
+    Runs in a background thread after book load so pressing Play is near-instant.
+    Emits no state transitions; silently aborts on cancel_event or any error.
+    """
+    if service._book is None or service.navigation_chunk_service is None:  # noqa: SLF001
+        return
+
+    try:
+        chunks, _ = service.navigation_chunk_service.build_chunks(
+            book_text=service._book.normalized_text,  # noqa: SLF001
+        )
+    except Exception:
+        return
+
+    # Resolve start index from resume position if available.
+    start_idx = 0
+    if service.bookmark_service is not None:
+        try:
+            rp = service.bookmark_service.load_resume_position(
+                book_id=service._book.id  # noqa: SLF001
+            )
+            if rp is not None:
+                resume_char = int(getattr(rp, "char_offset", 0))
+                for i, c in enumerate(chunks):
+                    mapped = service.sanitized_text_mapper.sanitize_with_mapping(
+                        original_text=c.text
+                    )
+                    if not mapped.speak_text:
+                        continue
+                    if int(c.start_char) <= resume_char < int(c.end_char):
+                        start_idx = i
+                        break
+                    if int(c.start_char) >= resume_char:
+                        start_idx = i
+                        break
+        except Exception:
+            pass
+
+    try:
+        from voice_reader.application.services.narration.cache_key import (
+            compute_book_cache_id,
+        )
+        book_id = compute_book_cache_id(service)
+    except Exception:
+        return
+
+    synthesized = 0
+    for chunk in list(chunks)[start_idx:]:
+        if cancel_event.is_set() or service._stop_event.is_set():  # noqa: SLF001
+            return
+        if synthesized >= n_chunks:
+            break
+        try:
+            mapped = service.sanitized_text_mapper.sanitize_with_mapping(
+                original_text=chunk.text
+            )
+        except Exception:
+            continue
+        speak_text = mapped.speak_text
+        if not speak_text:
+            continue
+        audio_path = service.cache_repo.audio_path(
+            book_id=book_id,
+            voice_name=voice.name,
+            chunk_id=chunk.chunk_id,
+        )
+        if not service.cache_repo.exists(
+            book_id=book_id,
+            voice_name=voice.name,
+            chunk_id=chunk.chunk_id,
+        ):
+            try:
+                service.cache_repo.ensure_parent_dir(audio_path)
+                tts_engine.synthesize_to_file(
+                    text=speak_text,
+                    voice_profile=voice,
+                    output_path=audio_path,
+                    device=service.device,
+                    language=service.language,
+                )
+            except Exception:
+                service._log.debug(  # noqa: SLF001
+                    "Pre-synthesis failed for chunk %s", chunk.chunk_id
+                )
+                return
+        synthesized += 1
+
+
 def set_synth_state(
     service: NarrationService,
     *,

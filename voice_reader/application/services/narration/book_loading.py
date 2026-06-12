@@ -38,6 +38,13 @@ def load_book(service: NarrationService, source_path: Path) -> "Book":
     service._book = book  # noqa: SLF001
     service._start_char = None  # noqa: SLF001
     service._cache_book_id = None  # noqa: SLF001
+
+    if service.preferences_repo is not None:
+        try:
+            service.preferences_repo.save_last_book_path(source_path)
+        except Exception:
+            pass
+
     service._set_state(
         NarrationState(
             status=NarrationStatus.IDLE,

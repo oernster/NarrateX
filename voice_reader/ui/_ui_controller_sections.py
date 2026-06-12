@@ -25,8 +25,11 @@ def open_structural_bookmarks_dialog(controller) -> None:
     except Exception:
         book_id = None
     if not book_id:
+        from PySide6.QtCore import Qt
+
         box = QMessageBox(controller.window)
         box.setWindowTitle("Sections")
+        box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
         box.setText("Load a book to view sections.")
         box.open()
         return

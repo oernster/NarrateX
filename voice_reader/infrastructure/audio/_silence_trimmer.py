@@ -38,7 +38,7 @@ def trim_silence(
         abs_m = np.abs(mono)
         idx = np.where(abs_m > float(threshold))[0]
         if idx.size == 0:
-            # All silence (or threshold too high) — keep unchanged.
+            # All silence (or threshold too high) - keep unchanged.
             return data
 
         pad = int(max(0, sample_rate) * (pad_ms / 1000.0))
