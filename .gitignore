@@ -30,10 +30,9 @@ MANIFEST
 #  Usually these files are written by a python script from a template
 #  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
+# Spec files are regenerated from CLI flags on every build (build*.py and
+# buildinstaller.py delete/rebuild them each run), so they are NOT tracked.
 *.spec
-# PyInstaller spec files are critical packaging config - track them explicitly
-!NarrateX.spec
-!NarrateXSetup.spec
 
 # Installer logs
 pip-log.txt
