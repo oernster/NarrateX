@@ -1,0 +1,75 @@
+<svg viewBox="0 0 980 320" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>How NarrateX structured listening works</title>
+<desc>A five step flow: your book, reading the structure, a clear chapter list, continuous narration, and you listening hands-free on a headset. A banner notes it runs entirely offline on your device with an on-device neural voice.</desc>
+<defs>
+<marker id="nx-ah" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#6e7681"/></marker>
+<style>
+text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.h1{font-size:21px;font-weight:600;fill:#e6edf3}
+.cap{font-size:12px;fill:#9da7b3}
+.note{font-size:11.5px;font-weight:600;fill:#58a6ff}
+.card{fill:#11161c;stroke:#1f2933;stroke-width:1.5}
+.ttl{font-size:14px;font-weight:600;fill:#e6edf3}
+.sub{font-size:11px;fill:#8b949e}
+.ic{stroke:#2f81f7;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.icb{stroke:#2f81f7;stroke-width:3;fill:none;stroke-linecap:round}
+.icf{fill:#2f81f7}
+.banner{fill:#0e2a16;stroke:#238636;stroke-width:1}
+.bantx{font-size:13px;font-weight:600;fill:#3fb950}
+.arrow{stroke:#6e7681;stroke-width:2;fill:none}
+</style>
+</defs>
+<rect x="1" y="1" width="978" height="318" rx="14" fill="#0b0f14" stroke="#161b22"/>
+<text class="h1" x="32" y="38">NarrateX</text>
+<text class="cap" x="150" y="38">How structured listening works</text>
+<text class="note" x="948" y="38" text-anchor="end">On-device neural voice (Kokoro)</text>
+<rect class="card" x="30" y="64" width="160" height="176" rx="12"/>
+<rect class="card" x="220" y="64" width="160" height="176" rx="12"/>
+<rect class="card" x="410" y="64" width="160" height="176" rx="12"/>
+<rect class="card" x="600" y="64" width="160" height="176" rx="12"/>
+<rect class="card" x="790" y="64" width="160" height="176" rx="12"/>
+<rect class="ic" x="90" y="92" width="40" height="32" rx="3"/>
+<line class="ic" x1="110" y1="92" x2="110" y2="124"/>
+<line class="ic" x1="97" y1="103" x2="106" y2="103"/>
+<line class="ic" x1="114" y1="103" x2="123" y2="103"/>
+<line class="ic" x1="97" y1="113" x2="106" y2="113"/>
+<line class="ic" x1="114" y1="113" x2="123" y2="113"/>
+<text class="ttl" x="110" y="172" text-anchor="middle">Your book</text>
+<text class="sub" x="110" y="192" text-anchor="middle">EPUB · PDF · Kindle</text>
+<line class="ic" x1="282" y1="99" x2="300" y2="99"/>
+<line class="ic" x1="282" y1="107" x2="296" y2="107"/>
+<line class="ic" x1="282" y1="115" x2="300" y2="115"/>
+<circle class="ic" cx="309" cy="107" r="12"/>
+<line class="icb" x1="318" y1="116" x2="327" y2="125"/>
+<text class="ttl" x="300" y="172" text-anchor="middle">Reads the structure</text>
+<text class="sub" x="300" y="192" text-anchor="middle">headings &#8594; chapters,</text>
+<text class="sub" x="300" y="208" text-anchor="middle">skips index &amp; frontmatter</text>
+<rect class="icf" x="470" y="92" width="8" height="8" rx="2"/>
+<line class="ic" x1="486" y1="96" x2="512" y2="96"/>
+<rect class="icf" x="470" y="104" width="8" height="8" rx="2"/>
+<line class="ic" x1="486" y1="108" x2="512" y2="108"/>
+<rect class="icf" x="470" y="116" width="8" height="8" rx="2"/>
+<line class="ic" x1="486" y1="120" x2="506" y2="120"/>
+<text class="ttl" x="490" y="172" text-anchor="middle">A clear chapter list</text>
+<text class="sub" x="490" y="192" text-anchor="middle">jump anywhere instantly</text>
+<line class="icb" x1="660" y1="100" x2="660" y2="116"/>
+<line class="icb" x1="670" y1="92" x2="670" y2="124"/>
+<line class="icb" x1="680" y1="86" x2="680" y2="130"/>
+<line class="icb" x1="690" y1="94" x2="690" y2="122"/>
+<line class="icb" x1="700" y1="100" x2="700" y2="116"/>
+<text class="ttl" x="680" y="172" text-anchor="middle">Continuous narration</text>
+<text class="sub" x="680" y="192" text-anchor="middle">natural voice, resumes</text>
+<text class="sub" x="680" y="208" text-anchor="middle">right where you stopped</text>
+<path class="ic" d="M848 116 A 22 22 0 0 1 892 116"/>
+<rect class="icf" x="843" y="114" width="10" height="22" rx="4"/>
+<rect class="icf" x="887" y="114" width="10" height="22" rx="4"/>
+<text class="ttl" x="870" y="172" text-anchor="middle">You, hands-free</text>
+<text class="sub" x="870" y="192" text-anchor="middle">around the house,</text>
+<text class="sub" x="870" y="208" text-anchor="middle">on a headset</text>
+<line class="arrow" x1="194" y1="150" x2="216" y2="150" marker-end="url(#nx-ah)"/>
+<line class="arrow" x1="384" y1="150" x2="406" y2="150" marker-end="url(#nx-ah)"/>
+<line class="arrow" x1="574" y1="150" x2="596" y2="150" marker-end="url(#nx-ah)"/>
+<line class="arrow" x1="764" y1="150" x2="786" y2="150" marker-end="url(#nx-ah)"/>
+<rect class="banner" x="30" y="262" width="920" height="40" rx="10"/>
+<text class="bantx" x="490" y="287" text-anchor="middle">Runs entirely offline. Nothing leaves your device.</text>
+</svg>
