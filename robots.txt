@@ -1,0 +1,5 @@
+# robots.txt for NarrateX (https://www.narratex.co.uk/)
+User-agent: *
+Allow: /
+
+Sitemap: https://www.narratex.co.uk/sitemap.xml

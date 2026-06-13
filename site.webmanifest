@@ -1,0 +1,16 @@
+{
+  "name": "NarrateX",
+  "short_name": "NarrateX",
+  "description": "A local, offline text-to-speech reader that converts structured ebooks, PDFs and documents into continuous audio.",
+  "lang": "en-GB",
+  "start_url": "/",
+  "scope": "/",
+  "display": "browser",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "icons": [
+    { "src": "narratex_64.png", "sizes": "64x64", "type": "image/png" },
+    { "src": "narratex_256.png", "sizes": "256x256", "type": "image/png" },
+    { "src": "narratex_512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

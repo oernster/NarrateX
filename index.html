@@ -1,8 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="icon" href="site-images/icon.png">
     <meta charset="utf-8">
+    <link rel="icon" type="image/png" sizes="16x16" href="narratex_16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="narratex_32.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="narratex_64.png">
+    <link rel="apple-touch-icon" href="narratex_256.png">
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="sitemap" type="application/xml" href="sitemap.xml">
+    <meta name="theme-color" content="#0b0f14">
+    <meta name="color-scheme" content="dark">
+    <meta name="application-name" content="NarrateX">
+    <meta name="apple-mobile-web-app-title" content="NarrateX">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <title>NarrateX - Text to Speech Reader for eBooks and PDFs | Runs Offline</title>
 
@@ -10,22 +21,26 @@
     <meta name="keywords" content="text to speech ebook reader, text to speech pdf reader, ebook reader with audio, read ebooks aloud, read pdf aloud, offline text to speech, local text to speech reader, epub text to speech, document narration software, continuous audio playback">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="author" content="Oliver Ernster">
-    <meta name="robots" content="index, follow">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="googlebot" content="index, follow, max-image-preview:large">
     <link rel="canonical" href="https://www.narratex.co.uk/">
 
     <!-- Open Graph -->
     <meta property="og:title" content="NarrateX - Text to Speech Reader for eBooks and PDFs">
     <meta property="og:description" content="Local text-to-speech reading for ebooks, PDFs and documents with structured navigation and continuous audio playback.">
-    <meta property="og:image" content="https://www.narratex.co.uk/site-images/NarrateX1.png">
+    <meta property="og:image" content="https://www.narratex.co.uk/site-images/NarrateX2.png">
+    <meta property="og:image:alt" content="NarrateX reader showing structured ebook and PDF audio playback">
     <meta property="og:url" content="https://www.narratex.co.uk/">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="NarrateX">
+    <meta property="og:locale" content="en_GB">
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="NarrateX - Text to Speech Reader for eBooks and PDFs">
     <meta name="twitter:description" content="Local text-to-speech reading for ebooks, PDFs and documents with structured navigation and continuous audio playback.">
-    <meta name="twitter:image" content="https://www.narratex.co.uk/site-images/NarrateX1.png">
+    <meta name="twitter:image" content="https://www.narratex.co.uk/site-images/NarrateX2.png">
+    <meta name="twitter:image:alt" content="NarrateX reader showing structured ebook and PDF audio playback">
 
     <style>
         body {
@@ -53,6 +68,29 @@
             height: 44px;
             border-radius: 12px;
             margin-bottom: 12px;
+        }
+
+        .badge {
+            display: flex;
+            width: fit-content;
+            align-items: center;
+            gap: 8px;
+            font-size: 12.5px;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #2f81f7;
+            border: 1px solid #1f2933;
+            border-radius: 999px;
+            padding: 6px 14px;
+            margin: 0 auto 22px;
+        }
+
+        .badge-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #2f81f7;
         }
 
         .subtitle {
@@ -88,6 +126,27 @@
             font-size: 14px;
             color: #6e7681;
         }
+
+        .pitch {
+            max-width: 820px;
+            margin: 36px auto 0;
+            padding: 28px 30px;
+            background: #11161c;
+            border: 1px solid #1f2933;
+            border-left: 4px solid #2f81f7;
+            border-radius: 12px;
+            text-align: left;
+        }
+
+        .pitch p {
+            margin: 0;
+            font-size: 21px;
+            line-height: 1.5;
+            color: #e6edf3;
+        }
+
+        .pitch strong { color: #2f81f7; }
+        .pitch em { color: #9da7b3; font-style: italic; }
 
         .section {
             margin-top: 70px;
@@ -151,6 +210,23 @@
             box-shadow: 0 20px 40px rgba(0,0,0,0.5);
         }
 
+        .faq {
+            max-width: 760px;
+            margin: 20px auto 0;
+            text-align: left;
+        }
+
+        .faq-item {
+            background: #11161c;
+            border: 1px solid #1f2933;
+            border-radius: 10px;
+            padding: 16px 18px;
+            margin-bottom: 12px;
+        }
+
+        .faq-item h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; color: #e6edf3; }
+        .faq-item p { margin: 0; font-size: 14px; color: #9da7b3; max-width: none; }
+
         .sr-only {
             position: absolute;
             width: 1px;
@@ -169,7 +245,9 @@
 
 <div class="container">
 
-    <img src="site-images/icon.png" class="logo" alt="NarrateX icon">
+    <img src="site-images/icon.png" class="logo" width="44" height="44" alt="NarrateX icon" fetchpriority="high" decoding="async">
+
+    <div class="badge"><span class="badge-dot"></span> Windows · macOS · Linux</div>
 
     <h1>NarrateX</h1>
 
@@ -192,6 +270,15 @@
     <div class="minor-detail">
         Local execution. Deterministic playback. No cloud dependency.
     </div>
+
+    <section class="pitch" aria-label="What NarrateX is for">
+        <p>
+            NarrateX is for listening to what you would otherwise have to sit and read.
+            Use it at your computer on <strong>any operating system</strong>, or send it to a
+            <strong>wireless headset</strong> and keep listening, <em>hands-free</em>, while you
+            move around the house and get on with everything else.
+        </p>
+    </section>
 
     <div class="section">
         <h2>Core behaviour</h2>
@@ -226,7 +313,7 @@
 
     <div class="section">
         <h2>How it works</h2>
-        <img src="site-images/how-it-works.svg"
+        <img src="site-images/how-it-works.svg" width="980" height="320" loading="lazy" decoding="async"
              alt="How NarrateX works: your book, reads the structure, a clear chapter list, continuous narration, and you listening hands-free on a headset. Runs entirely offline."
              style="width:100%; max-width:980px; height:auto; margin-top:8px;">
     </div>
@@ -242,7 +329,7 @@
     </div>
 
     <div class="screenshots">
-        <img src="site-images/NarrateX2.png" alt="NarrateX screenshot showing structured ebook and PDF audio playback">
+        <img src="site-images/NarrateX2.png" loading="lazy" decoding="async" alt="NarrateX screenshot showing structured ebook and PDF audio playback">
     </div>
 
     <div class="section">
@@ -257,6 +344,26 @@
     </div>
 
     <div class="section">
+        <h2>Runs on every desktop</h2>
+        <p>One codebase, native packages on Windows, macOS and Linux. Everything runs locally, the same way on each.</p>
+
+        <div class="grid small">
+            <div class="card">
+                Windows
+                <span>Installer</span>
+            </div>
+            <div class="card">
+                macOS
+                <span>Disk image (.dmg)</span>
+            </div>
+            <div class="card">
+                Linux
+                <span>Flatpak</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
         <h2>Execution model</h2>
         <p>
             Text is processed into structured chunks. Audio is generated and streamed continuously.
@@ -264,6 +371,32 @@
         <p>
             Playback begins immediately and continues without interruption. Everything runs locally which keeps the system fast, predictable and private.
         </p>
+    </div>
+
+    <div class="section">
+        <h2>Frequently asked questions</h2>
+        <div class="faq">
+            <div class="faq-item">
+                <h3>Is NarrateX free?</h3>
+                <p>Yes. NarrateX is free and open source, released under the GNU LGPL-3.0 licence.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Does NarrateX work offline?</h3>
+                <p>Yes. NarrateX runs entirely on your device with no cloud dependency. Nothing you read is uploaded anywhere.</p>
+            </div>
+            <div class="faq-item">
+                <h3>What does the narration sound like?</h3>
+                <p>NarrateX uses the Kokoro neural text-to-speech voice running locally on your machine, so it sounds natural rather than robotic, with no internet connection required.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Which file formats can NarrateX read?</h3>
+                <p>EPUB, PDF and plain text natively, plus Kindle formats such as MOBI, AZW and AZW3 via optional Calibre conversion to EPUB.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Which platforms does NarrateX run on?</h3>
+                <p>Windows, macOS and Linux, shipped as an installer, a disk image (.dmg) and a Flatpak respectively.</p>
+            </div>
+        </div>
     </div>
 
     <div class="sr-only">
@@ -279,40 +412,105 @@
 <script type="application/ld+json">
 {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "NarrateX",
-    "applicationCategory": "MultimediaApplication",
-    "operatingSystem": "Windows",
-    "description": "Text-to-speech reader for ebooks, PDFs and documents with structured navigation, continuous audio playback and local offline execution.",
-    "url": "https://www.narratex.co.uk/",
-    "image": "https://www.narratex.co.uk/site-images/NarrateX1.png",
-    "author": {
-        "@type": "Person",
-        "name": "Oliver Ernster"
-    },
-    "keywords": [
-        "text to speech reader",
-        "ebook reader",
-        "pdf reader",
-        "read ebooks aloud",
-        "read pdf aloud",
-        "offline text to speech",
-        "local text to speech",
-        "EPUB reader",
-        "document narration"
-    ],
-    "featureList": [
-        "Structured playback",
-        "Derived navigation from headings and bookmarks",
-        "Continuous audio playback",
-        "Local execution",
-        "Offline operation",
-        "EPUB support",
-        "PDF support",
-        "Plain text support"
-    ],
-    "downloadUrl": "https://github.com/oernster/NarrateX/releases",
-    "softwareVersion": "1.0"
+    "@graph": [
+        {
+            "@type": "WebSite",
+            "@id": "https://www.narratex.co.uk/#website",
+            "url": "https://www.narratex.co.uk/",
+            "name": "NarrateX",
+            "description": "A local, offline text-to-speech reader that converts structured ebooks, PDFs and documents into continuous audio.",
+            "inLanguage": "en-GB",
+            "publisher": { "@id": "https://www.narratex.co.uk/#oliver" }
+        },
+        {
+            "@type": "Person",
+            "@id": "https://www.narratex.co.uk/#oliver",
+            "name": "Oliver Ernster",
+            "url": "https://www.crankthecode.com",
+            "sameAs": [
+                "https://github.com/oernster",
+                "https://www.crankthecode.com"
+            ]
+        },
+        {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.narratex.co.uk/#app",
+            "name": "NarrateX",
+            "applicationCategory": "MultimediaApplication",
+            "applicationSubCategory": "Text-to-speech reader",
+            "operatingSystem": "Windows, macOS, Linux",
+            "description": "Text-to-speech reader for ebooks, PDFs and documents with structured navigation, continuous audio playback and local offline execution. Uses the Kokoro neural voice running on-device.",
+            "url": "https://www.narratex.co.uk/",
+            "downloadUrl": "https://github.com/oernster/NarrateX/releases",
+            "installUrl": "https://github.com/oernster/NarrateX/releases",
+            "releaseNotes": "https://github.com/oernster/NarrateX/releases",
+            "softwareHelp": "https://github.com/oernster/NarrateX#readme",
+            "softwareVersion": "3.2.0",
+            "dateModified": "2026-06-13",
+            "inLanguage": "en-GB",
+            "image": "https://www.narratex.co.uk/site-images/NarrateX2.png",
+            "isAccessibleForFree": true,
+            "license": "https://www.gnu.org/licenses/lgpl-3.0.html",
+            "author": { "@id": "https://www.narratex.co.uk/#oliver" },
+            "creator": { "@id": "https://www.narratex.co.uk/#oliver" },
+            "publisher": { "@id": "https://www.narratex.co.uk/#oliver" },
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "GBP" },
+            "keywords": [
+                "text to speech reader",
+                "ebook reader",
+                "pdf reader",
+                "read ebooks aloud",
+                "read pdf aloud",
+                "offline text to speech",
+                "local text to speech",
+                "EPUB reader",
+                "document narration"
+            ],
+            "featureList": [
+                "Structured playback",
+                "Derived navigation from headings and bookmarks",
+                "Continuous audio playback",
+                "Kokoro neural voice, on-device",
+                "Local execution",
+                "Offline operation",
+                "EPUB support",
+                "PDF support",
+                "Plain text support",
+                "Windows, macOS and Linux support"
+            ]
+        },
+        {
+            "@type": "FAQPage",
+            "@id": "https://www.narratex.co.uk/#faq",
+            "mainEntity": [
+                {
+                    "@type": "Question",
+                    "name": "Is NarrateX free?",
+                    "acceptedAnswer": { "@type": "Answer", "text": "Yes. NarrateX is free and open source, released under the GNU LGPL-3.0 licence." }
+                },
+                {
+                    "@type": "Question",
+                    "name": "Does NarrateX work offline?",
+                    "acceptedAnswer": { "@type": "Answer", "text": "Yes. NarrateX runs entirely on your device with no cloud dependency. Nothing you read is uploaded anywhere." }
+                },
+                {
+                    "@type": "Question",
+                    "name": "What does the narration sound like?",
+                    "acceptedAnswer": { "@type": "Answer", "text": "NarrateX uses the Kokoro neural text-to-speech voice running locally on your machine, so it sounds natural rather than robotic, with no internet connection required." }
+                },
+                {
+                    "@type": "Question",
+                    "name": "Which file formats can NarrateX read?",
+                    "acceptedAnswer": { "@type": "Answer", "text": "EPUB, PDF and plain text natively, plus Kindle formats such as MOBI, AZW and AZW3 via optional Calibre conversion to EPUB." }
+                },
+                {
+                    "@type": "Question",
+                    "name": "Which platforms does NarrateX run on?",
+                    "acceptedAnswer": { "@type": "Answer", "text": "Windows, macOS and Linux, shipped as an installer, a disk image (.dmg) and a Flatpak respectively." }
+                }
+            ]
+        }
+    ]
 }
 </script>
 
