@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <link rel="icon" href="favicon.ico" sizes="any">
     <link rel="icon" type="image/png" sizes="16x16" href="narratex_16.png">
     <link rel="icon" type="image/png" sizes="32x32" href="narratex_32.png">
     <link rel="icon" type="image/png" sizes="64x64" href="narratex_64.png">
@@ -318,6 +319,14 @@
         <img src="site-images/how-it-works.svg" width="980" height="320" loading="lazy" decoding="async"
              alt="How NarrateX works: your book, reads the structure, a clear chapter list, continuous narration, and you listening hands-free on a headset. Runs entirely offline."
              style="width:100%; max-width:980px; height:auto; margin-top:8px;">
+    </div>
+
+    <div class="section" id="architecture">
+        <h2>Clean architecture, enforced</h2>
+        <p>A four-layer clean architecture with every dependency pointing inward to a pure domain that has no I/O and no framework. Layer boundaries, 100% coverage and a 400-line file limit are enforced by AST structural tests on every run.</p>
+        <img src="site-images/architecture.svg" width="920" height="396" loading="lazy" decoding="async"
+             alt="NarrateX clean architecture diagram: UI, Application, Domain and Infrastructure layers with dependencies pointing inward to a pure Domain, plus Composition root and Shared cross-cutting bands."
+             style="width:100%; max-width:920px; height:auto; margin-top:8px;">
     </div>
 
     <div class="section">

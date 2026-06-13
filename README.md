@@ -18,6 +18,14 @@ NarrateX treats books as structured systems rather than raw text.
 - Separator-only divider lines in source texts (e.g. `---`) are treated as non-content and ignored during playback  
 - Click-to-seek: clicking in the reader restarts narration from the nearest chunk boundary (chunk-relative seeking)  
 
+## Architecture
+
+<p align="center">
+  <img src="site-images/architecture.svg" alt="NarrateX clean architecture: UI, Application, Domain, Infrastructure, with dependencies pointing inward to a pure Domain" width="860">
+</p>
+
+NarrateX uses a clean, four-layer architecture with every dependency pointing inward to a pure Domain that has no I/O and no framework. Layer boundaries are enforced by AST structural tests at every test run. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design.
+
 # Screenshot
 
 <img width="1050" height="650" src="images/narratex_v2.png" />  

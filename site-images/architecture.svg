@@ -1,0 +1,61 @@
+<svg viewBox="0 0 920 396" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>NarrateX clean architecture</title>
+<desc>Four layers left to right: UI, Application, Domain, Infrastructure, with arrows pointing inward to the pure Domain. Composition root and Shared are cross-cutting bands. Boundaries are enforced by AST tests, 100 percent coverage, a 400 line file limit and a no magic numbers rule.</desc>
+<defs>
+<marker id="nx-ah" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#4a5568"/></marker>
+<style>
+text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+.h1{font-size:20px;font-weight:700;fill:#e6edf3}
+.cap{font-size:12px;fill:#8b949e}
+.h2{font-size:13px;font-weight:500;fill:#2f81f7;font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.box{fill:#11161c;stroke:#1f2933;stroke-width:1.5}
+.core{fill:#0d1a2e;stroke:#2f81f7;stroke-width:2}
+.ttl{font-size:15px;font-weight:600;fill:#e6edf3}
+.sub{font-size:11.5px;fill:#9da7b3}
+.acc{font-size:11px;font-weight:600;fill:#2f81f7}
+.lbl{font-size:10px;font-weight:600;fill:#6e7681;letter-spacing:.06em}
+.band{fill:#0e1319;stroke:#1f2933;stroke-width:1}
+.bandtx{font-size:11.5px;font-weight:500;fill:#9da7b3}
+.foot{fill:#0d1a2e;stroke:#2f81f7;stroke-opacity:.45;stroke-width:1}
+.foottx{font-size:11.5px;font-weight:600;fill:#2f81f7}
+.arrow{stroke:#4a5568;stroke-width:2;fill:none}
+</style>
+</defs>
+<rect x="2" y="2" width="916" height="392" rx="14" fill="#0b0f14" stroke="#1f2933"/>
+<text class="h1" x="45" y="40">NarrateX</text>
+<text class="cap" x="140" y="40">Clean Architecture · Python · PySide6 · Kokoro TTS</text>
+<text class="h2" x="45" y="62">UI  &#8594;  Application  &#8594;  Domain  &#8592;  Infrastructure</text>
+<rect class="box" x="45" y="92" width="170" height="116" rx="10"/>
+<text class="ttl" x="130" y="118" text-anchor="middle">UI · PySide6</text>
+<text class="sub" x="130" y="146" text-anchor="middle">MainWindow · UiController</text>
+<text class="sub" x="130" y="166" text-anchor="middle">SeekableTextEdit</text>
+<text class="sub" x="130" y="186" text-anchor="middle">highlight · seek</text>
+<rect class="box" x="265" y="92" width="170" height="116" rx="10"/>
+<text class="ttl" x="350" y="118" text-anchor="middle">Application</text>
+<text class="sub" x="350" y="146" text-anchor="middle">NarrationService</text>
+<text class="sub" x="350" y="166" text-anchor="middle">Bookmark · NavChunk</text>
+<text class="sub" x="350" y="186" text-anchor="middle">DTOs · interfaces</text>
+<rect class="core" x="485" y="92" width="170" height="116" rx="10"/>
+<text class="ttl" x="570" y="118" text-anchor="middle">Domain</text>
+<text class="acc" x="570" y="140" text-anchor="middle">pure · no I/O</text>
+<text class="sub" x="570" y="163" text-anchor="middle">Book · TextChunk</text>
+<text class="sub" x="570" y="183" text-anchor="middle">VoiceProfile · Chunking</text>
+<rect class="box" x="705" y="92" width="170" height="116" rx="10"/>
+<text class="ttl" x="790" y="118" text-anchor="middle">Infrastructure</text>
+<text class="sub" x="790" y="146" text-anchor="middle">Kokoro · Misaki · torch</text>
+<text class="sub" x="790" y="166" text-anchor="middle">PyMuPDF · EbookLib · txt</text>
+<text class="sub" x="790" y="186" text-anchor="middle">sounddevice · WAV cache</text>
+<text class="lbl" x="240" y="144" text-anchor="middle">DTOs</text>
+<line class="arrow" x1="220" y1="150" x2="258" y2="150" marker-end="url(#nx-ah)"/>
+<text class="lbl" x="460" y="144" text-anchor="middle">CALLS</text>
+<line class="arrow" x1="440" y1="150" x2="478" y2="150" marker-end="url(#nx-ah)"/>
+<text class="lbl" x="680" y="144" text-anchor="middle">IMPLEMENTS</text>
+<line class="arrow" x1="700" y1="150" x2="662" y2="150" marker-end="url(#nx-ah)"/>
+<rect class="band" x="45" y="224" width="830" height="32" rx="8"/>
+<text class="bandtx" x="460" y="244" text-anchor="middle">Composition root · app.py wires repositories, services, controller and the Kokoro TTS engine</text>
+<rect class="band" x="45" y="264" width="830" height="32" rx="8"/>
+<text class="bandtx" x="460" y="284" text-anchor="middle">Shared · Config · Errors · external_runtime · logging</text>
+<rect class="foot" x="45" y="312" width="830" height="36" rx="8"/>
+<text class="foottx" x="460" y="334" text-anchor="middle">Enforced every test run:   AST boundary tests   ·   100% coverage   ·   &#8804;400 LOC / file   ·   no magic numbers</text>
+<text class="cap" x="460" y="372" text-anchor="middle">Arrows show dependency direction. UI and Infrastructure point inward to the pure Domain, which has no I/O and no framework.</text>
+</svg>
