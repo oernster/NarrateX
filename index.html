@@ -202,6 +202,76 @@
             font-weight: 400;
         }
 
+        .dl-version {
+            display: inline-block;
+            margin-top: 6px;
+            font-size: 14px;
+            color: #2f81f7;
+            border: 1px solid #1f2933;
+            border-radius: 999px;
+            padding: 4px 14px;
+        }
+
+        .downloads {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+            margin-top: 28px;
+        }
+
+        .dl-card {
+            background: #11161c;
+            border: 1px solid #1f2933;
+            border-radius: 10px;
+            padding: 24px 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .dl-card .ico { font-size: 30px; }
+
+        .dl-card h3 { margin: 4px 0 0; font-size: 18px; font-weight: 600; }
+
+        .dl-card .req { color: #9da7b3; font-size: 13px; margin: 0; max-width: none; }
+
+        .dl-card .primary {
+            display: inline-block;
+            margin: 14px auto 4px;
+            padding: 12px 22px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .dl-card .meta {
+            color: #9da7b3;
+            font-size: 12.5px;
+            min-height: 1.2em;
+            margin: 0;
+            max-width: none;
+        }
+
+        .dl-card .how { color: #9da7b3; font-size: 13px; margin: 8px 0 0; max-width: none; }
+
+        .dl-card code {
+            background: #0b0f14;
+            border: 1px solid #1f2933;
+            border-radius: 6px;
+            padding: 1px 6px;
+            font-size: 12px;
+        }
+
+        .dl-links {
+            color: #9da7b3;
+            font-size: 14px;
+            margin: 18px auto 0;
+        }
+
+        .dl-links a { color: #2f81f7; text-decoration: none; }
+        .dl-links a:hover { text-decoration: underline; }
+
         .screenshots {
             margin-top: 60px;
         }
@@ -261,7 +331,7 @@
     </div>
 
     <div class="actions">
-        <a class="primary" href="https://github.com/oernster/NarrateX/releases">
+        <a class="primary" href="#download">
             Download
         </a>
 
@@ -354,24 +424,50 @@
         </div>
     </div>
 
-    <div class="section">
-        <h2>Runs on every desktop</h2>
-        <p>One codebase, native packages on Windows, macOS and Linux. Everything runs locally, the same way on each.</p>
+    <div class="section" id="download">
+        <h2>Download NarrateX</h2>
+        <p>One codebase, native packages on Windows, macOS and Linux. Pick your platform and you
+            have the newest release. Free and LGPL-3.0 with no account; everything runs locally,
+            the same way on each.</p>
+        <span class="dl-version" id="dl-version">Latest release</span>
 
-        <div class="grid small">
-            <div class="card">
-                Windows
-                <span>Installer</span>
+        <div class="downloads">
+            <div class="dl-card">
+                <div class="ico">🪟</div>
+                <h3>Windows</h3>
+                <p class="req">Windows 10 or 11, 64-bit</p>
+                <a class="primary" href="https://github.com/oernster/NarrateX/releases/latest/download/NarrateXSetup.exe">
+                    Download for Windows</a>
+                <p class="meta" data-asset="NarrateXSetup.exe">Setup program (.exe)</p>
+                <p class="how">Run the setup: it installs per-user, so no administrator rights are needed.</p>
             </div>
-            <div class="card">
-                macOS
-                <span>Disk image (.dmg)</span>
+            <div class="dl-card">
+                <div class="ico">🍎</div>
+                <h3>macOS</h3>
+                <p class="req">Apple Silicon (M1 or later)</p>
+                <a class="primary" href="https://github.com/oernster/NarrateX/releases/latest/download/narratex.dmg">
+                    Download for macOS</a>
+                <p class="meta" data-asset="narratex.dmg">Disk image (.dmg)</p>
+                <p class="how">Open the DMG and drag NarrateX into Applications.</p>
             </div>
-            <div class="card">
-                Linux
-                <span>Flatpak</span>
+            <div class="dl-card">
+                <div class="ico">🐧</div>
+                <h3>Linux</h3>
+                <p class="req">Any distribution with Flatpak</p>
+                <a class="primary" href="https://github.com/oernster/NarrateX/releases/latest/download/narratex.flatpak">
+                    Download for Linux</a>
+                <p class="meta" data-asset="narratex.flatpak">Flatpak bundle (.flatpak)</p>
+                <p class="how">Install with <code>flatpak install narratex.flatpak</code>.</p>
             </div>
         </div>
+
+        <p class="dl-links">
+            <a id="dl-whats-new" href="https://github.com/oernster/NarrateX/releases/latest">What's new in this release</a>
+            &nbsp;·&nbsp;
+            <a href="https://github.com/oernster/NarrateX/releases">All releases</a>
+            &nbsp;·&nbsp;
+            <a href="https://github.com/oernster/NarrateX">Source on GitHub</a>
+        </p>
     </div>
 
     <div class="section">
@@ -523,6 +619,41 @@
         }
     ]
 }
+</script>
+
+<script>
+    // The download buttons never go stale: each points at GitHub's releases/latest/download
+    // redirect, which always serves the newest release's asset (the asset names are version-free
+    // by design). This script only decorates the page with live details: the version chip, the
+    // release date and each installer's size, fetched from the GitHub API. If the call fails
+    // (offline, rate-limited), the static text above stands on its own.
+    (function () {
+        var api = 'https://api.github.com/repos/oernster/NarrateX/releases/latest';
+        fetch(api).then(function (r) {
+            if (!r.ok) { throw new Error('release lookup failed'); }
+            return r.json();
+        }).then(function (rel) {
+            var version = (rel.tag_name || '').replace(/^v/, '');
+            if (version) {
+                var when = '';
+                if (rel.published_at) {
+                    when = ' · ' + new Date(rel.published_at).toLocaleDateString(undefined,
+                        {day: 'numeric', month: 'long', year: 'numeric'});
+                }
+                document.getElementById('dl-version').textContent = 'Version ' + version + when;
+            }
+            if (rel.html_url) {
+                document.getElementById('dl-whats-new').href = rel.html_url;
+            }
+            (rel.assets || []).forEach(function (asset) {
+                var meta = document.querySelector('[data-asset="' + asset.name + '"]');
+                if (meta && asset.size) {
+                    var mb = (asset.size / (1024 * 1024)).toFixed(1);
+                    meta.textContent = meta.textContent + ' · ' + mb + ' MB';
+                }
+            });
+        }).catch(function () { /* The static page already says everything essential. */ });
+    })();
 </script>
 
 </body>
