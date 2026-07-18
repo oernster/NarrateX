@@ -17,7 +17,7 @@ approximate. Scanning is forward-only, which keeps repeated text (a running
 header appearing on every page) anchored to the right occurrence.
 
 A draft that cannot be found is dropped rather than guessed at. That is
-deliberate: dropped drafts lower `Document.structured_ratio`, and a low enough
+deliberate: dropped drafts lower `Document.covered_ratio`, and a low enough
 ratio is what tips a caller over to the unstructured fallback. Uncertainty
 degrades the confidence signal instead of corrupting the offsets.
 """

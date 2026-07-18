@@ -140,4 +140,4 @@ class TestAnchoring:
         doc = Document(source_length=len(source), sections=(section,))
 
         assert len(blocks) == 1
-        assert doc.structured_ratio < 0.5
+        assert doc.displayed_ratio < 0.5

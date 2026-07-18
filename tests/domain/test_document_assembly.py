@@ -111,7 +111,7 @@ def test_contents_offsets_point_at_their_headings() -> None:
 def test_a_well_covered_source_scores_high_confidence() -> None:
     doc = build_from_drafts(source=SOURCE, drafts=DRAFTS)
 
-    assert doc.structured_ratio > 0.75
+    assert doc.displayed_ratio > 0.75
 
 
 def test_unlocatable_drafts_lower_confidence_rather_than_corrupting_spans() -> None:

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from voice_reader.domain.document.anchoring import BlockDraft
-from voice_reader.infrastructure.books import epub_structure
+from voice_reader.infrastructure.books import epub_structure, pdf_structure
 from voice_reader.shared.errors import BookParseError
 
 log = logging.getLogger(__name__)
@@ -79,9 +79,12 @@ class BookParser:
                 pages.append(page.get_text("text"))
             raw = "\n\n".join(pages)
             normalized = _dehyphenate(raw)
+            # Structure comes from a second, layout-aware pass over the same
+            # document. The text above is untouched by it.
             return ParsedBook(
                 raw_text=raw,
                 normalized_text=normalize_text(normalized),
+                drafts=pdf_structure.drafts_from_document(doc),
             )
         except Exception as exc:
             raise BookParseError(str(exc)) from exc

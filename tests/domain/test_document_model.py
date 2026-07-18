@@ -218,10 +218,17 @@ class TestDocument:
 
         assert doc.body_start_offset is None
 
-    def test_structured_ratio_is_zero_for_an_empty_document(self) -> None:
-        assert Document(source_length=0).structured_ratio == 0.0
+    def test_displayed_ratio_is_zero_for_an_empty_document(self) -> None:
+        assert Document(source_length=0).displayed_ratio == 0.0
 
-    def test_structured_ratio_measures_displayed_coverage(self) -> None:
+    def test_covered_ratio_is_zero_for_an_empty_document(self) -> None:
+        assert Document(source_length=0).covered_ratio == 0.0
+
+    def test_recognised_artefacts_count_towards_coverage_but_not_display(
+        self,
+    ) -> None:
+        # Understanding that something is a page number is understanding the
+        # text. A contents-heavy book must not be mistaken for an unparsed one.
         body = _para(0, 25)
         folio = Block(
             kind=BlockKind.PAGE_NUMBER,
@@ -237,7 +244,33 @@ class TestDocument:
         )
         doc = Document(source_length=100, sections=(section,))
 
-        assert doc.structured_ratio == pytest.approx(0.25)
+        assert doc.covered_ratio == pytest.approx(1.0)
+        assert doc.displayed_ratio == pytest.approx(0.25)
+
+    def test_unaccounted_text_lowers_coverage(self) -> None:
+        body = _para(0, 20)
+        section = Section(title="", source_start=0, source_end=20, blocks=(body,))
+        doc = Document(source_length=100, sections=(section,))
+
+        assert doc.covered_ratio == pytest.approx(0.2)
+
+    def test_displayed_ratio_measures_displayed_coverage(self) -> None:
+        body = _para(0, 25)
+        folio = Block(
+            kind=BlockKind.PAGE_NUMBER,
+            source_start=25,
+            source_end=100,
+            text="12",
+        )
+        section = Section(
+            title="",
+            source_start=0,
+            source_end=100,
+            blocks=(body, folio),
+        )
+        doc = Document(source_length=100, sections=(section,))
+
+        assert doc.displayed_ratio == pytest.approx(0.25)
 
 
 class TestUnstructuredFallback:
@@ -273,4 +306,4 @@ class TestUnstructuredFallback:
 
         assert doc.source_length == len(text)
         assert doc.body_start_offset == 0
-        assert doc.structured_ratio == pytest.approx(1.0)
+        assert doc.displayed_ratio == pytest.approx(1.0)

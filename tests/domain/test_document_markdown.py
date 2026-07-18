@@ -244,7 +244,7 @@ class TestBuildDocument:
 
         # Only blank lines and the heading markers themselves fall outside a
         # displayed block, so coverage should be high.
-        assert doc.structured_ratio > 0.75
+        assert doc.displayed_ratio > 0.75
 
     def test_empty_source_yields_an_empty_document(self) -> None:
         doc = build_document(source="")

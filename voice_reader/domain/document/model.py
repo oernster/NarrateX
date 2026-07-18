@@ -192,17 +192,35 @@ class Document:
                 return block.source_start
         return None
 
-    @property
-    def structured_ratio(self) -> float:
-        """Proportion of the source text covered by displayed blocks.
-
-        The extraction confidence signal. A caller compares this against its own
-        configured threshold to decide whether to keep the model or fall back to
-        `unstructured()`. The threshold is a policy decision and deliberately
-        does not live here.
-        """
-
+    def _ratio_of(self, blocks: tuple[Block, ...]) -> float:
         if self.source_length <= 0:
             return 0.0
-        covered = sum(b.source_length for b in self.displayed_blocks)
-        return covered / self.source_length
+        return sum(b.source_length for b in blocks) / self.source_length
+
+    @property
+    def covered_ratio(self) -> float:
+        """Proportion of the source accounted for by any block at all.
+
+        This is the extraction confidence signal. Artefacts count towards it,
+        because recognising a page number *is* understanding the text: a
+        contents-heavy book is not a badly parsed one. Measuring only body
+        content would penalise exactly the books this work exists to fix.
+
+        A caller compares this against its own threshold to decide whether to
+        keep the model or fall back to `unstructured()`. The threshold is a
+        policy decision and deliberately does not live here.
+        """
+
+        return self._ratio_of(self.blocks)
+
+    @property
+    def displayed_ratio(self) -> float:
+        """Proportion of the source that the reading pane would show.
+
+        Distinct from `covered_ratio`: a book can be fully understood and still
+        display little of itself, which is what a long contents section looks
+        like. Used to confirm a model has real body content, never to judge how
+        well extraction went.
+        """
+
+        return self._ratio_of(self.displayed_blocks)
