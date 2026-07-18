@@ -31,7 +31,10 @@ omit =
     */.git/*
     */cache/*
     */temp_books/*
-    */books/*
+    # Data directory of real books at the repo root only. This must NOT be
+    # `*/books/*`, which also matches `voice_reader/infrastructure/books/*`
+    # and silently drops the shipped parser and structure modules from the gate.
+    books/*
     */voices/*
     */tests/*
     installer/*

@@ -80,16 +80,9 @@ def extract_epub_cover(path: Path) -> bytes | None:
                 if not matches:
                     continue
 
-                flat: list[str] = []
-                for m in matches:
-                    if isinstance(m, tuple):
-                        for part in m:
-                            if part:
-                                flat.append(part)
-                    elif m:
-                        flat.append(m)
-                if not flat:
-                    continue
+                # The regex carries three alternative groups, so `findall`
+                # yields a tuple per match with exactly one part filled in.
+                flat = [part for match in matches for part in match if part]
 
                 href = None
                 for cand in flat:
