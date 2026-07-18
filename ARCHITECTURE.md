@@ -43,6 +43,8 @@ Additionally, narration failure handling persists a best-effort resume position 
   - Services:
     - [`NarrationService`](voice_reader/application/services/narration_service.py:36): core orchestration
     - [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py:15): lists voices via repo
+    - [`ChapterIndexService`](voice_reader/application/services/chapter_index_service.py:27): navigation anchors, from the model's sections where there is one. Only a book's major divisions become Next/Previous stops, ranked from the heading levels that book actually uses rather than from a fixed threshold, because a chapter sits at a different level in each book.
+    - [`chapter_progress_label()`](voice_reader/application/services/chapter_progress.py:41): what the status line says, in chapters rather than in text fragments
   - Interfaces (ports):
     - [`CoverExtractor`](voice_reader/application/interfaces/cover_extractor.py:1): cover extraction port injected into UI
 

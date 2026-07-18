@@ -45,6 +45,16 @@ _INDEX_HEAD_KEYS = frozenset({"index", "subject index", "name index"})
 _DIGITS = re.compile(r"\d+")
 _WHITESPACE = re.compile(r"\s+")
 
+# A heading that is nothing but its own section number: "8", "8.1", "3.1.1".
+# These are set on their own line often enough that they need rejoining with
+# the title that follows.
+_SECTION_NUMBER = re.compile(r"^\d+(?:\.\d+)*\.?$")
+
+# Kinds whose text wraps across lines, so consecutive lines the extractor
+# grouped together belong to one block. Furniture does not wrap: a folio or a
+# running head is a line in its own right.
+_WRAPPING_KINDS = frozenset({BlockKind.PARAGRAPH, BlockKind.HEADING})
+
 # A word broken across a line end: "deci-" followed by "sion". A lowercase
 # continuation means a split word; an uppercase one means a real hyphenated
 # compound at a line end, which is left alone.
@@ -263,6 +273,8 @@ def drafts_from_lines(lines: tuple[PdfLine, ...]) -> tuple[BlockDraft, ...]:
     drafts: list[BlockDraft] = []
     pending: list[str] = []
     pending_key: tuple[int, int] | None = None
+    pending_kind = BlockKind.PARAGRAPH
+    pending_level = 0
 
     def flush() -> None:
         if not pending:
@@ -270,24 +282,83 @@ def drafts_from_lines(lines: tuple[PdfLine, ...]) -> tuple[BlockDraft, ...]:
         text = join_paragraph_lines(tuple(pending)).strip()
         pending.clear()
         if text:
-            drafts.append(BlockDraft(kind=BlockKind.PARAGRAPH, text=text))
+            drafts.append(BlockDraft(kind=pending_kind, text=text, level=pending_level))
 
     for line, kind in classified:
         text = line.text.strip()
+        level = levels.get(round(line.size, 1), 1) if kind is BlockKind.HEADING else 0
 
-        if kind is BlockKind.PARAGRAPH:
-            # A new grouping from the extractor starts a new paragraph.
-            if pending_key is not None and line.key != pending_key:
+        # A heading wraps like a paragraph does. "Chapter 1: Decision objects
+        # and the" / "shape of organisational systems" is one title, and taking
+        # a line at a time leaves the second half starting mid-sentence, or
+        # mid-word where the break was hyphenated.
+        if kind in _WRAPPING_KINDS:
+            # A new grouping from the extractor starts a new block, and so does
+            # a change of kind or of heading rank.
+            same_run = (
+                pending_key == line.key
+                and pending_kind is kind
+                and pending_level == level
+            )
+            if pending and not same_run:
                 flush()
             pending.append(text)
             pending_key = line.key
+            pending_kind = kind
+            pending_level = level
             continue
 
         flush()
         pending_key = None
-
-        level = levels.get(round(line.size, 1), 1) if kind is BlockKind.HEADING else 0
         drafts.append(BlockDraft(kind=kind, text=text, level=level))
 
     flush()
-    return tuple(drafts)
+    return _rejoin_split_numbering(tuple(drafts))
+
+
+def _rejoin_split_numbering(drafts: tuple[BlockDraft, ...]) -> tuple[BlockDraft, ...]:
+    """Rejoin a heading whose number was typeset on its own line.
+
+    Typesetting often sets "8.1" and "From possibility to constraint" as
+    separate lines, so they arrive as two headings. Left apart, the number
+    becomes a navigation entry of its own that says nothing, and the title
+    loses the number that identifies it.
+
+    Rejoining is safe against the canonical text because matching ignores
+    whitespace: "8.1 From possibility to constraint" and the source's
+    "8.1\\nFrom possibility to constraint" reduce to the same thing.
+    """
+
+    rejoined: list[BlockDraft] = []
+    pending: BlockDraft | None = None
+
+    for draft in drafts:
+        is_heading = draft.kind is BlockKind.HEADING
+
+        if is_heading and _SECTION_NUMBER.match(draft.text):
+            # Two numbers in a row means the first had no title to join.
+            if pending is not None:
+                rejoined.append(pending)
+            pending = draft
+            continue
+
+        if pending is not None:
+            if is_heading:
+                rejoined.append(
+                    BlockDraft(
+                        kind=BlockKind.HEADING,
+                        text=f"{pending.text} {draft.text}",
+                        level=min(pending.level, draft.level),
+                    )
+                )
+                pending = None
+                continue
+            rejoined.append(pending)
+            pending = None
+
+        rejoined.append(draft)
+
+    if pending is not None:
+        rejoined.append(pending)
+
+    return tuple(rejoined)

@@ -22,6 +22,10 @@ from voice_reader.domain.entities.chapter import Chapter
 from voice_reader.domain.entities.text_chunk import TextChunk
 from voice_reader.domain.services.sanitized_text_mapper import SanitizedTextMapper
 
+# How many of a book's shallowest heading ranks count as major divisions, and
+# so become Next/Previous Chapter stops.
+_MAJOR_LEVEL_RANKS = 2
+
 
 @dataclass(frozen=True, slots=True)
 class ChapterIndexService:
@@ -124,13 +128,26 @@ class ChapterIndexService:
         heading containing the literal word "chapter"; a prologue, a named part
         or a numbered subsection is invisible to it. The model already knows
         what its sections are and where they start, so nothing is re-detected.
+
+        Only the book's major divisions become anchors, because Next Chapter
+        should reach the next chapter rather than the next sub-heading. Every
+        section remains listed in the Sections dialog, so nothing is made
+        unreachable by this.
         """
 
         candidates = list(self._playback_candidates(chunks))
         if not candidates:
             return []
 
-        detected: list[Chapter] = []
+        # Position first, ranking second. Front matter carries headings of its
+        # own, and letting them into the ranking shifts every rank below them:
+        # on one reference book that reduced two hundred chapters to nine parts.
+        #
+        # Filter on the section's own offset, not on the chunk it resolves to.
+        # Chunks begin at the narration start, so every section before that
+        # resolves to the first chunk and would otherwise survive the filter,
+        # putting the title page and contents into the list.
+        body: list[tuple[object, str, int]] = []
         for section in sections:
             title = str(getattr(section, "title", "") or "").strip()
             if not title:
@@ -139,12 +156,16 @@ class ChapterIndexService:
             start = self._section_entry_offset(section)
             if start is None:
                 continue
-
-            # Filter on the section's own offset, not on the chunk it resolves
-            # to. Chunks begin at the narration start, so every section before
-            # that resolves to the first chunk and would otherwise survive the
-            # filter, putting the title page and contents into the list.
             if min_char_offset is not None and int(start) < int(min_char_offset):
+                continue
+
+            body.append((section, title, int(start)))
+
+        major = self._major_levels([section for section, _, _ in body])
+
+        detected: list[Chapter] = []
+        for section, title, start in body:
+            if not self._is_major(section, major):
                 continue
 
             chunk_index = self._resolve_chunk_index(candidates, start)
@@ -152,11 +173,54 @@ class ChapterIndexService:
                 continue
 
             detected.append(
-                Chapter(title=title, char_offset=int(start), chunk_index=chunk_index)
+                Chapter(title=title, char_offset=start, chunk_index=chunk_index)
             )
 
         detected.sort(key=lambda c: int(c.char_offset))
         return detected
+
+    @staticmethod
+    def _heading_level(section: object) -> int | None:
+        """The level of the heading that opens a section, if it has one."""
+
+        for block in getattr(section, "blocks", ()) or ():
+            if getattr(getattr(block, "kind", None), "name", "") == "HEADING":
+                return int(getattr(block, "level", 0))
+        return None
+
+    @classmethod
+    def _major_levels(cls, sections: Sequence[object]) -> frozenset[int]:
+        """The heading ranks that count as the book's major divisions.
+
+        Levels are ranks within one book, not a scale shared between books: a
+        chapter sits at level 3 in one of the reference books and level 2 in
+        three others, because a PDF's levels are derived from how its own font
+        sizes sort. A fixed threshold would therefore be right for one book and
+        wrong for the next, so the shallowest ranks *present* are what count.
+
+        Two ranks rather than one, because most books spend the shallowest on
+        front matter and part divisions, leaving the chapters one step below.
+        Taking only the shallowest would reduce a 200-chapter book to its nine
+        parts.
+        """
+
+        levels = sorted(
+            {
+                level
+                for level in (cls._heading_level(s) for s in sections)
+                if level is not None
+            }
+        )
+        return frozenset(levels[:_MAJOR_LEVEL_RANKS])
+
+    @classmethod
+    def _is_major(cls, section: object, major: frozenset[int]) -> bool:
+        # A section whose level cannot be read is kept rather than guessed at,
+        # which also keeps a document with no level information navigable.
+        if not major:
+            return True
+        level = cls._heading_level(section)
+        return level is None or level in major
 
     @staticmethod
     def _section_entry_offset(section: object) -> int | None:

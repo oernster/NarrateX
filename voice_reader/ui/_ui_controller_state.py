@@ -6,7 +6,40 @@ Separated to keep the main controller file small.
 from __future__ import annotations
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
+from voice_reader.application.services.chapter_progress import chapter_progress_label
 from voice_reader.ui._ui_controller_chapters import apply_chapter_controls
+
+
+def _apply_progress_label(controller, state: NarrationState) -> None:
+    """Name the chapter being read, falling back to the fragment count.
+
+    The fallback is for a book with no chapters at all, where there is nothing
+    better to say. Everything else reports the chapter, because "1847/3200"
+    counts pieces of machinery rather than anything the listener asked about.
+    """
+
+    label: str | None = None
+    try:
+        _, char_offset = controller.narration_service.current_position()
+        book = controller.narration_service.loaded_book()
+        label = chapter_progress_label(
+            getattr(controller, "_chapters", []) or [],
+            char_offset=char_offset,
+            book_length=len(getattr(book, "normalized_text", "") or ""),
+        )
+    except Exception:
+        label = None
+
+    if label is None and state.total_chunks:
+        label = f"{(state.current_chunk_id or 0) + 1}/{state.total_chunks}"
+
+    if label is None:
+        return
+
+    try:
+        controller.window.lbl_progress.setText(label)
+    except Exception:
+        pass
 
 
 def on_state(controller, state: NarrationState) -> None:
@@ -57,13 +90,7 @@ def apply_state(controller, state: object) -> None:
     except Exception:
         pass
 
-    if state.total_chunks:
-        try:
-            controller.window.lbl_progress.setText(
-                f"{(state.current_chunk_id or 0) + 1}/{state.total_chunks}"
-            )
-        except Exception:
-            pass
+    _apply_progress_label(controller, state)
 
     try:
         if hasattr(controller.window, "lbl_status"):
