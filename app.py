@@ -14,7 +14,6 @@ import logging
 import multiprocessing as mp
 import os
 import shutil
-import threading
 import traceback
 from pathlib import Path
 
@@ -25,47 +24,21 @@ from voice_reader.shared.config import Config
 from voice_reader.shared.external_runtime import configure_packaged_runtime
 from voice_reader.shared.logging_utils import configure_logging
 from voice_reader.shared.startup_diagnostics import (
-    append_startup_log as _append_startup_log,
-    ensure_stdio as _ensure_stdio,
     preflight_imports as _preflight_imports,
-    program_base_dir as _program_base_dir,
 )
+from voice_reader.shared.startup_io import append_startup_log, ensure_stdio
+from voice_reader.shared.startup_lifecycle import shutdown, start_tts_warmup
 from voice_reader.shared.startup_ui import (
     center_window_on_screen,
     default_lock_dir,
     maybe_show_splash,
 )
-from voice_reader.bootstrap import resolve_app_wiring
+from voice_reader.bootstrap import install_wiring_placeholders, resolve_app_wiring
 from voice_reader.version import APP_APPUSERMODELID, APP_NAME
 
-# --- Test hooks / lazy import placeholders ---
-#
-# Several unit tests monkeypatch these names on the `app` module to avoid heavy
-# imports. Keep them defined at module import time so monkeypatching remains
-# stable even though the real imports happen lazily inside `main()`.
-for _sym in [
-    "MainWindow",
-    "UiController",
-    "NarrationService",
-    "BookmarkService",
-    "IdeaMapService",
-    "IdeaIndexingManager",
-    "StructuralBookmarkService",
-    "TTSEngineFactory",
-    "CoverExtractor",
-    "VoiceProfileService",
-    "ChunkingService",
-    "SoundDeviceAudioStreamer",
-    "CalibreConverter",
-    "BookParser",
-    "LocalBookRepository",
-    "FilesystemCacheRepository",
-    "JSONBookmarkRepository",
-    "JSONIdeaIndexRepository",
-    "JSONPreferencesRepository",
-    "KokoroVoiceProfileRepository",
-]:
-    globals().setdefault(_sym, None)
+# Several unit tests monkeypatch the wiring names on this module to avoid the
+# heavy imports, which only works if the names already exist.
+install_wiring_placeholders(globals())
 
 
 def _run_model_preflight(app) -> bool:  # noqa: ANN001
@@ -80,31 +53,6 @@ def _env_truthy(name: str) -> bool:
     except Exception:
         return False
     return v.strip().lower() in {"1", "true", "yes", "y", "on"}
-
-
-def program_base_dir() -> Path:
-    return _program_base_dir(argv0=(sys.argv[0] if sys.argv else ""), cwd=Path.cwd)
-
-
-def append_startup_log(filename: str, text: str) -> None:
-    return _append_startup_log(
-        base_dir=program_base_dir(),
-        filename=filename,
-        text=text,
-        open_fn=open,
-    )
-
-
-def ensure_stdio() -> None:
-    base = program_base_dir()
-    out, err = _ensure_stdio(
-        base_dir=base,
-        stdout=sys.stdout,
-        stderr=sys.stderr,
-        open_fn=open,
-    )
-    sys.stdout = out
-    sys.stderr = err
 
 
 def main() -> int:
@@ -323,22 +271,10 @@ def main() -> int:
             cover_extractor=_g("CoverExtractor")(),
         )
 
-        def on_quit() -> None:
-            try:
-                try:
-                    controller.on_app_exit()
-                except Exception:
-                    log.exception("Failed stopping Ideas indexing on app exit")
-                try:
-                    narration_service.on_app_exit()
-                except Exception:
-                    log.exception("Failed saving resume position on app exit")
-                narration_service.stop()
-            except Exception:
-                log.exception("Failed stopping narration")
-
         try:
-            app.aboutToQuit.connect(on_quit)
+            app.aboutToQuit.connect(
+                lambda: shutdown(controller, narration_service, log=log)
+            )
         except Exception:
             log.exception("Failed connecting aboutToQuit")
 
@@ -367,22 +303,7 @@ def main() -> int:
 
         append_startup_log("NarrateX.startup.log.txt", "window shown")
 
-        # Pre-warm the TTS model in the background so the first Play is instant.
-        # NarrationService emits SYNTHESIZING→IDLE so the UI progress bar animates.
-        def _startup_tts_warmup() -> None:
-            try:
-                voices = voice_service.list_profiles()
-                if not voices:
-                    return
-                narration_service.startup_warmup(voices[0])
-            except Exception:
-                log.debug("Startup TTS warmup failed", exc_info=True)
-
-        threading.Thread(
-            target=_startup_tts_warmup,
-            name="tts-startup-warmup",
-            daemon=True,
-        ).start()
+        start_tts_warmup(voice_service, narration_service, log=log)
 
         return app.exec()
     except SystemExit:

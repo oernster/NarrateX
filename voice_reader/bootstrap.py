@@ -92,6 +92,21 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
 }
 
 
+def install_wiring_placeholders(target_globals: dict[str, object]) -> None:
+    """Define every wiring name up front, set to None.
+
+    Unit tests monkeypatch these names on the entrypoint module to avoid the
+    heavy imports, and monkeypatching is only stable if the name already
+    exists. The real imports still happen lazily inside `main()`.
+
+    The names come from the same table `resolve_app_wiring` fills, so the
+    placeholders cannot drift away from the wiring they stand in for.
+    """
+
+    for sym in _APP_WIRING_IMPORTS:
+        target_globals.setdefault(sym, None)
+
+
 def resolve_app_wiring(
     target_globals: dict[str, object],
     tick_fn: Callable[[], None] | None = None,

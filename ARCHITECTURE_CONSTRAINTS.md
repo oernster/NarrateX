@@ -41,7 +41,13 @@ Enforced by [`test_all_in_scope_python_files_are_at_most_400_lines()`](tests/str
 
 This is a pragmatic guardrail to encourage extracting cohesive submodules and avoiding "god" modules.
 
-**Refactoring guideline:** When a file approaches 400 lines, target **~350 lines**, not 399. Trimming 1-2 lines repeatedly to stay just under 400 wastes effort on repeated micro-refactors of the same file. A meaningful reduction (extract a helper module, split a test file) buys real headroom.
+**Refactoring rule (the 5% rule):** 400 is the limit and the normal target, so a file below it and clear of the band below needs nothing doing to it.
+
+5% of 400 is 20, so **`>380` and `<400` (381 to 399) is the danger band. A file sitting in that band is reduced to <=350, never left at 399.** Both ways in are covered: a file that grew into the band, and a file refactored down from over the cap, which must land at <=350 rather than stopping the moment it clears 400.
+
+Trimming one or two lines to sit just under 400 buys nothing: the next edit breaks the cap again and the same file gets refactored over and over. Take a real reduction once instead, by extracting a cohesive module (a concern, not an arbitrary slice) or splitting a test file along its subject.
+
+This applies to the file being edited and to any file the change pushes into that band, and it applies to test files exactly as it does to source.
 
 ## Running the structural tests
 

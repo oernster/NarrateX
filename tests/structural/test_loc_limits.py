@@ -62,9 +62,17 @@ def _count_physical_lines(path: Path) -> int:
     return sum(1 for _ in path.open("r", encoding="utf-8", errors="ignore"))
 
 
-# REFACTORING GUIDELINE: When a file is approaching 400 lines, target ~350 lines,
-# not 399. Skimming 1-2 lines at a time to stay just under 400 wastes effort on
-# repeated micro-refactors of the same file. A meaningful reduction buys headroom.
+# REFACTORING RULE (the 5% rule): 400 is the limit and the normal target, so a
+# file below it and clear of the band below needs nothing doing to it.
+#
+# 5% of 400 is 20, so >380 and <400 (381 to 399) is the danger band. A file
+# sitting in that band is reduced to <=350, never left at 399. That covers both
+# a file that grew into the band and a file refactored down from over the cap,
+# which must land at <=350 rather than stopping the moment it clears 400.
+#
+# Skimming 1-2 lines at a time to stay just under 400 buys nothing: the next edit
+# breaks it again and the same file gets refactored over and over. Extract a
+# cohesive module instead. See ARCHITECTURE_CONSTRAINTS.md section 3.
 def test_all_in_scope_python_files_are_at_most_400_lines() -> None:
     root = _repo_root()
     offenders: list[LocOffender] = []
