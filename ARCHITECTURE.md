@@ -26,6 +26,7 @@ Additionally, narration failure handling persists a best-effort resume position 
 - UI is a PySide6 desktop app: [`MainWindow`](voice_reader/ui/main_window.py:38) is the widget tree; [`UiController`](voice_reader/ui/ui_controller.py:21) bridges UI events to application services.
 - The primary orchestration service is [`NarrationService`](voice_reader/application/services/narration_service.py:36).
 - Domain logic lives under [`voice_reader/domain`](voice_reader/domain:1) and is expressed as:
+  - the document model ([`voice_reader/domain/document`](voice_reader/domain/document:1)), which decides what a book *is*: its sections, its blocks, what the pane shows and what the narrator speaks
   - pure services (chunking, reading-start detection, spoken-text sanitization)
   - protocols (interfaces) for IO-heavy concerns (TTS engines, audio playback, book loading, caching)
 - Infrastructure adapters live under [`voice_reader/infrastructure`](voice_reader/infrastructure:1) and implement domain protocols.
@@ -55,8 +56,18 @@ Additionally, narration failure handling persists a best-effort resume position 
     - [`VoiceProfileRepository`](voice_reader/domain/interfaces/voice_profile_repository.py:1)
   - Pure services:
     - [`ChunkingService`](voice_reader/domain/services/chunking_service.py:32) via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
-    - [`ReadingStartService`](voice_reader/domain/services/reading_start_service.py:23) via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29)
+    - [`ReadingStartService`](voice_reader/domain/services/reading_start_service.py:23) via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29): still used by the 🧠 Sections bookmarks and the ideas index. Narration no longer consults it, see the document model below.
     - [`SpokenTextSanitizer`](voice_reader/domain/services/spoken_text_sanitizer.py:27) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28)
+  - Document model: [`voice_reader/domain/document`](voice_reader/domain/document:1), pure and format independent
+    - [`Document`](voice_reader/domain/document/model.py:123) → [`Section`](voice_reader/domain/document/model.py:90) → [`Block`](voice_reader/domain/document/model.py:34), plus [`TocEntry`](voice_reader/domain/document/model.py:69). `Section` is named so rather than `Chapter` because [`Chapter`](voice_reader/domain/entities/chapter.py:1) already owns navigation metadata, and not every division of a book is a chapter.
+    - [`BlockKind`](voice_reader/domain/document/block_kind.py:21): the single policy for `is_displayed` and `is_spoken`, kept together so the pane and the narrator cannot drift apart
+    - Format readers, each emitting drafts rather than offsets: [`markdown.py`](voice_reader/domain/document/markdown.py:1), [`pdf_lines.py`](voice_reader/domain/document/pdf_lines.py:1), [`plain_text.py`](voice_reader/domain/document/plain_text.py:1)
+    - [`text_index.py`](voice_reader/domain/document/text_index.py:1): how extracted text is matched against the canonical text, shared by anchoring and narration planning
+    - [`anchoring.py`](voice_reader/domain/document/anchoring.py:1): locates each draft in `normalized_text`
+    - [`sectioning.py`](voice_reader/domain/document/sectioning.py:1), [`assembly.py`](voice_reader/domain/document/assembly.py:1): group anchored blocks into the finished document
+    - [`reading_start.py`](voice_reader/domain/document/reading_start.py:1): where the body begins, for both the pane and the narrator
+    - [`render_plan.py`](voice_reader/domain/document/render_plan.py:1): what the pane shows, and the source-to-render coordinate mapping
+    - [`narration_plan.py`](voice_reader/domain/document/narration_plan.py:1): what the narrator speaks, as chunks in book coordinates
 
 - Infrastructure layer: [`voice_reader/infrastructure`](voice_reader/infrastructure:1)
   - Books:
@@ -79,6 +90,29 @@ Additionally, narration failure handling persists a best-effort resume position 
   - Errors: [`voice_reader/shared/errors.py`](voice_reader/shared/errors.py:1)
   - Logging setup: [`voice_reader/shared/logging_utils.py`](voice_reader/shared/logging_utils.py:1)
   - Packaged runtime helpers (optional): [`configure_packaged_runtime()`](voice_reader/shared/external_runtime.py:109) adds sibling `ext/` and configures `hf-cache/`
+
+## Document model invariants
+
+The document model is the single answer to "what is in this book, and where".
+Each invariant below is enforced by a test rather than by convention.
+
+| Invariant | Why it holds | Enforced by |
+| --- | --- | --- |
+| **`normalized_text` is never rewritten.** Every block records a span into it; the model carries spans *into* the text rather than replacing it. | That string is the coordinate system for chunk spans, the chapter index, structural bookmarks, the ideas index, click-to-seek, persisted bookmarks, the resume position, the audio cache key and the derived `book_id`. Rewriting it silently orphans every bookmark a reader already has. | [`tests/domain/test_document_anchoring.py`](tests/domain/test_document_anchoring.py:1) |
+| **A draft that cannot be located is dropped, never guessed at.** | Uncertainty degrades the confidence signal instead of corrupting offsets. Dropped drafts lower `covered_ratio`, and a low enough ratio is what tips the repository over to the unstructured fallback. | [`tests/domain/test_document_anchoring.py`](tests/domain/test_document_anchoring.py:1) |
+| **Matching folds exactly what the extraction rewrote**, one character wide or dropped outright. | A draft is a whole paragraph of joined lines, so one unfolded character loses the paragraph around it, not just the word. Folding must widen what matches without making the offsets approximate. | [`tests/domain/test_document_anchoring.py`](tests/domain/test_document_anchoring.py:1), [`tests/domain/test_document_pdf_lines.py`](tests/domain/test_document_pdf_lines.py:1) |
+| **Displayed and spoken are one policy**, held in [`BlockKind`](voice_reader/domain/document/block_kind.py:21). | The pane and the narrator answer the same questions. Deciding separately is how a folio the reader never sees becomes a folio the narrator reads aloud. | [`tests/domain/test_document_block_kind.py`](tests/domain/test_document_block_kind.py:1) |
+| **A chunk says exactly what its span claims.** Chunks are cut from the source slice and then *located* back in it, never given calculated offsets. | `ChunkingService` normalises its input before measuring, so its own offsets drift wherever it collapses whitespace. Highlighting and click-to-seek read those offsets literally. | [`tests/domain/test_document_narration_plan.py`](tests/domain/test_document_narration_plan.py:1) |
+| **A narration run never spans skipped content.** Blocks merge into a run only when they share a kind and nothing but whitespace separates them. | Merging is there to stop sentence-sized PDF blocks becoming sentence-sized utterances. Merging across a folio would produce a chunk whose span covers text nobody asked to hear. | [`tests/domain/test_document_narration_plan.py`](tests/domain/test_document_narration_plan.py:1) |
+| **There is one code path, never two.** Extraction that fails its confidence check degrades to [`Document.unstructured()`](voice_reader/domain/document/model.py:139), a real model holding one paragraph. | The renderer and the narrator have no special case for "no model", so the fallback cannot rot from disuse. | [`tests/infrastructure/test_book_repository.py`](tests/infrastructure/test_book_repository.py:1) |
+
+### Confidence guardrail
+
+[`LocalBookRepository`](voice_reader/infrastructure/books/repository.py:33) keeps the
+structured model only when it accounts for at least `_MIN_COVERED_RATIO` of the
+source and finds at least `_MIN_DISPLAYED_RATIO` of real body content.
+Artefacts count towards coverage, because recognising a page number *is*
+understanding the text: a contents-heavy book is not a badly parsed one.
 
 ## Dependency direction
 
@@ -202,10 +236,12 @@ Preparation does:
    - The resume `char_offset` is mapped into the *current* playback candidate list using [`resolve_playback_index_for_char_offset()`](voice_reader/application/services/narration/prepare.py:13) inside [`prepare()`](voice_reader/application/services/narration/prepare.py:47).
    - The stored `chunk_index` is treated as non-authoritative because chunking start/candidate filtering can change between runs.
 - If **no** resume position exists (first-time start), the UI prefers the *first* deterministic 🧠 Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py:39)). This aligns “start from scratch” playback with what the Sections dialog shows.
-   - If no Sections can be computed, the system falls back to narration start detection via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:36).
+   - If no Sections can be computed, the start comes from the document model via [`reading_start_offset()`](voice_reader/domain/document/reading_start.py:88). That is the same offset the reading pane opens on, so the two cannot disagree about where the book begins.
 
-2. Chunk the (sliced) text via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
-   - Chunking is performed on the slice beginning at the detected start point.
+2. Build chunks from the document model via [`build_narration_chunks()`](voice_reader/domain/document/narration_plan.py:83)
+   - Only [`Block.is_spoken`](voice_reader/domain/document/model.py:64) blocks are narrated, so the folios, running heads, contents entries and back-of-book index the pane hides are never read aloud.
+   - Consecutive blocks merge into a *run* when they share a kind and only whitespace separates them, then the run is chunked. Without this, a PDF's sentence-sized blocks become sentence-sized utterances.
+   - Each chunk is then located back in its run through [`text_index.locate()`](voice_reader/domain/document/text_index.py:60), so its span holds exactly the text it speaks.
    - The chunk list can then be *filtered* for navigation purposes (without mutating
      the text buffer or changing offsets) by [`NavigationChunkService.build_chunks()`](voice_reader/application/services/navigation_chunk_service.py:49).
    - If `skip_essay_index=True`, the service detects an `Essay Index` block and
@@ -381,6 +417,7 @@ Tests are organized to mirror the architecture.
     - [`tests/domain/test_chunking_service.py`](tests/domain/test_chunking_service.py:1)
     - [`tests/domain/test_reading_start_service.py`](tests/domain/test_reading_start_service.py:1)
     - [`tests/domain/test_spoken_text_sanitizer.py`](tests/domain/test_spoken_text_sanitizer.py:1)
+  - the document model, one file per module (`tests/domain/test_document_*.py`), covering anchoring, block kinds, the format readers, sectioning, the reading start, the render plan and the narration plan
 
 - Infrastructure layer tests: [`tests/infrastructure`](tests/infrastructure:1)
   - adapters and IO boundaries (often via stubs/fakes):

@@ -36,6 +36,12 @@ _EDGE_BAND_RATIO = 0.12
 # head or foot. Three separates a genuine repeat from a coincidence.
 _RUNNING_REPEAT_MIN_PAGES = 3
 
+# Running heads that name a page as part of the book's index. A page announcing
+# itself this way is far better evidence than the shape of its lines: an index
+# entry ("latency, 60, 189") and a wrapped body line ending in a year read
+# almost identically, and only one of them sits under this heading.
+_INDEX_HEAD_KEYS = frozenset({"index", "subject index", "name index"})
+
 _DIGITS = re.compile(r"\d+")
 _WHITESPACE = re.compile(r"\s+")
 
@@ -146,6 +152,28 @@ def running_head_keys(lines: tuple[PdfLine, ...]) -> frozenset[str]:
     )
 
 
+def index_pages(lines: tuple[PdfLine, ...], *, body: float) -> frozenset[int]:
+    """Pages that name themselves as part of the book's index.
+
+    Two signals, because typesetting uses both. Later pages carry "Index" as a
+    running head in the margin, while the opening page of the index carries it
+    as a title instead and usually suppresses the running head, which is why
+    the margin alone always misses the first page.
+
+    Repetition is not required, unlike an ordinary running head. A generic line
+    needs to recur before it reads as furniture, whereas a line that says
+    "Index" has already said what the page is. Requiring a repeat would also
+    miss every two-page index, which is most of them.
+    """
+
+    return frozenset(
+        line.page_index
+        for line in lines
+        if _repetition_key(line.text) in _INDEX_HEAD_KEYS
+        and (_in_edge_band(line) or _looks_like_heading(line, body=body))
+    )
+
+
 def _looks_like_heading(line: PdfLine, *, body: float) -> bool:
     text = line.text.strip()
     if not text or len(text.split()) > _MAX_HEADING_WORDS:
@@ -172,6 +200,7 @@ def _kind_of(
     *,
     body: float,
     running: frozenset[str],
+    indexed: frozenset[int],
 ) -> BlockKind:
     text = line.text.strip()
     if is_contents_entry(text):
@@ -182,6 +211,8 @@ def _kind_of(
         return BlockKind.RUNNING_HEAD
     if _looks_like_heading(line, body=body):
         return BlockKind.HEADING
+    if line.page_index in indexed:
+        return BlockKind.INDEX_ENTRY
     return BlockKind.PARAGRAPH
 
 
@@ -217,9 +248,13 @@ def drafts_from_lines(lines: tuple[PdfLine, ...]) -> tuple[BlockDraft, ...]:
 
     body = body_size(populated)
     running = running_head_keys(populated)
+    indexed = index_pages(populated, body=body)
 
     classified = _reclassify_contents_folios(
-        [(line, _kind_of(line, body=body, running=running)) for line in populated]
+        [
+            (line, _kind_of(line, body=body, running=running, indexed=indexed))
+            for line in populated
+        ]
     )
     levels = _heading_levels(
         {round(line.size, 1) for line, kind in classified if kind is BlockKind.HEADING}

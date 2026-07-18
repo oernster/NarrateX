@@ -17,8 +17,19 @@ python -m pytest -q
 On Windows, if you have a project-local venv, prefer invoking pytest via the venv Python to avoid accidentally running the global interpreter:
 
 ```powershell
-.venv\Scripts\python.exe -m pytest -q
+venv\Scripts\python.exe -m pytest -q
 ```
+
+Qt tests need an offscreen platform when running headless:
+
+```powershell
+$env:QT_QPA_PLATFORM = 'offscreen'
+```
+
+The coverage table prints last and there is **no** "N passed" line under the
+gate, so a substring search for `passed` or `failed` matches coverage filenames
+rather than results. Read the exit code: `0` means every test passed **and** the
+coverage gate was met.
 
 Run lint:
 

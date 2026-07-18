@@ -7,7 +7,9 @@ A block kind answers two independent questions:
 
 The answers are genuinely independent. A heading is both displayed and spoken,
 a table-of-contents entry is neither (it is navigation, surfaced as a TOC rather
-than as body text), and a code block is displayed but not spoken.
+than as body text), and a code block is displayed but not spoken. So is a
+back-of-book index entry: "latency, 60, 189, 220" is worth keeping on the page
+and unbearable read aloud.
 
 Keeping the policy here, rather than in the renderer and the narrator
 separately, means the two consumers cannot drift apart.
@@ -26,6 +28,7 @@ class BlockKind(Enum):
     LIST_ITEM = "list_item"
     BLOCK_QUOTE = "block_quote"
     CODE = "code"
+    INDEX_ENTRY = "index_entry"
     TOC_ENTRY = "toc_entry"
     PAGE_NUMBER = "page_number"
     RUNNING_HEAD = "running_head"
@@ -52,11 +55,13 @@ _DISPLAYED_KINDS: frozenset[BlockKind] = frozenset(
         BlockKind.LIST_ITEM,
         BlockKind.BLOCK_QUOTE,
         BlockKind.CODE,
+        BlockKind.INDEX_ENTRY,
     }
 )
 
 # Spoken content: displayed body minus the kinds that narrate badly.
 # Code is shown but not read aloud; punctuation and symbols make poor speech.
+# An index entry is a name and a list of page numbers, which is navigation.
 _SPOKEN_KINDS: frozenset[BlockKind] = frozenset(
     {
         BlockKind.HEADING,

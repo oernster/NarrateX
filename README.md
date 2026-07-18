@@ -12,7 +12,7 @@ NarrateX treats books as structured systems rather than raw text.
 
 - Playback follows document structure rather than file order  
 - Section navigation is derived from headings and bookmarks  
-- Non-content sections (e.g. frontmatter, indexes) are excluded  
+- Non-content is excluded from narration by structure rather than by guesswork: page numbers, running heads, contents entries and the back-of-book index are shown where they belong and never read aloud  
 - Navigation loads immediately and processes in the background  
 - Playback position is deterministic and consistent across sessions  
 - Separator-only divider lines in source texts (e.g. `---`) are treated as non-content and ignored during playback  
@@ -37,6 +37,7 @@ Native:
 - EPUB (`.epub`)
 - PDF (`.pdf`)
 - Plain text (`.txt`)
+- Markdown (`.md`, `.markdown`)
 
 Kindle formats (via optional Calibre conversion to EPUB):
 
