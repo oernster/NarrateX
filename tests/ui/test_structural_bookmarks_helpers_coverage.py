@@ -30,8 +30,10 @@ class _Nav:
     start_char: int
     boom: bool = False
 
-    def build_chunks(self, *, book_text: str):
-        del book_text
+    def build_chunks(self, *, book_text: str, document):
+        # Signature mirrors NavigationChunkService exactly. A fake that accepts
+        # less than the real thing lets a broken call site pass its tests.
+        del book_text, document
         if self.boom:
             raise RuntimeError("nav failed")
         return list(self.chunks), _Start(start_char=int(self.start_char))

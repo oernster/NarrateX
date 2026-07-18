@@ -16,16 +16,37 @@ import logging
 from voice_reader.application.services.narration.prepare import (
     resolve_playback_index_for_char_offset,
 )
+from voice_reader.domain.document.model import Document
+
+
+def _loaded_book(controller):
+    try:
+        return controller.narration_service.loaded_book()
+    except Exception:
+        return None
 
 
 def _book_text(controller) -> str:
     """The book's own text, which is the space chunk offsets live in."""
 
-    try:
-        book = controller.narration_service.loaded_book()
-    except Exception:
-        book = None
-    return str(getattr(book, "normalized_text", "") or "")
+    return str(getattr(_loaded_book(controller), "normalized_text", "") or "")
+
+
+def _document_for(controller, *, text: str) -> Document:
+    """The model to chunk against, matching whatever text we ended up with.
+
+    The clicked offset can be resolved against the pane's own text when no
+    render plan is present, and that text is not the book's, so a model built
+    for the book would not describe it. Falling back to one unbroken run keeps
+    the two in step.
+    """
+
+    book = _loaded_book(controller)
+    if book is not None and str(getattr(book, "normalized_text", "")) == text:
+        model = getattr(book, "document_model", None)
+        if model is not None:
+            return model
+    return Document.unstructured(text=text)
 
 
 def seek_to_char_offset(controller, offset: int) -> None:
@@ -66,7 +87,11 @@ def seek_to_char_offset(controller, offset: int) -> None:
         return
 
     try:
-        chunks, _start = nav.build_chunks(book_text=text, skip_essay_index=True)
+        chunks, _start = nav.build_chunks(
+            book_text=text,
+            document=_document_for(controller, text=text),
+            skip_essay_index=True,
+        )
     except Exception:
         log.exception("Failed building navigation chunks for click-to-seek")
         return

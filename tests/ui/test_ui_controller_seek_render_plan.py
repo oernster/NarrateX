@@ -76,6 +76,39 @@ def test_seek_converts_utf16_positions_before_consulting_the_plan() -> None:
     assert positions.seen == [3]
 
 
+def test_seek_chunks_against_the_loaded_book_s_own_model() -> None:
+    """A seek must narrate the same structure the pane is showing.
+
+    When the pane's text is the book's, the book's model is what decides which
+    blocks are spoken. Falling back to an unstructured run here would quietly
+    reintroduce the contents and folios into playback from the click onwards.
+    """
+
+    from voice_reader.domain.document.plain_text import build_document
+    from voice_reader.domain.entities.book import Book
+    from voice_reader.ui._ui_controller_seek import _document_for
+
+    source = (
+        "CONTENTS\n\nPrologue . . . . . . . . . . 2\n\nChapter 1\n\nThe real text.\n"
+    )
+    book = Book(
+        id="b1",
+        title="T",
+        raw_text=source,
+        normalized_text=source,
+        document=build_document(source=source),
+    )
+
+    c = _controller(text=source, nav=NavFake(chunks=[]))
+    c.narration_service.loaded_book = lambda: book
+
+    assert _document_for(c, text=source) is book.document
+
+    # Pane text that is not the book's gets a model describing that text.
+    other = _document_for(c, text="something else entirely")
+    assert other is not book.document
+
+
 def test_seek_survives_a_narration_service_with_no_loaded_book() -> None:
     source = "Chapter 1\n\nThe real text.\n"
     c = _controller(text=source, nav=NavFake(chunks=[]))

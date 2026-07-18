@@ -17,8 +17,10 @@ class NavFake:
     chunks: list
     exc: Exception | None = None
 
-    def build_chunks(self, *, book_text: str, skip_essay_index: bool = True):
-        del book_text, skip_essay_index
+    def build_chunks(self, *, book_text: str, document, skip_essay_index: bool = True):
+        # Signature mirrors NavigationChunkService exactly. A fake that accepts
+        # less than the real thing lets a broken call site pass its tests.
+        del book_text, document, skip_essay_index
         if self.exc is not None:
             raise self.exc
         return list(self.chunks), None

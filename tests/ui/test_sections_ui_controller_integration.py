@@ -225,10 +225,10 @@ def test_sections_go_to_defensive_guard_never_forces_pre_boundary_offset(qapp) -
                 chunking_service=ChunkingService(),
             )
 
-        def build_chunks(self, *, book_text: str):
+        def build_chunks(self, *, book_text: str, document=None):
             return self._svc.build_chunks(
                 book_text=book_text,
-                document=plain_text.build_document(source=book_text),
+                document=document or plain_text.build_document(source=book_text),
             )
 
     narration = _FakeNarration(

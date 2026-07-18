@@ -170,6 +170,7 @@ def presynthesize_start_chunks(
     try:
         chunks, _ = service.navigation_chunk_service.build_chunks(
             book_text=service._book.normalized_text,  # noqa: SLF001
+            document=service._book.document_model,  # noqa: SLF001
         )
     except Exception:
         return

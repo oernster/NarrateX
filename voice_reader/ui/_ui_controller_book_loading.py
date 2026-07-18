@@ -178,7 +178,8 @@ def load_selected_book(controller, *, path: Path) -> None:
     try:
         if controller._navigation_chunk_service is not None:  # noqa: SLF001
             chunks, start = controller._navigation_chunk_service.build_chunks(
-                book_text=book.normalized_text
+                book_text=book.normalized_text,
+                document=book.document_model,
             )
             start_char_for_ui = int(start.start_char)
             controller._chapters = _build_chapter_index(  # noqa: SLF001

@@ -3,7 +3,6 @@ from __future__ import annotations
 import hashlib
 from typing import TYPE_CHECKING
 
-from voice_reader.domain.document.model import Document
 from voice_reader.domain.document.reading_start import reading_start_offset
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -23,8 +22,8 @@ def compute_book_cache_id(service: NarrationService) -> str:
         # The same answer `prepare` will reach, so a key computed before
         # preparation matches the one computed after it.
         book = service._book  # noqa: SLF001
-        document = book.document or Document.unstructured(text=book.normalized_text)
-        service._start_char = reading_start_offset(document) or 0  # noqa: SLF001
+        model = book.document_model
+        service._start_char = reading_start_offset(model) or 0  # noqa: SLF001
 
     # Bump version when changing audio-affecting logic.
     # v15: narration follows the document model, so both the chunk boundaries

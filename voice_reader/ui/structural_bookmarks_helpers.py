@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
+from voice_reader.domain.document.model import Document
 from voice_reader.domain.entities.structural_bookmark import StructuralBookmark
 from voice_reader.domain.entities.text_chunk import TextChunk
 from voice_reader.domain.services.reading_start_service import ReadingStartService
@@ -65,6 +66,7 @@ def compute_structural_bookmarks(
     # Pull text directly from the already-loaded book.
     normalized_text = ""
     book_title = None
+    book = None
     try:
         book = getattr(controller.narration_service, "_book", None)  # noqa: SLF001
         normalized_text = str(getattr(book, "normalized_text", ""))
@@ -113,7 +115,15 @@ def compute_structural_bookmarks(
         # narratable paragraph.
         nav = getattr(controller, "_navigation_chunk_service", None)  # noqa: SLF001
         if nav is not None:
-            chunks0, start = nav.build_chunks(book_text=normalized_text)
+            model = getattr(book, "document_model", None)
+            chunks0, start = nav.build_chunks(
+                book_text=normalized_text,
+                document=(
+                    model
+                    if model is not None
+                    else Document.unstructured(text=normalized_text)
+                ),
+            )
             chunks = list(chunks0)
 
             # Derive a heading-safe boundary.

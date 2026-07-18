@@ -15,8 +15,10 @@ from voice_reader.ui.ui_controller import UiController
 class _FakeNavChunkService:
     chunks: list[TextChunk]
 
-    def build_chunks(self, *, book_text: str, skip_essay_index: bool = True):
-        del book_text, skip_essay_index
+    def build_chunks(self, *, book_text: str, document, skip_essay_index: bool = True):
+        # Signature mirrors NavigationChunkService exactly. A fake that accepts
+        # less than the real thing lets a broken call site pass its tests.
+        del book_text, document, skip_essay_index
         return list(self.chunks), None
 
 
