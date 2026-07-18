@@ -332,6 +332,20 @@ class TestDegenerateInput:
     def test_joining_skips_blank_parts(self) -> None:
         assert join_paragraph_lines(("First", "   ", "second.")) == "First second."
 
+    def test_a_non_breaking_hyphen_also_heals_a_word_split_across_lines(self) -> None:
+        # A typeset PDF breaks words on a non-breaking hyphen as readily as on
+        # a plain one. Healing only the plain kind leaves "tra- jectories",
+        # which then matches nothing in the dehyphenated source text.
+        assert join_paragraph_lines(("These events form tra‑", "jectories.")) == (
+            "These events form trajectories."
+        )
+
+    def test_a_non_breaking_hyphen_before_a_capital_is_left_alone(self) -> None:
+        # An uppercase continuation is a real compound, not a split word.
+        assert join_paragraph_lines(("Latency‑", "Aware Design")) == (
+            "Latency‑ Aware Design"
+        )
+
     def test_lines_reporting_no_font_size_yield_no_headings(self) -> None:
         # A malformed PDF can report a span size of zero, which would make
         # every short line compare as larger than the body text.

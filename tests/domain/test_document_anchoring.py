@@ -141,3 +141,59 @@ class TestAnchoring:
 
         assert len(blocks) == 1
         assert doc.displayed_ratio < 0.5
+
+
+class TestFoldingWhatExtractionRewrites:
+    """The extraction rewrites a few characters; matching has to mirror it.
+
+    A PDF walk reports the characters the file actually contains, while
+    `normalized_text` has already folded them. Without the same fold here, a
+    draft is lost whole, so a single hyphen costs the paragraph around it.
+    """
+
+    def test_a_non_breaking_hyphen_matches_the_plain_one_in_the_source(self) -> None:
+        # The source has been dehyphenated to ASCII; the draft has not.
+        blocks = anchor_blocks(
+            source="A decision-event changes the state.",
+            drafts=(_draft("A decision‑event changes the state."),),
+        )
+
+        assert len(blocks) == 1
+        assert blocks[0].source_start == 0
+        assert blocks[0].source_end == len("A decision-event changes the state.")
+
+    def test_a_soft_hyphen_in_a_draft_is_ignored(self) -> None:
+        # Soft hyphens are invisible typesetting advice and are stripped from
+        # the source, so a draft still carrying one must still match.
+        blocks = anchor_blocks(
+            source="Organisational structure.",
+            drafts=(_draft("Organi­sational structure."),),
+        )
+
+        assert len(blocks) == 1
+        assert blocks[0].source_end == len("Organisational structure.")
+
+    def test_folding_keeps_spans_true_to_the_original_text(self) -> None:
+        # Every fold is one character wide or dropped, so the offsets recorded
+        # alongside still index the untouched source.
+        source = "Intro.\n\nA latency-aware design.\n"
+        blocks = anchor_blocks(
+            source=source,
+            drafts=(_draft("Intro."), _draft("A latency‑aware design.")),
+        )
+
+        assert len(blocks) == 2
+        second = blocks[1]
+        assert source[second.source_start : second.source_end] == (
+            "A latency-aware design."
+        )
+
+    def test_a_draft_that_is_genuinely_absent_is_still_dropped(self) -> None:
+        # Folding must widen what matches, never make matching approximate.
+        assert (
+            anchor_blocks(
+                source="A decision-event.",
+                drafts=(_draft("A different‑event."),),
+            )
+            == ()
+        )

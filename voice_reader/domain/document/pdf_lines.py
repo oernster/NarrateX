@@ -42,7 +42,12 @@ _WHITESPACE = re.compile(r"\s+")
 # A word broken across a line end: "deci-" followed by "sion". A lowercase
 # continuation means a split word; an uppercase one means a real hyphenated
 # compound at a line end, which is left alone.
-_LINE_BREAK_HYPHEN = re.compile(r"([A-Za-z])-$")
+#
+# Both hyphens count. A typeset PDF breaks words on a non-breaking hyphen as
+# readily as on a plain one, and the extraction folds the two together before
+# healing them, so matching only the plain one leaves every paragraph broken on
+# the other kind unanchorable.
+_LINE_BREAK_HYPHEN = re.compile(r"([A-Za-z])[-‑]$")
 _LOWERCASE_START = re.compile(r"^[a-z]")
 
 

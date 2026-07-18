@@ -10,11 +10,19 @@ every bookmark a reader already has.
 So the reader emits drafts (what a block *is* and what it *says*) and this
 module finds where each one sits in the canonical text.
 
-Matching ignores whitespace entirely. The two representations carry the same
-characters in the same order and differ only in how they are wrapped and
-spaced, so comparing with whitespace removed makes the match exact rather than
-approximate. Scanning is forward-only, which keeps repeated text (a running
-header appearing on every page) anchored to the right occurrence.
+Matching ignores whitespace entirely, and folds the few characters the text
+extraction rewrites on its way to `normalized_text`. The two representations
+carry the same characters in the same order and differ only in how they are
+wrapped, spaced and hyphenated, so comparing on that footing makes the match
+exact rather than approximate. Scanning is forward-only, which keeps repeated
+text (a running header appearing on every page) anchored to the right
+occurrence.
+
+Folding is not cosmetic. A draft is a whole paragraph of joined lines, so one
+unfolded character anywhere in it loses the entire paragraph, not just the word
+it sits in. Every fold here is the mirror of a rewrite `_dehyphenate` applies to
+the source, and each is one character wide or dropped outright, so the offsets
+recorded alongside stay true to the original text.
 
 A draft that cannot be found is dropped rather than guessed at. That is
 deliberate: dropped drafts lower `Document.covered_ratio`, and a low enough
@@ -24,13 +32,19 @@ degrades the confidence signal instead of corrupting the offsets.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
 from voice_reader.domain.document.block_kind import BlockKind
 from voice_reader.domain.document.model import Block
 
-_NON_SPACE = re.compile(r"\S")
+# Characters the extraction removes outright, so a draft still carrying one
+# would never be found. The soft hyphen is invisible typesetting advice.
+_DROPPED_IN_SOURCE = frozenset({"­"})
+
+# Characters the extraction rewrites, mapped to what it rewrites them to. The
+# non-breaking hyphen becomes a plain one, which is what a hyphenated term in a
+# typeset PDF hinges on.
+_FOLDED_IN_SOURCE = {"‑": "-"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,17 +62,34 @@ class BlockDraft:
             raise ValueError("BlockDraft level must not be negative")
 
 
+def _match_char(char: str) -> str | None:
+    """Fold one character for matching, or None when it carries no meaning."""
+
+    if char.isspace() or char in _DROPPED_IN_SOURCE:
+        return None
+    return _FOLDED_IN_SOURCE.get(char, char)
+
+
 def _condense(text: str) -> tuple[str, tuple[int, ...]]:
-    """Return `text` without whitespace, plus each kept character's offset."""
+    """Return `text` folded for matching, plus each kept character's offset."""
 
-    matches = list(_NON_SPACE.finditer(text))
-    condensed = "".join(match.group() for match in matches)
-    offsets = tuple(match.start() for match in matches)
-    return condensed, offsets
+    condensed: list[str] = []
+    offsets: list[int] = []
+    for index, char in enumerate(text):
+        folded = _match_char(char)
+        if folded is None:
+            continue
+        condensed.append(folded)
+        offsets.append(index)
+    return "".join(condensed), tuple(offsets)
 
 
-def _strip_whitespace(text: str) -> str:
-    return "".join(text.split())
+def _match_key(text: str) -> str:
+    """Fold a draft's text the same way, so the two can be compared."""
+
+    return "".join(
+        folded for folded in (_match_char(char) for char in text) if folded is not None
+    )
 
 
 def anchor_blocks(
@@ -84,7 +115,7 @@ def anchor_blocks(
     cursor = 0
 
     for draft in drafts:
-        needle = _strip_whitespace(draft.text)
+        needle = _match_key(draft.text)
         if not needle:
             continue
 
