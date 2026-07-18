@@ -4,6 +4,8 @@ from pathlib import Path
 import threading
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
+from voice_reader.domain.document.reading_start import contents_end_offset
+from voice_reader.domain.document.render_plan import build_render_plan
 
 from voice_reader.ui._ui_controller_chapters import apply_chapter_controls
 
@@ -48,6 +50,31 @@ def prepare_for_book_switch(controller) -> None:
             cancel.set()
     except Exception:
         pass
+
+
+def _show_book_in_reader(controller, *, book) -> None:
+    """Render the book's structure, falling back to raw text.
+
+    The fallback is not decoration. A book whose extraction was too poor to
+    structure carries an unstructured document, and if rendering it would show
+    the reader less than the raw text does, the raw text wins. Displaying
+    something imperfect beats displaying almost nothing.
+    """
+
+    document = getattr(book, "document", None)
+    if document is not None:
+        try:
+            plan = build_render_plan(
+                document,
+                body_start=contents_end_offset(document),
+            )
+            if plan.text.strip():
+                controller.window.set_reader_document(plan)
+                return
+        except Exception:
+            controller._log.exception("Reader rendering failed")  # noqa: SLF001
+
+    controller.window.set_reader_text(book.normalized_text)
 
 
 def load_selected_book(controller, *, path: Path) -> None:
@@ -115,7 +142,7 @@ def load_selected_book(controller, *, path: Path) -> None:
             pass
         return
 
-    controller.window.set_reader_text(book.normalized_text)
+    _show_book_in_reader(controller, book=book)
 
     start_char_for_ui = 0
     try:

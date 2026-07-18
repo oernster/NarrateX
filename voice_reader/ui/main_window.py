@@ -14,6 +14,10 @@ from voice_reader.ui.window_helpers import (
     open_licence_dialog,
 )
 from voice_reader.ui._main_window_build import build_main_window_widgets
+from voice_reader.ui.document_renderer import apply_render_plan
+
+# Used when the reader's own font reports no usable point size.
+_FALLBACK_READER_POINT_SIZE = 11.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +54,8 @@ class MainWindow(QMainWindow):
     def __init__(self, strings: UiStrings | None = None) -> None:
         super().__init__()
         self._strings = strings or UiStrings()
+        self._render_plan = None
+        self._reader_positions = None
 
         build_main_window_widgets(self, strings=self._strings)
         self._connect_signals()
@@ -170,9 +176,57 @@ class MainWindow(QMainWindow):
         )
 
     def set_reader_text(self, text: str) -> None:
+        """Show raw text, with no structure. Clears any active render plan."""
+
+        self._render_plan = None
+        self._reader_positions = None
         self.reader.setPlainText(text)
 
+    def set_reader_document(self, plan) -> None:
+        """Render a document plan, with headings, spacing and indentation.
+
+        Keeping the plan is what lets highlighting and click-to-seek continue
+        to speak in book offsets while the pane shows something different.
+        """
+
+        self._render_plan = plan
+        self._reader_positions = apply_render_plan(
+            text_edit=self.reader,
+            plan=plan,
+            base_point_size=self._reader_base_point_size(),
+        )
+
+    @property
+    def render_plan(self):
+        """The active render plan, or None when showing raw text."""
+
+        return getattr(self, "_render_plan", None)
+
+    @property
+    def reader_positions(self):
+        """Python-index to Qt-position map for the rendered text."""
+
+        return getattr(self, "_reader_positions", None)
+
+    def _reader_base_point_size(self) -> float:
+        try:
+            size = float(self.reader.font().pointSizeF())
+        except Exception:
+            size = 0.0
+        return size if size > 0 else _FALLBACK_READER_POINT_SIZE
+
     def highlight_range(self, start: int | None, end: int | None) -> None:
+        # Callers speak in book offsets. When a plan is active those are not
+        # pane positions, so translate before touching the cursor.
+        plan = self.render_plan
+        if plan is not None and start is not None and end is not None:
+            start, end = plan.to_render(int(start)), plan.to_render(int(end))
+            positions = self.reader_positions
+            if positions is not None:
+                # Render offsets are Python indices; the cursor wants
+                # UTF-16 units, which differ once an emoji appears.
+                start, end = positions.to_qt(start), positions.to_qt(end)
+
         if start is None or end is None or start >= end:
             self.reader.setExtraSelections([])
             return

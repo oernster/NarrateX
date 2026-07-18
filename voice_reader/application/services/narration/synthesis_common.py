@@ -162,7 +162,9 @@ def presynthesize_start_chunks(
     Runs in a background thread after book load so pressing Play is near-instant.
     Emits no state transitions; silently aborts on cancel_event or any error.
     """
-    if service._book is None or service.navigation_chunk_service is None:  # noqa: SLF001
+    if (
+        service._book is None or service.navigation_chunk_service is None
+    ):  # noqa: SLF001
         return
 
     try:
@@ -200,6 +202,7 @@ def presynthesize_start_chunks(
         from voice_reader.application.services.narration.cache_key import (
             compute_book_cache_id,
         )
+
         book_id = compute_book_cache_id(service)
     except Exception:
         return

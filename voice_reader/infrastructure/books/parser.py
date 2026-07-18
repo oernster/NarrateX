@@ -8,13 +8,15 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-from voice_reader.domain.document import plain_text
+from voice_reader.domain.document import markdown, plain_text
 from voice_reader.domain.document.anchoring import BlockDraft
 from voice_reader.domain.document.model import Document
 from voice_reader.infrastructure.books import epub_structure, pdf_structure
 from voice_reader.shared.errors import BookParseError
 
 log = logging.getLogger(__name__)
+
+_MARKDOWN_EXTS = {".md", ".markdown"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,6 +47,23 @@ def normalize_text(text: str) -> str:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     text = re.sub(r"\u00A0", " ", text)
     text = re.sub(r"[ \t]+", " ", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def normalize_markdown_text(text: str) -> str:
+    """Normalise markdown while preserving structure-bearing indentation.
+
+    `normalize_text` collapses runs of spaces, which is right for extracted
+    prose but wrong here: leading indentation is how markdown states list
+    nesting, so collapsing it silently flattens the document's own
+    structure. Trailing whitespace is still trimmed and blank-line runs are
+    still collapsed.
+    """
+
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"\u00A0", " ", text)
+    text = re.sub(r"[ \t]+$", "", text, flags=re.MULTILINE)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
@@ -80,6 +99,16 @@ class BookParser:
                 raw_text=raw,
                 normalized_text=normalized,
                 document=plain_text.build_document(source=normalized),
+            )
+        if ext in _MARKDOWN_EXTS:
+            raw = path.read_text(encoding="utf-8", errors="ignore")
+            normalized = normalize_markdown_text(raw)
+            # Markdown states its own structure, so nothing is inferred
+            # and the spans are exact.
+            return ParsedBook(
+                raw_text=raw,
+                normalized_text=normalized,
+                document=markdown.build_document(source=normalized),
             )
         if ext == ".pdf":
             return self._parse_pdf(path)

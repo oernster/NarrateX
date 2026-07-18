@@ -46,3 +46,15 @@ def test_converter_runs_ebook_convert(monkeypatch, tmp_path: Path) -> None:
     out = c.convert_to_epub_if_needed(src)
     assert out.suffix.lower() == ".epub"
     assert out.exists()
+
+
+def test_markdown_needs_no_conversion(tmp_path) -> None:
+    from pathlib import Path as _Path
+
+    from voice_reader.infrastructure.books.converter import CalibreConverter
+
+    src = tmp_path / "book.md"
+    src.write_text("# Title\n", encoding="utf-8")
+    converter = CalibreConverter(temp_books_dir=_Path(tmp_path))
+
+    assert converter.convert_to_epub_if_needed(src) == src

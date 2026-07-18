@@ -193,7 +193,9 @@ class UiController(QObject):
             if callable(_load_fn):
                 _last_path = _load_fn()
                 if _last_path is not None:
-                    QTimer.singleShot(0, lambda p=_last_path: load_selected_book(self, path=p))
+                    QTimer.singleShot(
+                        0, lambda p=_last_path: load_selected_book(self, path=p)
+                    )
         except Exception:
             pass
 
@@ -321,7 +323,7 @@ class UiController(QObject):
             self.window,
             "Select Book",
             str(Path.cwd()),
-            "Books (*.epub *.pdf *.txt *.mobi *.azw *.azw3 *.prc *.kfx);;All Files (*)",
+            "Books (*.epub *.pdf *.txt *.md *.markdown *.mobi *.azw *.azw3 *.prc *.kfx);;All Files (*)",
         )
         if not path_str:
             return

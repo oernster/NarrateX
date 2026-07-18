@@ -138,6 +138,11 @@ class NarrationService:
 
         return None if self._book is None else self._book.id
 
+    def loaded_book(self) -> Book | None:
+        """Return the currently loaded book, if any."""
+
+        return self._book
+
     def current_position(self) -> tuple[int | None, int | None]:
         return _current_position(self)
 

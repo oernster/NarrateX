@@ -18,16 +18,25 @@ _REPO_ID = "hexgrad/Kokoro-82M"
 
 # All Kokoro voice IDs - keep in sync with KokoroVoiceProfileRepository
 _VOICE_IDS = (
-    "bf_emma", "bf_isabella", "bf_lily",
-    "bm_daniel", "bm_fable", "bm_george", "bm_lewis",
-    "af_heart", "af_bella", "af_nicole", "af_sarah",
-    "am_adam", "am_michael",
+    "bf_emma",
+    "bf_isabella",
+    "bf_lily",
+    "bm_daniel",
+    "bm_fable",
+    "bm_george",
+    "bm_lewis",
+    "af_heart",
+    "af_bella",
+    "af_nicole",
+    "af_sarah",
+    "am_adam",
+    "am_michael",
 )
 
 # Download steps: (filename, progress_end_pct)
 _n = len(_VOICE_IDS)
 _STEPS: tuple = (
-    ("config.json",     2),
+    ("config.json", 2),
     ("kokoro-v1_0.pth", 62),
     *(
         (f"voices/{v}.pt", 62 + int((i + 1) * 38 / _n))
@@ -60,9 +69,7 @@ def _is_cached(filename: str) -> bool:
     if not snapshots.exists():
         return False
     return any(
-        (snap / filename).exists()
-        for snap in snapshots.iterdir()
-        if snap.is_dir()
+        (snap / filename).exists() for snap in snapshots.iterdir() if snap.is_dir()
     )
 
 
@@ -75,10 +82,11 @@ def model_is_ready() -> bool:
 # tqdm shim - routes per-chunk progress to a Qt signal
 # ---------------------------------------------------------------------------
 
+
 class _QtTqdm(_BaseTqdm):
     _progress_signal: "Signal | None" = None
     _range_start: int = 0
-    _range_end:   int = 100
+    _range_end: int = 100
 
     def __init__(self, *args, **kwargs):
         kwargs["disable"] = True
@@ -90,7 +98,7 @@ class _QtTqdm(_BaseTqdm):
         if sig is not None and self.total and self.total > 0:
             frac = min(1.0, self.n / self.total)
             span = _QtTqdm._range_end - _QtTqdm._range_start
-            pct  = int(_QtTqdm._range_start + frac * span)
+            pct = int(_QtTqdm._range_start + frac * span)
             sig.emit(pct, "")
 
     def close(self) -> None:
@@ -107,11 +115,13 @@ class _QtTqdm(_BaseTqdm):
 # because the latter can silently swallow compositor events on some compositors.
 # ---------------------------------------------------------------------------
 
+
 class _PrewarmThread(QThread):
     ready: Signal = Signal()
 
     def run(self) -> None:
         import importlib
+
         for _m in (
             "requests",
             "urllib3",
@@ -130,10 +140,11 @@ class _PrewarmThread(QThread):
 # Download thread
 # ---------------------------------------------------------------------------
 
+
 class _DownloadThread(QThread):
     progress: Signal = Signal(int, str)
     all_done: Signal = Signal()
-    failed:   Signal = Signal(str)
+    failed: Signal = Signal(str)
 
     def run(self) -> None:
         try:
@@ -141,7 +152,7 @@ class _DownloadThread(QThread):
             import huggingface_hub.file_download as _hfd
 
             _orig_tqdm = getattr(_hfd, "tqdm", None)
-            _hfd.tqdm = _QtTqdm          # type: ignore[attr-defined]
+            _hfd.tqdm = _QtTqdm  # type: ignore[attr-defined]
             _QtTqdm._progress_signal = self.progress
 
             try:
@@ -153,7 +164,7 @@ class _DownloadThread(QThread):
                         continue
 
                     _QtTqdm._range_start = prev_end
-                    _QtTqdm._range_end   = end_pct
+                    _QtTqdm._range_end = end_pct
                     short = fname.split("/")[-1]
                     self.progress.emit(prev_end, f"Downloading {short}…")
                     hf_hub_download(repo_id=_REPO_ID, filename=fname)
@@ -161,7 +172,7 @@ class _DownloadThread(QThread):
             finally:
                 _QtTqdm._progress_signal = None
                 if _orig_tqdm is not None:
-                    _hfd.tqdm = _orig_tqdm               # type: ignore[attr-defined]
+                    _hfd.tqdm = _orig_tqdm  # type: ignore[attr-defined]
 
             self.all_done.emit()
 
@@ -172,6 +183,7 @@ class _DownloadThread(QThread):
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
+
 
 def maybe_download_model(app) -> bool:  # noqa: ANN001
     """Show a determinate progress dialog to download the Kokoro model and voices.
@@ -187,7 +199,7 @@ def maybe_download_model(app) -> bool:  # noqa: ANN001
         return True
 
     # Pre-warm huggingface_hub imports in a background thread.
-    # Keep the main thread busy with processEvents() rather than blocking - 
+    # Keep the main thread busy with processEvents() rather than blocking -
     # this answers compositor pings and prevents the GNOME "not responding" dialog.
     _prewarm_done: list[bool] = []
 
@@ -199,13 +211,15 @@ def maybe_download_model(app) -> bool:  # noqa: ANN001
     _pw.start()
 
     while not _prewarm_done:
-        app.processEvents()      # drains ALL pending events, including Wayland pings
+        app.processEvents()  # drains ALL pending events, including Wayland pings
 
     _pw.wait()
 
     # ----- Download dialog -----
 
-    dlg = QProgressDialog("NarrateX: Downloading voice model\n\nPreparing…", None, 0, 100)
+    dlg = QProgressDialog(
+        "NarrateX: Downloading voice model\n\nPreparing…", None, 0, 100
+    )
     dlg.setWindowTitle("NarrateX")
     # FramelessWindowHint is the only flag Wayland/GNOME honours for removing
     # the title-bar decoration.  CustomizeWindowHint is ignored under GNOME

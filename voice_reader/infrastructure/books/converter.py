@@ -13,6 +13,9 @@ from voice_reader.shared.errors import BookConversionError
 
 _KINDLE_EXTS = {".mobi", ".azw", ".azw3", ".prc", ".kfx"}
 
+# Formats parsed directly, with no conversion step.
+_NATIVE_EXTS = {".epub", ".pdf", ".txt", ".md", ".markdown"}
+
 
 @dataclass(frozen=True, slots=True)
 class CalibreConverter:
@@ -21,7 +24,7 @@ class CalibreConverter:
 
     def convert_to_epub_if_needed(self, source_path: Path) -> Path:
         ext = source_path.suffix.lower()
-        if ext in {".epub", ".pdf", ".txt"}:
+        if ext in _NATIVE_EXTS:
             return source_path
         if ext not in _KINDLE_EXTS:
             raise BookConversionError(f"Unsupported book format: {ext}")

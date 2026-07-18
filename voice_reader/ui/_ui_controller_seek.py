@@ -18,6 +18,16 @@ from voice_reader.application.services.narration.prepare import (
 )
 
 
+def _book_text(controller) -> str:
+    """The book's own text, which is the space chunk offsets live in."""
+
+    try:
+        book = controller.narration_service.loaded_book()
+    except Exception:
+        book = None
+    return str(getattr(book, "normalized_text", "") or "")
+
+
 def seek_to_char_offset(controller, offset: int) -> None:
     """Resolve `offset` to a playback chunk and restart narration from there."""
 
@@ -28,11 +38,24 @@ def seek_to_char_offset(controller, offset: int) -> None:
     except Exception:
         return
 
-    # Source of truth for click coordinates is the displayed (normalized) text.
-    try:
-        text = controller.window.reader.toPlainText()
-    except Exception:
-        text = ""
+    # A click arrives in *pane* coordinates. When the pane is rendering a
+    # document those are not book offsets: the contents, folios and running
+    # heads are not shown, so the two spaces have drifted apart. Translate
+    # first, then everything downstream keeps working in book offsets.
+    plan = getattr(controller.window, "render_plan", None)
+    if plan is not None:
+        # A click arrives as a Qt cursor position, counted in UTF-16 units.
+        # Convert to a Python index before consulting the plan.
+        positions = getattr(controller.window, "reader_positions", None)
+        if positions is not None:
+            off = int(positions.to_index(off))
+        off = int(plan.to_source(off))
+        text = _book_text(controller)
+    else:
+        try:
+            text = controller.window.reader.toPlainText()
+        except Exception:
+            text = ""
 
     if not text:
         return
