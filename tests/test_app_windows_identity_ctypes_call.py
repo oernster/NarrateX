@@ -34,7 +34,9 @@ def test_set_windows_app_identity_calls_ctypes_on_windows(monkeypatch) -> None:
 
     _app_icon.set_windows_app_identity()
 
-    assert fake_shell32.calls, "Expected SetCurrentProcessExplicitAppUserModelID to be called"
+    assert (
+        fake_shell32.calls
+    ), "Expected SetCurrentProcessExplicitAppUserModelID to be called"
     assert fake_shell32.calls[-1] == _app_icon.APP_APPUSERMODELID
     del _os_module  # silence unused-import lint; imported only for clarity above
 
