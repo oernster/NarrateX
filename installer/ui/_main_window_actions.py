@@ -14,7 +14,16 @@ from installer.state.model import InstalledInfo, InstallerState, Operation
 from installer.ui.licence_dialog import InstallerLicenceDialog
 from voice_reader.version import APP_NAME, __version__
 
+from installer.ui._main_window_progress import (
+    COMPLETE_LINGER_MS,
+    clear_progress_display,
+    on_progress,
+    set_ui_busy,
+    show_complete,
+)
 from installer.ui._main_window_types import UiSelections
+
+__all__ = ["on_progress", "set_ui_busy"]
 
 if TYPE_CHECKING:  # pragma: no cover
     from installer.ui.main_window import InstallerMainWindow
@@ -245,38 +254,6 @@ def request_operation(window: InstallerMainWindow, op: Operation) -> None:
     )
 
 
-def on_progress(window: InstallerMainWindow, payload) -> None:  # noqa: ANN001
-    # payload can be:
-    # - str message
-    # - {"pct": int, "message": str}
-    if isinstance(payload, dict):
-        pct = payload.get("pct")
-        msg = payload.get("message", "")
-        if isinstance(pct, int):
-            window._progress_bar.setValue(max(0, min(100, pct)))
-        if msg:
-            window._progress.setText(str(msg))
-        return
-
-    if isinstance(payload, str) and payload:
-        window._progress.setText(payload)
-
-
-def set_ui_busy(window: InstallerMainWindow, busy: bool) -> None:
-    window._progress_bar.setVisible(busy)
-    for w in [
-        window._btn_primary_left,
-        window._btn_primary_right,
-        window._btn_uninstall,
-        window._licence_btn,
-        window._theme_toggle_btn,
-        window._install_dir_edit,
-        window._desktop_cb,
-        window._startmenu_cb,
-    ]:
-        w.setEnabled(not busy)
-
-
 def on_app_running(window: InstallerMainWindow, op: Operation, msg: str) -> None:
     del msg
 
@@ -298,14 +275,11 @@ def on_operation_finished(
     op: Operation,
     result,
 ) -> None:  # noqa: ANN001
-    window._set_ui_busy(False)
     if result.ok:
-        window._progress_bar.setValue(100)
-        if op == Operation.UNINSTALL:
-            window._progress.setText("Uninstalled")
-        else:
-            window._progress.setText("Done")
+        outcome = "Uninstalled" if op == Operation.UNINSTALL else "Done"
+        show_complete(window, message=outcome)
     else:
+        window._set_ui_busy(False)
         if result.message and result.message != "app_running":
             QMessageBox.critical(window, "Operation failed", result.message)
         window._progress.setText("")
@@ -313,11 +287,12 @@ def on_operation_finished(
 
     refresh_state(window)
 
-    # Keep completion visible briefly so users can tell something happened.
+    # Keep completion visible briefly so users can tell something happened,
+    # then clear the message and retire the bar together.
     try:
         from PySide6.QtCore import QTimer
 
-        QTimer.singleShot(1200, lambda: window._progress.setText(""))
+        QTimer.singleShot(COMPLETE_LINGER_MS, lambda: clear_progress_display(window))
     except Exception:
         pass
 

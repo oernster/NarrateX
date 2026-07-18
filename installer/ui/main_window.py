@@ -186,8 +186,8 @@ class InstallerMainWindow(QMainWindow):
             return
         event.accept()
 
-    def _set_ui_busy(self, busy: bool) -> None:
-        set_ui_busy(self, busy)
+    def _set_ui_busy(self, busy: bool, *, show_progress: bool | None = None) -> None:
+        set_ui_busy(self, busy, show_progress=show_progress)
 
     def _on_app_running(self, op: Operation, msg: str) -> None:
         on_app_running(self, op, msg)

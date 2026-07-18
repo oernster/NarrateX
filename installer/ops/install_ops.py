@@ -3,22 +3,30 @@
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import sys
 import uuid
-import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import logging
 
 from platformdirs import user_data_dir
 
 from installer.constants import InstallerIdentity
-from installer.ops.errors import AppRunningError, InstallerOperationError
-from installer.ops.payload import payload_zip_path
+from installer.ops.errors import AppRunningError
+from installer.ops.progress import (
+    COMPLETE_PCT,
+    EXTRACT_END_PCT,
+    REGISTER_PCT,
+    SHORTCUTS_PCT,
+    report as _progress,
+)
+from installer.ops.staging import (
+    check_cancel as _check_cancel,
+    extract_payload_to as _extract_payload_to,
+    swap_in_bundle as _swap_in_bundle,
+)
 from installer.ops.running_app import is_app_running
 from installer.ops.shortcuts import create_shortcut, get_shortcut_paths
 from installer.state.registry import write_uninstall_entry
@@ -28,94 +36,11 @@ from voice_reader.version import APP_NAME, APP_AUTHOR, __version__
 logger = logging.getLogger("installer.install")
 
 
-def _progress(progress, *, pct: int | None, message: str) -> None:  # noqa: ANN001
-    if not progress:
-        return
-    if pct is None:
-        progress(message)
-    else:
-        progress({"pct": int(pct), "message": message})
-
-
-ProgressCb = Callable[[str], None]
-
-
 @dataclass(frozen=True, slots=True)
 class InstallOptions:
     target_dir: Path
     create_desktop_shortcut: bool
     create_start_menu_shortcut: bool
-
-
-def _installer_staging_root() -> Path:
-    local = os.getenv("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
-    return Path(local) / "NarrateXInstaller" / "staging"
-
-
-def _extract_payload_to(
-    staging_dir: Path, *, progress=None, cancel_event=None
-) -> None:  # noqa: ANN001
-    staging_dir.mkdir(parents=True, exist_ok=True)
-    _check_cancel(cancel_event)
-    _progress(progress, pct=10, message="Extracting payload...")
-    logger.info("Extracting payload to %s", staging_dir)
-    with zipfile.ZipFile(payload_zip_path(), "r") as zf:
-        zf.extractall(staging_dir)
-
-    _check_cancel(cancel_event)
-
-    exe = staging_dir / "NarrateX.exe"
-    internal = staging_dir / "_internal"
-    if not exe.exists() or not internal.exists():
-        raise InstallerOperationError("Payload is missing NarrateX.exe or _internal/")
-
-
-def _swap_in_bundle(staging_dir: Path, target_dir: Path) -> None:
-    """Replace target_dir with staging_dir.
-
-    Uses a same-volume rename when possible; falls back to copytree when
-    installing across different volumes.
-    """
-
-    target_dir = target_dir.resolve()
-    target_dir.parent.mkdir(parents=True, exist_ok=True)
-    logger.info("Swapping bundle into %s (staging=%s)", target_dir, staging_dir)
-
-    backup_dir: Path | None = None
-    if target_dir.exists():
-        backup_dir = target_dir.with_name(
-            target_dir.name + f".old.{uuid.uuid4().hex[:8]}"
-        )
-        try:
-            target_dir.rename(backup_dir)
-        except Exception as exc:
-            raise InstallerOperationError(
-                f"Unable to replace existing install at {target_dir}"
-            ) from exc
-
-    try:
-        try:
-            staging_dir.rename(target_dir)
-        except OSError:
-            # Likely cross-volume move. Copy instead.
-            shutil.copytree(staging_dir, target_dir, dirs_exist_ok=False)
-            shutil.rmtree(staging_dir, ignore_errors=True)
-    except Exception:
-        # Rollback.
-        if backup_dir and backup_dir.exists() and not target_dir.exists():
-            try:
-                backup_dir.rename(target_dir)
-            except Exception:
-                pass
-        raise
-    finally:
-        if backup_dir and backup_dir.exists():
-            shutil.rmtree(backup_dir, ignore_errors=True)
-
-
-def _check_cancel(cancel_event) -> None:  # noqa: ANN001
-    if cancel_event is not None and getattr(cancel_event, "is_set", lambda: False)():
-        raise InstallerOperationError("Cancelled")
 
 
 def _copy_self_to_install(identity: InstallerIdentity, install_dir: Path) -> Path:
@@ -252,7 +177,7 @@ def install_new(
 
     try:
         _extract_payload_to(staging_dir, progress=progress, cancel_event=cancel_event)
-        _progress(progress, pct=45, message="Installing...")
+        _progress(progress, pct=EXTRACT_END_PCT, message="Installing...")
 
         _check_cancel(cancel_event)
         _swap_in_bundle(staging_dir, target_dir)
@@ -265,7 +190,7 @@ def install_new(
         # install directory).
         _seed_user_preferences_defaults(volume_multiplier=0.25)
 
-        _progress(progress, pct=75, message="Registering uninstall entry...")
+        _progress(progress, pct=REGISTER_PCT, message="Registering uninstall entry...")
         _check_cancel(cancel_event)
         logger.info("Registering uninstall entry for %s", target_dir)
         installer_copy = _copy_self_to_install(identity, target_dir)
@@ -277,11 +202,11 @@ def install_new(
             shortcut_start_menu=opts.create_start_menu_shortcut,
         )
 
-        _progress(progress, pct=90, message="Creating shortcuts...")
+        _progress(progress, pct=SHORTCUTS_PCT, message="Creating shortcuts...")
         _check_cancel(cancel_event)
         logger.info("Applying shortcuts")
         _apply_shortcuts(identity, target_dir, opts)
-        _progress(progress, pct=100, message="Completed")
+        _progress(progress, pct=COMPLETE_PCT, message="Completed")
     finally:
         if staging_dir.exists():
             shutil.rmtree(staging_dir, ignore_errors=True)
@@ -313,7 +238,11 @@ def upgrade_or_reinstall(
     try:
         _extract_payload_to(staging_dir, progress=progress, cancel_event=cancel_event)
 
-        _progress(progress, pct=45, message="Replacing application files...")
+        _progress(
+            progress,
+            pct=EXTRACT_END_PCT,
+            message="Replacing application files...",
+        )
 
         _check_cancel(cancel_event)
 
@@ -331,7 +260,7 @@ def upgrade_or_reinstall(
         # Ensure icon assets are present for the active install location.
         _deploy_runtime_icon_assets(install_dir=target_dir)
 
-        _progress(progress, pct=75, message="Registering uninstall entry...")
+        _progress(progress, pct=REGISTER_PCT, message="Registering uninstall entry...")
         _check_cancel(cancel_event)
         logger.info("Registering uninstall entry for %s", target_dir)
         installer_copy = _copy_self_to_install(identity, target_dir)
@@ -343,11 +272,11 @@ def upgrade_or_reinstall(
             shortcut_start_menu=opts.create_start_menu_shortcut,
         )
 
-        _progress(progress, pct=90, message="Updating shortcuts...")
+        _progress(progress, pct=SHORTCUTS_PCT, message="Updating shortcuts...")
         _check_cancel(cancel_event)
         logger.info("Applying shortcuts")
         _apply_shortcuts(identity, target_dir, opts)
-        _progress(progress, pct=100, message="Completed")
+        _progress(progress, pct=COMPLETE_PCT, message="Completed")
     finally:
         if staging_dir.exists():
             shutil.rmtree(staging_dir, ignore_errors=True)
