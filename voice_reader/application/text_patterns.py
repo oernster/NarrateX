@@ -1,32 +1,33 @@
 """Application-level text heuristics.
 
-This module intentionally duplicates small helpers used in multiple application
-services. The domain layer cannot import from `voice_reader.shared`, and the
-application layer should not import from the domain layer, so each layer keeps
-its own minimal helpers.
+The dot-leader helpers live in the domain layer and are re-exported here, so
+the several application services already importing them from this module keep
+working unchanged.
+
+They used to be duplicated, on the stated grounds that "the application layer
+should not import from the domain layer". That is not a rule this codebase
+holds. `ARCHITECTURE_CONSTRAINTS.md` allows application to depend on domain,
+the layering test enforces exactly that direction, and `chapter_index_service`
+in this same layer already imports `voice_reader.domain.text_patterns`
+directly. Two copies of one heuristic drift apart silently, which is the
+failure worth avoiding.
+
+Only `looks_like_wrapped_toc_entry` is genuinely application-level: it reasons
+about a pair of adjacent lines, which is a scanning concern rather than a
+property of a single piece of text.
 """
 
 from __future__ import annotations
 
 import re
 
-_DOTLIKE = re.compile(r"[\u2024\u2219\u00B7\uFF0E\uFE52]")
+from voice_reader.domain.text_patterns import contains_dotted_leader, normalize_dotlikes
 
-
-def normalize_dotlikes(text: str) -> str:
-    return _DOTLIKE.sub(".", str(text or ""))
-
-
-_SPACED_DOT_RUN = re.compile(r"(?:\s*\.\s*){4,}")
-
-
-def contains_dotted_leader(text: str) -> bool:
-    s = normalize_dotlikes(text).strip()
-    if not s:  # pragma: no cover
-        return False
-    if re.search(r"\.{2,}", s):
-        return True
-    return bool(_SPACED_DOT_RUN.search(s))
+__all__ = [
+    "contains_dotted_leader",
+    "looks_like_wrapped_toc_entry",
+    "normalize_dotlikes",
+]
 
 
 def looks_like_wrapped_toc_entry(*, line: str, next_line: str | None) -> bool:
@@ -52,8 +53,3 @@ def looks_like_wrapped_toc_entry(*, line: str, next_line: str | None) -> bool:
     if re.fullmatch(r"(\d+|[ivxlcdm]+)", nxt, flags=re.IGNORECASE):
         return True
     return False
-
-
-def _coverage_touch() -> None:  # pragma: no cover
-    # Coverage-helper: keep the module at 100% in strict suites.
-    pass
