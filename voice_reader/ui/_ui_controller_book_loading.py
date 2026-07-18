@@ -77,6 +77,36 @@ def _show_book_in_reader(controller, *, book) -> None:
     controller.window.set_reader_text(book.normalized_text)
 
 
+def _build_chapter_index(controller, *, book, chunks, min_char_offset: int):
+    """Chapter anchors from the model where possible, else by detection.
+
+    The model knows its own sections, so it needs no heading regex and finds
+    prologues, named parts and subsections that the pattern cannot. Detection
+    remains the fallback for a book with no usable structure.
+    """
+
+    service = controller._chapter_index_service  # noqa: SLF001
+    document = getattr(book, "document", None)
+    sections = getattr(document, "sections", ()) if document is not None else ()
+
+    if sections:
+        # Navigation is filtered by where the body begins, so the list
+        # matches what the pane shows: every entry lands on visible text.
+        chapters = service.build_index_from_sections(
+            sections=sections,
+            chunks=chunks,
+            min_char_offset=contents_end_offset(document),
+        )
+        if chapters:
+            return chapters
+
+    return service.build_index(
+        book.normalized_text,
+        chunks=chunks,
+        min_char_offset=min_char_offset,
+    )
+
+
 def load_selected_book(controller, *, path: Path) -> None:
     """Load a selected book path and update UI state (best-effort)."""
 
@@ -151,12 +181,11 @@ def load_selected_book(controller, *, path: Path) -> None:
                 book_text=book.normalized_text
             )
             start_char_for_ui = int(start.start_char)
-            controller._chapters = (
-                controller._chapter_index_service.build_index(  # noqa: SLF001
-                    book.normalized_text,
-                    chunks=chunks,
-                    min_char_offset=int(start.start_char),
-                )
+            controller._chapters = _build_chapter_index(  # noqa: SLF001
+                controller,
+                book=book,
+                chunks=chunks,
+                min_char_offset=int(start.start_char),
             )
         else:
             controller._chapters = []  # noqa: SLF001

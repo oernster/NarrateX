@@ -110,6 +110,74 @@ class ChapterIndexService:
         detected.sort(key=lambda c: int(c.char_offset))
         return detected
 
+    def build_index_from_sections(
+        self,
+        *,
+        sections: Sequence[object],
+        chunks: Sequence[TextChunk],
+        min_char_offset: int | None = None,
+    ) -> list[Chapter]:
+        """Build navigation anchors from the document model's sections.
+
+        Preferred over `build_index` when a structured document is available.
+        That method must find headings by regex, so it only recognises a
+        heading containing the literal word "chapter"; a prologue, a named part
+        or a numbered subsection is invisible to it. The model already knows
+        what its sections are and where they start, so nothing is re-detected.
+        """
+
+        candidates = list(self._playback_candidates(chunks))
+        if not candidates:
+            return []
+
+        detected: list[Chapter] = []
+        for section in sections:
+            title = str(getattr(section, "title", "") or "").strip()
+            if not title:
+                continue
+
+            start = self._section_entry_offset(section)
+            if start is None:
+                continue
+
+            # Filter on the section's own offset, not on the chunk it resolves
+            # to. Chunks begin at the narration start, so every section before
+            # that resolves to the first chunk and would otherwise survive the
+            # filter, putting the title page and contents into the list.
+            if min_char_offset is not None and int(start) < int(min_char_offset):
+                continue
+
+            chunk_index = self._resolve_chunk_index(candidates, start)
+            if chunk_index is None:
+                continue
+
+            detected.append(
+                Chapter(title=title, char_offset=int(start), chunk_index=chunk_index)
+            )
+
+        detected.sort(key=lambda c: int(c.char_offset))
+        return detected
+
+    @staticmethod
+    def _section_entry_offset(section: object) -> int | None:
+        """Where jumping to a section should land: its first spoken block."""
+
+        for block in getattr(section, "blocks", ()) or ():
+            if getattr(block, "is_spoken", False):
+                return int(block.source_start)
+        return None
+
+    @staticmethod
+    def _resolve_chunk_index(
+        candidates: Sequence[TextChunk], char_offset: int
+    ) -> int | None:
+        for idx, c in enumerate(candidates):
+            if int(c.start_char) <= int(char_offset) < int(c.end_char):
+                return idx
+            if int(c.start_char) >= int(char_offset):
+                return idx
+        return None
+
     def get_current_chapter(
         self, chapters: Sequence[Chapter], *, current_char_offset: int
     ) -> Chapter | None:
