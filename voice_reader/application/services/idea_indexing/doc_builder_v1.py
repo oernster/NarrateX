@@ -122,7 +122,6 @@ def build_idea_index_doc_v1(
     main_start = max(0, min(int(main_start), len(full_text)))
 
     nav = NavigationChunkService(
-        reading_start_detector=start_service,
         chunking_service=ChunkingService(min_chars=120, max_chars=220),
     )
     # Detect Essay Index span in the main-text slice coordinate system.

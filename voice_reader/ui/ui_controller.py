@@ -29,7 +29,6 @@ from voice_reader.application.services.navigation_chunk_service import (
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.chapter import Chapter
 from voice_reader.domain.entities.voice_profile import VoiceProfile
-from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.application.interfaces.cover_extractor import CoverExtractor
 from voice_reader.ui._ui_controller_bookmarks import open_bookmarks_dialog
 from voice_reader.ui._ui_controller_ideas import open_ideas_dialog
@@ -110,10 +109,6 @@ class UiController(QObject):
 
         # Optional dependency for chapter indexing on load.
         try:
-            detector = self.narration_service.reading_start_detector
-        except Exception:
-            detector = ReadingStartService()
-        try:
             chunker = self.narration_service.chunking_service
         except Exception:
             chunker = None
@@ -122,7 +117,6 @@ class UiController(QObject):
             self._navigation_chunk_service = None
         else:
             self._navigation_chunk_service = NavigationChunkService(
-                reading_start_detector=detector,
                 chunking_service=chunker,
             )
 

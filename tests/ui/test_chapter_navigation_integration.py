@@ -22,7 +22,6 @@ class _FakeNarration:
     current_pos: tuple[int | None, int | None] = (0, 0)
 
     # These are used by UiController to build navigation chunks.
-    reading_start_detector: object | None = None
     chunking_service: object | None = None
 
     state: NarrationState = NarrationState(

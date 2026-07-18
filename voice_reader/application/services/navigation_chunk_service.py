@@ -5,8 +5,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from voice_reader.domain.document.model import Document
+from voice_reader.domain.document.narration_plan import build_narration_chunks
+from voice_reader.domain.document.reading_start import reading_start_offset
 from voice_reader.domain.entities.text_chunk import TextChunk
-from voice_reader.domain.interfaces.reading_start_detector import ReadingStartDetector
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.domain.services.reading_start_service import ReadingStart
 
@@ -15,10 +17,13 @@ from voice_reader.application.text_patterns import (
     normalize_dotlikes,
 )
 
+# Why narration begins where it does, surfaced in the chunking status message.
+_REASON_FORCED = "Forced start"
+_REASON_MODEL = "Detected body start"
+
 
 @dataclass(frozen=True, slots=True)
 class NavigationChunkService:
-    reading_start_detector: ReadingStartDetector
     chunking_service: ChunkingService
 
     @staticmethod
@@ -55,39 +60,40 @@ class NavigationChunkService:
         self,
         *,
         book_text: str,
+        document: Document,
         force_start_char: int | None = None,
         skip_essay_index: bool = True,
     ) -> tuple[list[TextChunk], ReadingStart]:
-        """Return (chunks, reading_start) in absolute book coordinates."""
+        """Return (chunks, reading_start) in absolute book coordinates.
+
+        Both answers come from the document model. What to speak is the model's
+        spoken blocks, so the folios, running heads and contents the reading
+        pane hides are no longer read aloud. Where to begin is the model's own
+        reading start, which is the same offset the pane opens on, so the two
+        cannot disagree about where the book starts.
+        """
 
         if force_start_char is not None:
             slice_start = max(0, int(force_start_char))
-            start = ReadingStart(
-                start_char=slice_start,
-                reason="Forced start",
-            )
+            reason = _REASON_FORCED
         else:
-            start = self.reading_start_detector.detect_start(book_text)
-            slice_start = int(start.start_char)
-            # Defensive: reading start detectors should never return negative.
-            # Clamp to preserve slicing semantics.
-            if slice_start < 0:
-                slice_start = 0
+            detected = reading_start_offset(document)
+            slice_start = max(0, int(detected or 0))
+            reason = _REASON_MODEL
+
+        start = ReadingStart(start_char=slice_start, reason=reason)
         slice_text = book_text[slice_start:]
 
         # IMPORTANT: never remove/alter text before chunking.
         # Chunk offsets must remain in the same coordinate system as `book_text`.
-        sliced_chunks = self.chunking_service.chunk_text(slice_text)
-
-        chunks = [
-            TextChunk(
-                chunk_id=c.chunk_id,
-                text=c.text,
-                start_char=int(c.start_char) + slice_start,
-                end_char=int(c.end_char) + slice_start,
+        chunks = list(
+            build_narration_chunks(
+                document,
+                source_text=book_text,
+                chunking_service=self.chunking_service,
+                start_offset=slice_start,
             )
-            for c in sliced_chunks
-        ]
+        )
 
         # If present, exclude chunks fully contained in the Essay Index block.
         # This preserves original offsets (we are only filtering the candidate list).

@@ -55,12 +55,8 @@ from voice_reader.domain.interfaces.audio_streamer import AudioStreamer
 from voice_reader.domain.interfaces.book_repository import BookRepository
 from voice_reader.domain.interfaces.cache_repository import CacheRepository
 from voice_reader.domain.interfaces.preferences_repository import PreferencesRepository
-from voice_reader.domain.interfaces.reading_start_detector import ReadingStartDetector
 from voice_reader.domain.interfaces.tts_engine import TTSEngine
 from voice_reader.domain.services.chunking_service import ChunkingService
-from voice_reader.application.services.narration.init import (
-    default_reading_start_detector,
-)
 from voice_reader.domain.services.sanitized_text_mapper import SanitizedTextMapper
 from voice_reader.domain.services.spoken_text_sanitizer import SpokenTextSanitizer
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
@@ -78,7 +74,6 @@ class NarrationService:
     chunking_service: ChunkingService
     device: str
     language: str
-    reading_start_detector: ReadingStartDetector = default_reading_start_detector()
     spoken_text_sanitizer: SpokenTextSanitizer = SpokenTextSanitizer()
     sanitized_text_mapper: SanitizedTextMapper = SanitizedTextMapper()
 

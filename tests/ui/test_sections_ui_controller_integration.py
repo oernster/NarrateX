@@ -9,6 +9,8 @@ from voice_reader.application.services.structural_bookmark_service import (
 )
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
+from voice_reader.domain.document import plain_text
+from voice_reader.domain.document.reading_start import reading_start_offset
 from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.application.services.navigation_chunk_service import (
@@ -206,26 +208,28 @@ def test_sections_go_to_defensive_guard_never_forces_pre_boundary_offset(qapp) -
     w.show()
     QApplication.processEvents()
 
-    # ReadingStartService will treat Chapter 1 as the first real section and start
-    # after the heading line (at the first paragraph). We intentionally return a
-    # pre-boundary bookmark to ensure the UI guard won't force narration there.
+    # The model treats Chapter 1 as the first real section and opens on its
+    # heading. We intentionally return a pre-boundary bookmark to ensure the UI
+    # guard won't force narration there.
     text = "\n\nChapter 1\n\nBody paragraph.\n"
 
     # Precompute the readable-start boundary the controller will compute.
     # Sections uses a heading-safe boundary (TOC/body cutoff, capped by narration start).
-    boundary = int(ReadingStartService().detect_start(text).start_char)
+    boundary = int(reading_start_offset(plain_text.build_document(source=text)) or 0)
 
     # Provide a navigation-chunk service so the controller uses the same path as
     # real book load.
     class _Nav:
         def __init__(self):
             self._svc = NavigationChunkService(
-                reading_start_detector=ReadingStartService(),
                 chunking_service=ChunkingService(),
             )
 
         def build_chunks(self, *, book_text: str):
-            return self._svc.build_chunks(book_text=book_text)
+            return self._svc.build_chunks(
+                book_text=book_text,
+                document=plain_text.build_document(source=book_text),
+            )
 
     narration = _FakeNarration(
         listeners=[],
@@ -247,7 +251,7 @@ def test_sections_go_to_defensive_guard_never_forces_pre_boundary_offset(qapp) -
                     (),
                     {
                         "label": "Chapter 1",
-                        "char_offset": 2,  # before the readable start
+                        "char_offset": boundary - 1,  # before the readable start
                         "chunk_index": None,
                         "kind": "chapter",
                         "level": 0,

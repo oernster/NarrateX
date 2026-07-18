@@ -14,7 +14,14 @@ from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.application.services.navigation_chunk_service import (
     NavigationChunkService,
 )
-from voice_reader.domain.services.reading_start_service import ReadingStartService
+from voice_reader.domain.document import plain_text
+
+
+def _build(nav: NavigationChunkService, text: str):
+    """Chunk `text` through the document model, as a real book load would."""
+
+    document = plain_text.build_document(source=text)
+    return nav.build_chunks(book_text=text, document=document)
 
 
 def test_includes_chapter_headings() -> None:
@@ -254,10 +261,9 @@ def test_excludes_chapter_like_toc_entries_before_reading_start() -> None:
         "Body starts here.\n"
     )
     nav = NavigationChunkService(
-        reading_start_detector=ReadingStartService(),
         chunking_service=ChunkingService(min_chars=10, max_chars=200),
     )
-    chunks, start = nav.build_chunks(book_text=text)
+    chunks, start = _build(nav, text)
     min_off = int(start.start_char)
 
     svc = StructuralBookmarkService()
@@ -286,10 +292,9 @@ def test_prefers_post_boundary_duplicate_over_early_toc_duplicate() -> None:
     )
 
     nav = NavigationChunkService(
-        reading_start_detector=ReadingStartService(),
         chunking_service=ChunkingService(min_chars=10, max_chars=200),
     )
-    chunks, _start = nav.build_chunks(book_text=text)
+    chunks, _start = _build(nav, text)
 
     # Set boundary between the TOC occurrence and the real body occurrence.
     min_off = text.rindex("\nChapter 3\n\nBody 3") + 1
@@ -310,10 +315,9 @@ def test_keeps_real_preface_or_prologue_when_it_is_after_boundary_or_is_the_boun
 ):
     text = "Preface\n\nReal preface paragraph.\n\nChapter 1\n\nBody.\n"
     nav = NavigationChunkService(
-        reading_start_detector=ReadingStartService(),
         chunking_service=ChunkingService(min_chars=10, max_chars=200),
     )
-    chunks, start = nav.build_chunks(book_text=text)
+    chunks, start = _build(nav, text)
 
     # Boundary is the narration start (first narratable paragraph).
     # Sections now land on the heading line, so allow the heading to be pre-boundary.
@@ -350,10 +354,9 @@ def test_sections_include_intro_when_essay_index_is_inside_body_after_prologue()
     )
 
     nav = NavigationChunkService(
-        reading_start_detector=ReadingStartService(),
         chunking_service=ChunkingService(min_chars=10, max_chars=200),
     )
-    chunks, start = nav.build_chunks(book_text=text)
+    chunks, start = _build(nav, text)
     min_off = int(start.start_char)
 
     svc = StructuralBookmarkService()

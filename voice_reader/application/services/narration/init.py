@@ -8,7 +8,6 @@ from voice_reader.application.dto.narration_state import NarrationState, Narrati
 from voice_reader.application.services.navigation_chunk_service import (
     NavigationChunkService,
 )
-from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 from voice_reader.domain.value_objects.playback_volume import PlaybackVolume
 
@@ -57,7 +56,6 @@ def init_runtime_state(service: NarrationService) -> None:
 
     if service.navigation_chunk_service is None:
         service.navigation_chunk_service = NavigationChunkService(
-            reading_start_detector=service.reading_start_detector,
             chunking_service=service.chunking_service,
         )
 
@@ -70,8 +68,3 @@ def init_runtime_state(service: NarrationService) -> None:
         service.audio_streamer.set_volume(service._volume)  # noqa: SLF001
     except Exception:
         pass
-
-
-def default_reading_start_detector():
-    # keep creation local to avoid mutable default objects in the dataclass signature
-    return ReadingStartService()

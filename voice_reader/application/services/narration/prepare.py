@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
+from voice_reader.domain.document.model import Document
 from voice_reader.domain.entities.text_chunk import TextChunk
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -95,8 +96,13 @@ def prepare(
     service._current_play_index = -1  # noqa: SLF001
 
     assert service.navigation_chunk_service is not None
+    book = service._book  # noqa: SLF001
+    # A book loaded before the model existed, or built directly in a test, has
+    # no document. Treating it as one unbroken run keeps a single code path.
+    document = book.document or Document.unstructured(text=book.normalized_text)
     chunks, start = service.navigation_chunk_service.build_chunks(
-        book_text=service._book.normalized_text,  # noqa: SLF001
+        book_text=book.normalized_text,
+        document=document,
         force_start_char=force_start_char,
         skip_essay_index=bool(skip_essay_index),
     )

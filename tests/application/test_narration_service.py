@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from voice_reader.application.services.narration_service import NarrationService
+from voice_reader.domain.document import plain_text
 from voice_reader.domain.entities.book import Book
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.domain.services.chunking_service import ChunkingService
@@ -15,7 +16,6 @@ from tests.application.narration_service_fakes import (
     FakePreferences,
     FakeStreamer,
     FakeTTSEngine,
-    FixedStart,
 )
 
 
@@ -41,7 +41,6 @@ def test_narration_uses_cache_before_synthesis(tmp_path: Path) -> None:
         chunking_service=ChunkingService(min_chars=10, max_chars=40),
         device="cpu",
         language="en",
-        reading_start_detector=FixedStart(fixed_start_char=0),
     )
     svc.load_book(tmp_path / "book.txt")
     svc.prepare(voice=voice)
@@ -83,7 +82,6 @@ def test_prepare_can_restart_from_playback_index(tmp_path: Path) -> None:
         chunking_service=ChunkingService(min_chars=10, max_chars=60),
         device="cpu",
         language="en",
-        reading_start_detector=FixedStart(fixed_start_char=0),
     )
     svc.load_book(tmp_path / "book.txt")
     chunks = svc.prepare(voice=voice)
@@ -119,7 +117,6 @@ def test_set_playback_rate_forwards_to_streamer(tmp_path: Path) -> None:
         chunking_service=ChunkingService(min_chars=10, max_chars=40),
         device="cpu",
         language="en",
-        reading_start_detector=FixedStart(fixed_start_char=0),
     )
 
     svc.load_book(tmp_path / "book.txt")
@@ -152,7 +149,6 @@ def test_set_volume_forwards_to_streamer_without_restart(tmp_path: Path) -> None
         chunking_service=ChunkingService(min_chars=10, max_chars=40),
         device="cpu",
         language="en",
-        reading_start_detector=FixedStart(fixed_start_char=0),
     )
 
     svc.load_book(tmp_path / "book.txt")
@@ -187,7 +183,6 @@ def test_volume_is_restored_and_persisted(tmp_path: Path) -> None:
         chunking_service=ChunkingService(min_chars=10, max_chars=40),
         device="cpu",
         language="en",
-        reading_start_detector=FixedStart(fixed_start_char=0),
         preferences_repo=prefs,
     )
     svc.load_book(tmp_path / "book.txt")
@@ -223,7 +218,6 @@ def test_pause_stops_prefetch_beyond_current_chunk(tmp_path: Path) -> None:
         chunking_service=ChunkingService(min_chars=10, max_chars=60),
         device="cpu",
         language="en",
-        reading_start_detector=FixedStart(fixed_start_char=0),
     )
     # Wire back-reference so FakeStreamer.pause triggers svc.pause.
     streamer._owner = svc  # type: ignore[attr-defined]
@@ -282,7 +276,6 @@ def test_parallel_kokoro_workers_can_be_enabled(monkeypatch, tmp_path: Path) -> 
         chunking_service=ChunkingService(min_chars=10, max_chars=60),
         device="cpu",
         language="en",
-        reading_start_detector=FixedStart(fixed_start_char=0),
     )
 
     svc.load_book(tmp_path / "book.txt")
@@ -293,9 +286,21 @@ def test_parallel_kokoro_workers_can_be_enabled(monkeypatch, tmp_path: Path) -> 
 
 
 def test_narration_skips_front_matter_by_start_offset(tmp_path: Path) -> None:
-    # Front matter + Chapter 1 marker.
-    text = "Title\n\nContents\nChapter 1 .... 1\n\nCHAPTER 1\nHello. " * 5
-    book = Book(id="b1", title="Test", raw_text=text, normalized_text=text)
+    # Front matter, then the body. The model decides where the body begins, and
+    # the contents entry is navigation rather than something to read aloud.
+    text = (
+        "Title\n\n"
+        "Contents\n"
+        "Chapter 1 .... 1\n\n"
+        "CHAPTER 1\n" + "Hello there. " * 20
+    )
+    book = Book(
+        id="b1",
+        title="Test",
+        raw_text=text,
+        normalized_text=text,
+        document=plain_text.build_document(source=text),
+    )
     voice = VoiceProfile(name="system", reference_audio_paths=[tmp_path / "a.wav"])
     (tmp_path / "a.wav").write_bytes(b"x")
 
@@ -303,9 +308,8 @@ def test_narration_skips_front_matter_by_start_offset(tmp_path: Path) -> None:
     engine = FakeTTSEngine(calls=[])
     streamer = FakeStreamer(played=[])
 
-    # Force start at the CHAPTER 1 marker.
-    start_idx = text.find("CHAPTER 1")
-    assert start_idx > 0
+    body_start = text.find("CHAPTER 1")
+    assert body_start > 0
 
     svc = NarrationService(
         book_repo=FakeBookRepo(book=book),
@@ -315,9 +319,11 @@ def test_narration_skips_front_matter_by_start_offset(tmp_path: Path) -> None:
         chunking_service=ChunkingService(min_chars=10, max_chars=80),
         device="cpu",
         language="en",
-        reading_start_detector=FixedStart(fixed_start_char=start_idx),
     )
     svc.load_book(tmp_path / "book.txt")
     chunks = svc.prepare(voice=voice)
+
     assert chunks
-    assert chunks[0].start_char >= start_idx
+    assert chunks[0].start_char >= body_start
+    # The dotted-leader contents entry is never spoken.
+    assert not any("...." in c.text for c in chunks)
