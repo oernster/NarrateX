@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import sys
+
+from voice_reader.shared.startup_diagnostics import enforce_supported_python
+
+# Before the heavy imports: on an unsupported interpreter nothing installed, so
+# the next import fails with a message that never mentions the real cause.
+enforce_supported_python(sys.version_info, write=lambda m: print(m, file=sys.stderr))
+
 import importlib
 import importlib.metadata
 import logging
 import multiprocessing as mp
 import os
 import shutil
-import sys
 import threading
 import traceback
 from pathlib import Path

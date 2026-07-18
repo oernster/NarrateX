@@ -14,6 +14,62 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable, ContextManager, IO, Any
 
+# Supported interpreter window.
+#
+# The upper bound is not caution, it is a hard constraint: `kokoro` pins
+# >=3.10,<3.13, so a virtual environment built on a newer interpreter cannot
+# resolve `requirements.txt` at all. When that happens pip fails deep into a
+# resolve with no mention of the interpreter, which is why this check exists
+# rather than relying on `requires-python` (which pip never reads for a
+# `-r requirements.txt` install).
+MIN_SUPPORTED_PYTHON = (3, 10)
+FIRST_UNSUPPORTED_PYTHON = (3, 13)
+
+
+def unsupported_python_message(version: tuple[int, ...]) -> str | None:
+    """Return an actionable message when the interpreter is out of range.
+
+    Returns None when `version` is supported, so the caller reads as a guard.
+    """
+
+    current = tuple(version[:2])
+    if MIN_SUPPORTED_PYTHON <= current < FIRST_UNSUPPORTED_PYTHON:
+        return None
+
+    def _render(parts: tuple[int, ...]) -> str:
+        return ".".join(str(part) for part in parts)
+
+    supported = (
+        f"{_render(MIN_SUPPORTED_PYTHON)} to {_render(FIRST_UNSUPPORTED_PYTHON)}"
+    )
+    return (
+        f"NarrateX needs Python {supported} (exclusive), "
+        f"but this interpreter is {_render(current)}.\n"
+        "The kokoro speech engine does not publish wheels outside that range, "
+        "so the dependencies cannot install here.\n"
+        "Rebuild the virtual environment against a supported interpreter, "
+        "for example:\n"
+        "    py -3.11 -m venv venv"
+    )
+
+
+def enforce_supported_python(
+    version: tuple[int, ...],
+    *,
+    write: Callable[[str], None],
+) -> None:
+    """Stop the program when the interpreter is outside the supported window.
+
+    Kept here rather than inline at the entrypoint so the behaviour is tested
+    and the entrypoint stays a single call before its heavy imports.
+    """
+
+    message = unsupported_python_message(version)
+    if message is None:
+        return
+    write(message)
+    raise SystemExit(1)
+
 
 def preflight_imports(
     *,

@@ -1,3 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "narratex"
+description = "Local-first audiobook narrator"
+dynamic = ["version"]
+
+# Upper bound is real, not cautionary: kokoro pins >=3.10,<3.13, so a venv
+# built on 3.13 cannot resolve requirements.txt at all.
+#
+# Note this does NOT gate `pip install -r requirements.txt`, which never reads
+# project metadata. It gates `pip install .` and documents the supported
+# window. The loud, early guard is the interpreter check in `app.py`.
+requires-python = ">=3.10,<3.13"
+
+[tool.setuptools]
+# Explicit, so setuptools never tries to auto-discover across the flat layout
+# (installer/, tests/ and the build scripts all sit at the repo root).
+packages = ["voice_reader"]
+
+[tool.setuptools.dynamic]
+version = { attr = "voice_reader.version.__version__" }
+
 [tool.black]
 line-length = 88
 target-version = ["py311"]

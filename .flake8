@@ -2,6 +2,9 @@
 max-line-length = 88
 extend-ignore = E203,W503
 per-file-ignores =
+    # The interpreter guard must run before the heavy imports, so those
+    # imports necessarily follow a statement.
+    app.py: E402
     tests/*.py: E501,F401,F841
     voice_reader/application/services/narration_service.py: E501
     voice_reader/application/services/tts_engine_factory.py: E501
