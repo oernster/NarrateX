@@ -8,7 +8,9 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from voice_reader.domain.document import plain_text
 from voice_reader.domain.document.anchoring import BlockDraft
+from voice_reader.domain.document.model import Document
 from voice_reader.infrastructure.books import epub_structure, pdf_structure
 from voice_reader.shared.errors import BookParseError
 
@@ -19,15 +21,24 @@ log = logging.getLogger(__name__)
 class ParsedBook:
     """Extraction output: the text, plus any structure the format stated.
 
-    `drafts` is empty when the format carries no structure of its own, or when
-    extraction fell back to a text-only path. An empty tuple is not an error, it
-    means the document model will be assembled without format-supplied
-    structure.
+    A format reports structure in one of two ways.
+
+    `drafts` is for formats whose structure is discovered separately from the
+    text (EPUB tags, PDF layout). They must be anchored onto the canonical text
+    afterwards.
+
+    `document` is for formats whose structure is derived from the canonical
+    text itself (plain text, markdown). Their spans are already exact, so
+    anchoring would be redundant and could only lose blocks.
+
+    Both empty means the format carries no structure of its own, which is not
+    an error.
     """
 
     raw_text: str
     normalized_text: str
     drafts: tuple[BlockDraft, ...] = ()
+    document: Document | None = None
 
 
 def normalize_text(text: str) -> str:
@@ -62,7 +73,14 @@ class BookParser:
         ext = path.suffix.lower()
         if ext == ".txt":
             raw = path.read_text(encoding="utf-8", errors="ignore")
-            return ParsedBook(raw_text=raw, normalized_text=normalize_text(raw))
+            normalized = normalize_text(raw)
+            # Plain text derives its structure from the canonical text
+            # itself, so the spans are exact and need no anchoring.
+            return ParsedBook(
+                raw_text=raw,
+                normalized_text=normalized,
+                document=plain_text.build_document(source=normalized),
+            )
         if ext == ".pdf":
             return self._parse_pdf(path)
         if ext == ".epub":

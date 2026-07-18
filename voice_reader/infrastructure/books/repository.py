@@ -6,13 +6,12 @@ import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
-from voice_reader.domain.document.anchoring import BlockDraft
 from voice_reader.domain.document.assembly import build_from_drafts
 from voice_reader.domain.document.model import Document
 from voice_reader.domain.entities.book import Book
 from voice_reader.domain.interfaces.book_repository import BookRepository
 from voice_reader.infrastructure.books.converter import CalibreConverter
-from voice_reader.infrastructure.books.parser import BookParser
+from voice_reader.infrastructure.books.parser import BookParser, ParsedBook
 
 # Least share of the book that must be accounted for by *some* block before the
 # structured model is trusted.
@@ -48,18 +47,25 @@ class LocalBookRepository(BookRepository):
             title=title,
             raw_text=parsed.raw_text,
             normalized_text=normalized,
-            document=self._build_document(
-                normalized=normalized,
-                drafts=parsed.drafts,
-            ),
+            document=self._build_document(normalized=normalized, parsed=parsed),
         )
 
     @staticmethod
-    def _build_document(
+    def _candidate_document(
         *,
         normalized: str,
-        drafts: tuple[BlockDraft, ...],
-    ) -> Document:
+        parsed: ParsedBook,
+    ) -> Document | None:
+        """The model the format produced, however it chose to report it."""
+
+        if parsed.document is not None:
+            return parsed.document
+        if parsed.drafts:
+            return build_from_drafts(source=normalized, drafts=parsed.drafts)
+        return None
+
+    @classmethod
+    def _build_document(cls, *, normalized: str, parsed: ParsedBook) -> Document:
         """Assemble the document model, falling back when confidence is low.
 
         Always returns a document. The fallback is a real model rather than an
@@ -67,10 +73,10 @@ class LocalBookRepository(BookRepository):
         regardless of how well extraction went.
         """
 
-        if drafts:
-            document = build_from_drafts(source=normalized, drafts=drafts)
-            understood = document.covered_ratio >= _MIN_COVERED_RATIO
-            has_body = document.displayed_ratio >= _MIN_DISPLAYED_RATIO
+        candidate = cls._candidate_document(normalized=normalized, parsed=parsed)
+        if candidate is not None:
+            understood = candidate.covered_ratio >= _MIN_COVERED_RATIO
+            has_body = candidate.displayed_ratio >= _MIN_DISPLAYED_RATIO
             if understood and has_body:
-                return document
+                return candidate
         return Document.unstructured(text=normalized)

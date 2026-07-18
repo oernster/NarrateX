@@ -5,6 +5,7 @@ from pathlib import Path
 
 from voice_reader.domain.document.anchoring import BlockDraft
 from voice_reader.domain.document.block_kind import BlockKind
+from voice_reader.domain.document.model import Document
 from voice_reader.domain.entities.book import Book
 from voice_reader.infrastructure.books.parser import ParsedBook
 from voice_reader.infrastructure.books.repository import LocalBookRepository
@@ -38,12 +39,14 @@ class FakeParser:
     raw_text: str = "RAW"
     normalized_text: str = "NORM"
     drafts: tuple[BlockDraft, ...] = field(default=())
+    document: Document | None = None
 
     def parse(self, path: Path) -> ParsedBook:
         return ParsedBook(
             raw_text=self.raw_text,
             normalized_text=self.normalized_text,
             drafts=self.drafts,
+            document=self.document,
         )
 
 
@@ -146,3 +149,30 @@ def test_the_normalized_text_is_unaffected_by_the_document_model(
     )
 
     assert without.normalized_text == with_structure.normalized_text
+
+
+def test_a_directly_built_document_is_used_without_anchoring(tmp_path: Path) -> None:
+    # Plain text and markdown derive spans from the canonical text itself, so
+    # the repository must take their model as given rather than re-anchoring it.
+    from voice_reader.domain.document.plain_text import build_document
+
+    direct = build_document(source=STRUCTURED_TEXT)
+    book = _load(
+        tmp_path,
+        FakeParser(normalized_text=STRUCTURED_TEXT, document=direct),
+    )
+
+    assert book.document is direct
+
+
+def test_a_directly_built_document_still_faces_the_guardrail(tmp_path: Path) -> None:
+    # Being built directly is not a licence to skip the confidence check.
+    empty = Document(source_length=len(STRUCTURED_TEXT))
+    book = _load(
+        tmp_path,
+        FakeParser(normalized_text=STRUCTURED_TEXT, document=empty),
+    )
+
+    assert book.document is not empty
+    assert len(book.document.blocks) == 1
+    assert book.document.blocks[0].text == STRUCTURED_TEXT
