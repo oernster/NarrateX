@@ -20,7 +20,8 @@ def test_parser_pdf_uses_fitz_stub(monkeypatch, tmp_path: Path) -> None:
 
     fake_fitz = types.SimpleNamespace(open=lambda _: FakeDoc([FakePage(), FakePage()]))
     monkeypatch.setitem(__import__("sys").modules, "fitz", fake_fitz)
-    raw, norm = BookParser().parse(p)
+    parsed = BookParser().parse(p)
+    raw, norm = parsed.raw_text, parsed.normalized_text
     assert "Hello PDF" in raw
     assert "Hello PDF" in norm
 
@@ -74,7 +75,8 @@ def test_parser_epub_uses_ebooklib_bs4_stubs(monkeypatch, tmp_path: Path) -> Non
     monkeypatch.setitem(__import__("sys").modules, "ebooklib", fake_ebooklib)
     monkeypatch.setitem(__import__("sys").modules, "bs4", fake_bs4)
 
-    raw, norm = BookParser().parse(p)
+    parsed = BookParser().parse(p)
+    raw, norm = parsed.raw_text, parsed.normalized_text
     assert raw == "Title\n\nText"
     assert norm == "Title\n\nText"
 
@@ -122,7 +124,8 @@ def test_parser_epub_retries_ignore_ncx_when_default_read_fails(
     monkeypatch.setitem(__import__("sys").modules, "ebooklib", fake_ebooklib)
     monkeypatch.setitem(__import__("sys").modules, "bs4", fake_bs4)
 
-    raw, norm = BookParser().parse(p)
+    parsed = BookParser().parse(p)
+    raw, norm = parsed.raw_text, parsed.normalized_text
     assert "Hello" in raw
     assert "Hello" in norm
     assert calls == [{"ignore_ncx": True}, {"ignore_ncx": False}]

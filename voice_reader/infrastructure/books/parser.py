@@ -7,9 +7,27 @@ import warnings
 import re
 from dataclasses import dataclass
 from pathlib import Path
+
+from voice_reader.domain.document.anchoring import BlockDraft
+from voice_reader.infrastructure.books import epub_structure
 from voice_reader.shared.errors import BookParseError
 
 log = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class ParsedBook:
+    """Extraction output: the text, plus any structure the format stated.
+
+    `drafts` is empty when the format carries no structure of its own, or when
+    extraction fell back to a text-only path. An empty tuple is not an error, it
+    means the document model will be assembled without format-supplied
+    structure.
+    """
+
+    raw_text: str
+    normalized_text: str
+    drafts: tuple[BlockDraft, ...] = ()
 
 
 def normalize_text(text: str) -> str:
@@ -40,18 +58,18 @@ def _dehyphenate(text: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class BookParser:
-    def parse(self, path: Path) -> tuple[str, str]:
+    def parse(self, path: Path) -> ParsedBook:
         ext = path.suffix.lower()
         if ext == ".txt":
             raw = path.read_text(encoding="utf-8", errors="ignore")
-            return raw, normalize_text(raw)
+            return ParsedBook(raw_text=raw, normalized_text=normalize_text(raw))
         if ext == ".pdf":
             return self._parse_pdf(path)
         if ext == ".epub":
             return self._parse_epub(path)
         raise BookParseError(f"Unsupported parse format: {ext}")
 
-    def _parse_pdf(self, path: Path) -> tuple[str, str]:
+    def _parse_pdf(self, path: Path) -> ParsedBook:
         try:
             import fitz  # PyMuPDF
 
@@ -61,11 +79,14 @@ class BookParser:
                 pages.append(page.get_text("text"))
             raw = "\n\n".join(pages)
             normalized = _dehyphenate(raw)
-            return raw, normalize_text(normalized)
+            return ParsedBook(
+                raw_text=raw,
+                normalized_text=normalize_text(normalized),
+            )
         except Exception as exc:
             raise BookParseError(str(exc)) from exc
 
-    def _parse_epub(self, path: Path) -> tuple[str, str]:
+    def _parse_epub(self, path: Path) -> ParsedBook:
         try:
             import ebooklib
             from ebooklib import epub
@@ -152,6 +173,7 @@ class BookParser:
             )
 
             texts: list[str] = []
+            drafts: list[BlockDraft] = []
             for item in items:
                 html_bytes = None
                 try:
@@ -170,19 +192,33 @@ class BookParser:
                 if not html_bytes:
                     continue
 
-                text = _html_to_text(html_bytes)
+                # Preferred path: recover the structure the EPUB already
+                # states. Falls back to text-only extraction when the HTML
+                # parser is unavailable.
+                parsed = epub_structure.parse_html(html_bytes)
+                if parsed is None:
+                    text = _html_to_text(html_bytes)
+                else:
+                    text, item_drafts = parsed
+                    drafts.extend(item_drafts)
+
                 if text:
                     texts.append(text)
 
             raw = "\n\n".join(texts)
             norm = normalize_text(raw)
             log.debug(
-                "EPUB parse done: path=%s raw_len=%s norm_len=%s",
+                "EPUB parse done: path=%s raw_len=%s norm_len=%s drafts=%s",
                 path,
                 len(raw),
                 len(norm),
+                len(drafts),
             )
-            return raw, norm
+            return ParsedBook(
+                raw_text=raw,
+                normalized_text=norm,
+                drafts=tuple(drafts),
+            )
         except Exception as exc:
             raise BookParseError(str(exc)) from exc
 
