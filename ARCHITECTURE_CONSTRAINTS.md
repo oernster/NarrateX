@@ -37,6 +37,8 @@ Current whitelist:
 
 All in-scope `*.py` files must remain at most **400 physical lines**.
 
+**Exempt: build and packaging scripts.** `buildexe.py`, `buildinstaller.py`, `builddmg.py`, `dmg_icon.py`, `build_utils.py`, `generate_icons.py`, `generate_scripts.py`, `stamp_version.py` and `installer/build_payload.py` are allowed to be large. They are linear recipes read top to bottom, and splitting a sequence of flags and steps across modules costs more than it buys. The app package, the installer UI and the tests stay fully in scope.
+
 Enforced by [`test_all_in_scope_python_files_are_at_most_400_lines()`](tests/structural/test_loc_limits.py:61).
 
 This is a pragmatic guardrail to encourage extracting cohesive submodules and avoiding "god" modules.

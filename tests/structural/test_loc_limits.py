@@ -15,6 +15,23 @@ def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+# Delivery scripts and their helpers, wherever they sit. Length is not a
+# defect in these.
+_BUILD_SCRIPTS = frozenset(
+    {
+        "buildexe.py",
+        "buildinstaller.py",
+        "builddmg.py",
+        "dmg_icon.py",
+        "build_utils.py",
+        "build_payload.py",
+        "generate_icons.py",
+        "generate_scripts.py",
+        "stamp_version.py",
+    }
+)
+
+
 def _is_in_scope_python_file(path: Path, *, repo_root: Path) -> bool:
     if path.suffix != ".py":
         return False
@@ -42,18 +59,22 @@ def _is_in_scope_python_file(path: Path, *, repo_root: Path) -> bool:
         rel = path.relative_to(repo_root).as_posix()
     except Exception:
         return False
+
+    # Build and packaging scripts are exempt from the cap. They are linear
+    # recipes read top to bottom, where splitting a sequence of flags and steps
+    # across modules costs more than it buys. The exemption is listed rather
+    # than left to chance: `builddmg.py` used to escape only by not appearing
+    # in the whitelist below, while its siblings were held to the cap.
+    if path.name in _BUILD_SCRIPTS:
+        return False
+
     return rel.startswith(
         (
             "voice_reader/",
             "installer/",
             "tests/",
         )
-    ) or path.name in {
-        "app.py",
-        "buildexe.py",
-        "buildinstaller.py",
-        "generate_scripts.py",
-    }
+    ) or path.name in {"app.py"}
 
 
 def _count_physical_lines(path: Path) -> int:
