@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import importlib.util
 from unittest.mock import MagicMock
 
 from voice_reader import bootstrap
@@ -8,6 +9,24 @@ from voice_reader import bootstrap
 
 def test_bootstrap_module_is_importable_and_coverable() -> None:
     bootstrap._touch()
+
+
+def test_every_wiring_module_actually_resolves() -> None:
+    """Drift guard: a wiring entry naming a missing module dies in the
+    frozen app at startup, so catch it here instead."""
+
+    names = bootstrap.wiring_module_names()
+    assert names, "wiring table came back empty"
+    for mod in names:
+        assert importlib.util.find_spec(mod) is not None, f"unresolvable: {mod}"
+
+
+def test_the_book_load_worker_is_declared_for_packagers() -> None:
+    """Regression: the frozen app died with ModuleNotFoundError because the
+    subprocess loader was wired via importlib but never declared as a
+    hidden import. The packagers now derive from this list."""
+
+    assert "voice_reader.book_load_worker" in bootstrap.wiring_module_names()
 
 
 def test_resolve_app_wiring_swallows_tick_fn_exception(monkeypatch) -> None:

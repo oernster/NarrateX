@@ -59,6 +59,13 @@ def test_bootstrap_is_only_imported_by_entrypoints() -> None:
     allowed_importers = {
         "app.py",
         "installer/app.py",
+        # The packagers derive their hidden-import lists from the wiring
+        # table (bootstrap.wiring_module_names) instead of mirroring it by
+        # hand, so a new wiring entry can never be missing from a frozen
+        # build. That requires importing bootstrap at build time.
+        "buildexe.py",
+        "buildlinux.py",
+        "builddmg.py",
     }
 
     offenders: list[str] = []

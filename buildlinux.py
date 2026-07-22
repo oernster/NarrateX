@@ -187,29 +187,11 @@ def main() -> int:
         "--exclude-module=cuda_pathfinder",
     ]
 
-    wiring_hidden_imports = [
-        "voice_reader.application.services.narration_service",
-        "voice_reader.application.services.bookmark_service",
-        "voice_reader.application.services.idea_map_service",
-        "voice_reader.application.services.idea_indexing_manager",
-        "voice_reader.application.services.structural_bookmark_service",
-        "voice_reader.application.services.voice_profile_service",
-        "voice_reader.domain.services.chunking_service",
-        "voice_reader.infrastructure.tts.tts_engine_factory",
-        "voice_reader.infrastructure.books.cover_extractor",
-        "voice_reader.infrastructure.audio.audio_streamer",
-        "voice_reader.infrastructure.books.converter",
-        "voice_reader.infrastructure.books.parser",
-        "voice_reader.infrastructure.books.repository",
-        "voice_reader.infrastructure.cache.filesystem_cache",
-        "voice_reader.infrastructure.bookmarks.json_bookmark_repository",
-        "voice_reader.infrastructure.ideas.json_idea_index_repository",
-        "voice_reader.infrastructure.preferences.json_preferences_repository",
-        "voice_reader.infrastructure.tts.voice_profile_repository",
-        "voice_reader.ui.main_window",
-        "voice_reader.ui.ui_controller",
-    ]
-    for mod in wiring_hidden_imports:
+    # Derived from the wiring table so a new entry can never be missing
+    # from the frozen build (see the same pattern in buildexe.py).
+    from voice_reader.bootstrap import wiring_module_names
+
+    for mod in wiring_module_names():
         cmd.append(f"--hidden-import={mod}")
 
     for spec in add_data:

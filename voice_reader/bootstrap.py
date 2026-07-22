@@ -141,6 +141,19 @@ def resolve_app_wiring(
                 pass
 
 
+def wiring_module_names() -> tuple[str, ...]:
+    """Every module the entrypoint resolves dynamically, for packagers.
+
+    PyInstaller cannot see through `importlib.import_module`, so the build
+    scripts declare each wiring module as a hidden import. They derive the
+    list from here rather than mirroring it by hand, because a mirrored
+    list silently drifts the first time an entry is added (the frozen app
+    then dies at startup with ModuleNotFoundError while the dev run works).
+    """
+
+    return tuple(sorted({mod for mod, _attr in _APP_WIRING_IMPORTS.values()}))
+
+
 def _touch() -> None:
     """Coverage helper.
 

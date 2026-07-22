@@ -192,31 +192,15 @@ def build_app_bundle(entitlements_path: Path, icns_path: Path | None = None) -> 
         "--collect-all=soundfile",
         "--hidden-import=soundfile",
         "--collect-binaries=soundfile",
-        # ── dynamic wiring (importlib.import_module at runtime) ────
-        "--hidden-import=voice_reader.application.services.narration_service",
-        "--hidden-import=voice_reader.application.services.bookmark_service",
-        "--hidden-import=voice_reader.application.services.idea_map_service",
-        "--hidden-import=voice_reader.application.services.idea_indexing_manager",
-        "--hidden-import=voice_reader.application.services.structural_bookmark_service",
-        "--hidden-import=voice_reader.application.services.voice_profile_service",
-        "--hidden-import=voice_reader.domain.services.chunking_service",
-        "--hidden-import=voice_reader.infrastructure.tts.tts_engine_factory",
-        "--hidden-import=voice_reader.infrastructure.books.cover_extractor",
-        "--hidden-import=voice_reader.infrastructure.audio.audio_streamer",
-        "--hidden-import=voice_reader.infrastructure.books.converter",
-        "--hidden-import=voice_reader.infrastructure.books.parser",
-        "--hidden-import=voice_reader.infrastructure.books.repository",
-        "--hidden-import=voice_reader.infrastructure.cache.filesystem_cache",
-        "--hidden-import=voice_reader.infrastructure.bookmarks"
-        ".json_bookmark_repository",
-        "--hidden-import=voice_reader.infrastructure.ideas"
-        ".json_idea_index_repository",
-        "--hidden-import=voice_reader.infrastructure.preferences"
-        ".json_preferences_repository",
-        "--hidden-import=voice_reader.infrastructure.tts.voice_profile_repository",
-        "--hidden-import=voice_reader.ui.main_window",
-        "--hidden-import=voice_reader.ui.ui_controller",
     ]
+
+    # Dynamic wiring (importlib.import_module at runtime): derived from the
+    # wiring table so a new entry can never be missing from the frozen build
+    # (see the same pattern in buildexe.py).
+    from voice_reader.bootstrap import wiring_module_names
+
+    for mod in wiring_module_names():
+        cmd.append(f"--hidden-import={mod}")
 
     for spec in add_data:
         cmd.extend(["--add-data", spec])
