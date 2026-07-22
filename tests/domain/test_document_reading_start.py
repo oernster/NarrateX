@@ -165,6 +165,49 @@ class TestReadingStart:
     def test_an_empty_document_has_no_start(self) -> None:
         assert reading_start_offset(Document(source_length=0)) is None
 
+    def test_a_prose_section_after_the_contents_is_narrated(self) -> None:
+        # The combined hardback shape: "About This Edition" carries real
+        # prose between the contents and Book 1. It is shown in the pane,
+        # so narration must start there, not at the first recognised
+        # opening name after it.
+        source = (
+            "Contents\n"
+            "\n"
+            "About This Edition . . . . . . 2\n"
+            "\n"
+            "Book 1: Decision Architecture . . . . . . 5\n"
+            "\n"
+            "About This Edition\n"
+            "\n"
+            "This is the second edition of the combined series.\n"
+            "\n"
+            "Book 1: Decision Architecture\n"
+            "\n"
+            "Organisations fail slowly, then suddenly.\n"
+        )
+        doc = build_document(source=source)
+        start = reading_start_offset(doc)
+
+        assert start is not None
+        assert source[start:].startswith("About This Edition\n\nThis is the second")
+
+    def test_a_leftover_contents_line_is_still_passed_over(self) -> None:
+        # A boundary landing slightly short leaves a bare heading with no
+        # prose under it; the prose requirement keeps skipping it.
+        stray = _block(BlockKind.HEADING, 45, 53, "Prologue")
+        body = _block(BlockKind.PARAGRAPH, 60, 90, "The real prologue text")
+        heading = _block(BlockKind.HEADING, 0, 8, "Contents")
+        doc = Document(
+            source_length=100,
+            sections=(
+                _section("Contents", 0, 40, (heading,)),
+                _section("Prologue", 45, 53, (stray,)),
+                _section("Prologue", 60, 90, (body,)),
+            ),
+        )
+
+        assert reading_start_offset(doc) == 60
+
     def test_an_untitled_section_is_not_a_body_opening(self) -> None:
         source = "Contents\n\nsome lowercase prose that carries on and on here.\n"
         doc = build_document(source=source)

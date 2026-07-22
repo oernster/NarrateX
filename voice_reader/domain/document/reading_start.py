@@ -117,27 +117,36 @@ def contents_end_offset(document: Document) -> int:
 
 
 def _body_opening_sections(document: Document, *, after: int) -> list:
-    """Sections at or past the contents whose title opens the body.
+    """Sections at or past the contents that open the body.
 
-    Where the book has a contents, an opening carrying prose is preferred over
-    one carrying none: a contents boundary that lands slightly short leaves a
-    contents line wearing a section's title with nothing under it, and that is
-    what this passes over.
+    With a contents boundary, the body opens at the first section past it
+    that carries prose, whatever its title. The pane shows everything past
+    the contents, and a shown section must be spoken: an "About This
+    Edition" between the contents and Book 1 was silently skipped when
+    only recognised opening names counted. A leftover contents line
+    wearing a section's title carries no prose, so the prose requirement
+    still passes it over, and a stray section titled "Contents" itself is
+    never an opening.
 
-    The preference is deliberately conditional. With no contents there is
-    nothing to leave leftovers behind, and a heading whose first child is
-    another heading is then perfectly ordinary, so skipping it would drop a
-    real section instead of a stray one.
+    Without a contents there is no boundary to anchor on, so the named
+    openings remain the evidence, exactly as before: they are what stops
+    narration starting on the title page.
     """
 
-    openings = [
+    if after <= 0:
+        return [
+            section for section in document.sections if _is_body_opening(section.title)
+        ]
+
+    past = [
         section
         for section in document.sections
-        if section.source_start >= after and _is_body_opening(section.title)
+        if section.source_start >= after and not _is_contents_title(section.title)
     ]
-    if after <= 0:
-        return openings
-    return [section for section in openings if _has_prose(section)] or openings
+    with_prose = [section for section in past if _has_prose(section)]
+    if with_prose:
+        return with_prose
+    return [section for section in past if _is_body_opening(section.title)]
 
 
 def body_opening_offset(document: Document) -> int:
