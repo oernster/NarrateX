@@ -30,6 +30,11 @@ PAYLOAD_DIR = PROJECT_ROOT / "installer" / "payload"
 PAYLOAD_ZIP = PAYLOAD_DIR / "payload.zip"
 MANIFEST_JSON = PAYLOAD_DIR / "manifest.json"
 
+_MB = 1024 * 1024
+# Hashing and compressing the whole bundle runs for minutes on a cold cache;
+# without output it reads as a hang, so report at this fraction of the bytes.
+_REPORT_FRACTION = 0.1
+
 
 @dataclass(frozen=True, slots=True)
 class ManifestEntry:
@@ -68,9 +73,19 @@ def build_payload() -> None:
 
     entries: list[ManifestEntry] = []
 
+    files = _iter_files(SOURCE_BUNDLE_DIR)
+    total_bytes = sum(f.stat().st_size for f in files)
+    print(
+        f"Building payload: hashing and compressing {len(files)} files "
+        f"({total_bytes / _MB:.0f} MB)...",
+        flush=True,
+    )
+    done_bytes = 0
+    next_report = _REPORT_FRACTION
+
     fixed_dt = (1980, 1, 1, 0, 0, 0)
     with zipfile.ZipFile(PAYLOAD_ZIP, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        for file_path in _iter_files(SOURCE_BUNDLE_DIR):
+        for file_path in files:
             rel = file_path.relative_to(SOURCE_BUNDLE_DIR)
             rel_posix = str(rel).replace("\\", "/")
             size = file_path.stat().st_size
@@ -83,6 +98,17 @@ def build_payload() -> None:
             with file_path.open("rb") as src:
                 data = src.read()
             zf.writestr(zi, data)
+
+            done_bytes += size
+            if total_bytes > 0 and done_bytes / total_bytes >= next_report:
+                pct = int(100 * done_bytes / total_bytes)
+                print(f"  {pct}% ({done_bytes / _MB:.0f} MB)", flush=True)
+                # One large file can cross several marks at once; skip past
+                # every mark already covered or the next file repeats it.
+                while next_report <= done_bytes / total_bytes:
+                    next_report += _REPORT_FRACTION
+
+    print(f"Payload written: {PAYLOAD_ZIP}", flush=True)
 
     manifest = {
         "installer_version": __version__,
