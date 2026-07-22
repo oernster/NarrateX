@@ -21,3 +21,6 @@ class CacheRepository(Protocol):
     def alignment_exists(
         self, *, book_id: str, voice_name: str, chunk_id: int
     ) -> bool: ...
+
+    def purge_book(self, *, book_id: str) -> None:
+        """Delete every cached artefact for one book (audio and alignment)."""

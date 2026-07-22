@@ -18,3 +18,6 @@ class PreferencesRepository(Protocol):
     def load_last_book_path(self) -> Path | None: ...
 
     def save_last_book_path(self, path: Path) -> None: ...
+
+    def clear_last_book_path(self) -> None:
+        """Forget the last-opened book so it is not auto-loaded next run."""

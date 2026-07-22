@@ -67,6 +67,14 @@ class JSONBookmarkRepository(BookmarkRepository):
         safe = str(book_id).strip()
         return self.bookmarks_dir / f"{safe}.json"
 
+    def delete_book(self, *, book_id: str) -> None:
+        """Delete every bookmark and the resume position for one book."""
+
+        try:
+            self._path_for(book_id=book_id).unlink(missing_ok=True)
+        except Exception:  # noqa: BLE001
+            return
+
     def _load_doc(self, *, book_id: str) -> dict:
         path = self._path_for(book_id=book_id)
         if not path.exists():

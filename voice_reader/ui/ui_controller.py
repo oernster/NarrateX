@@ -332,6 +332,11 @@ class UiController(QObject):
     def _on_voice_selected(self) -> None:
         return on_voice_selected(self)
 
+    def remove_current_book(self, *, confirmed: bool | None = None) -> None:
+        from voice_reader.ui._ui_controller_book_removal import remove_current_book
+
+        return remove_current_book(self, confirmed=confirmed)
+
     def select_book(self) -> None:
         prepare_for_book_switch(self)
 

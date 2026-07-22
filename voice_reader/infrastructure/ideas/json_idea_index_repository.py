@@ -51,3 +51,13 @@ class JSONIdeaIndexRepository(IdeaIndexRepository):
         tmp = path.with_suffix(path.suffix + ".tmp")
         tmp.write_text(json.dumps(doc, indent=2, sort_keys=False), encoding="utf-8")
         tmp.replace(path)
+
+    def delete_doc(self, *, book_id: str) -> None:
+        """Delete the persisted index (and any stale temp file) for one book."""
+
+        path = self._path_for(book_id=book_id)
+        try:
+            path.unlink(missing_ok=True)
+            path.with_suffix(path.suffix + ".tmp").unlink(missing_ok=True)
+        except Exception:  # noqa: BLE001
+            return

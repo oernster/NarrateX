@@ -25,6 +25,7 @@ from voice_reader.application.services.narration.persistence import (
 )
 from voice_reader.application.services.narration.book_loading import (
     adopt_book as _adopt_book,
+    forget_current_book as _forget_current_book,
     load_book as _load_book,
 )
 from voice_reader.application.services.narration.control import (
@@ -141,6 +142,14 @@ class NarrationService:
         """Return the current domain book id for bookmark storage."""
 
         return None if self._book is None else self._book.id
+
+    def forget_current_book(self) -> str | None:
+        """Delete every trace of the loaded book (never the file) and unload.
+
+        Returns the removed book id, or None when no book was loaded.
+        """
+
+        return _forget_current_book(self)
 
     def loaded_book(self) -> Book | None:
         """Return the currently loaded book, if any."""

@@ -30,6 +30,11 @@ class IdeaMapService:
         text = str(normalized_text or "")
         return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
 
+    def delete_index(self, *, book_id: str) -> None:
+        """Delete the persisted idea index for one book, if present."""
+
+        self.repo.delete_doc(book_id=book_id)
+
     def has_completed_index(self, *, book_id: str) -> bool:
         """Return True if a persisted, minimally valid index exists."""
 

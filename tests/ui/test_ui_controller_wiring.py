@@ -28,6 +28,7 @@ def _make_window(**extras):
         "select_book_clicked": _SilentSignal(),
         "stop_clicked": _SilentSignal(),
         # Optional: inside try/except, intentionally raise to cover except branches.
+        "remove_book_clicked": _ExplodingSignal(),
         "voice_combo": SimpleNamespace(currentIndexChanged=_ExplodingSignal()),
         "voice_sex_toggle_clicked": _ExplodingSignal(),
         "voice_region_toggle_clicked": _ExplodingSignal(),
@@ -48,6 +49,7 @@ def _make_controller(window):
     return SimpleNamespace(
         window=window,
         select_book=lambda: None,
+        remove_current_book=lambda **_: None,
         toggle_voice_sex=lambda: None,
         cycle_voice_region=lambda: None,
         toggle_play_pause=lambda: None,

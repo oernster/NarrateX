@@ -9,6 +9,15 @@ from __future__ import annotations
 def connect_signals(controller) -> None:
     controller.window.select_book_clicked.connect(controller.select_book)
 
+    # Remove the current book from NarrateX's memory (never the file).
+    if hasattr(controller.window, "remove_book_clicked"):
+        try:
+            controller.window.remove_book_clicked.connect(
+                controller.remove_current_book
+            )
+        except Exception:
+            pass
+
     # A voice selection clears the attention prompt and pre-synthesises.
     if hasattr(controller.window, "voice_combo"):
         try:

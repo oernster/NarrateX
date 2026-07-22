@@ -142,6 +142,20 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
         window.btn_select_book.setIcon(QIcon(pm))
         window.btn_select_book.setIconSize(pm.size())
     window.btn_select_book.setMinimumHeight(top_row_min_h)
+
+    # Remove the current book from NarrateX's memory (bookmarks, resume,
+    # ideas map, cached audio); the file on disk is never touched. Locked
+    # until a book loads, like the picker.
+    window.btn_remove_book = QToolButton()
+    window.btn_remove_book.setText("❌")
+    window.btn_remove_book.setToolTip("Remove current book (the file is kept)")
+    window.btn_remove_book.setCursor(Qt.PointingHandCursor)
+    window.btn_remove_book.setAutoRaise(True)
+    window.btn_remove_book.setFixedSize(38, 38)
+    window.btn_remove_book.setFont(QFont(_EMOJI_CUE_FONT_FAMILY, 13))
+    window.btn_remove_book.setProperty("topIconButton", True)
+    window.btn_remove_book.setEnabled(False)
+
     window.voice_combo = QComboBox()
     window.voice_combo.setMinimumWidth(220)
     window.voice_combo.setMinimumHeight(top_row_min_h)
@@ -266,6 +280,7 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     zone_a = QHBoxLayout()
     zone_a.setSpacing(8)
     zone_a.addWidget(window.btn_select_book)
+    zone_a.addWidget(window.btn_remove_book)
     zone_a.addWidget(window.btn_voice_sex)
     zone_a.addWidget(window.btn_voice_region)
     zone_a.addWidget(window.voice_combo)

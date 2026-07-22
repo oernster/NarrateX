@@ -207,6 +207,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     # Qt natively.
     ring = [
         window.btn_select_book,
+        window.btn_remove_book,
         window.btn_voice_sex,
         window.btn_voice_region,
         window.voice_combo,

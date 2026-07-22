@@ -29,3 +29,6 @@ class BookmarkRepository(Protocol):
         char_offset: int,
         chunk_index: int,
     ) -> None: ...
+
+    def delete_book(self, *, book_id: str) -> None:
+        """Delete every bookmark and the resume position for one book."""

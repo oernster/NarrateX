@@ -12,6 +12,7 @@ class FakeRepo:
     delete_calls: int = 0
     load_resume_calls: int = 0
     save_resume_calls: int = 0
+    delete_book_calls: int = 0
 
     def list_bookmarks(self, *, book_id: str):
         self.list_calls += 1
@@ -41,6 +42,10 @@ class FakeRepo:
         assert char_offset == 11
         assert chunk_index == 3
 
+    def delete_book(self, *, book_id: str):
+        self.delete_book_calls += 1
+        assert book_id == "b1"
+
 
 def test_bookmark_service_delegates_to_repo() -> None:
     repo = FakeRepo()
@@ -60,3 +65,6 @@ def test_bookmark_service_delegates_to_repo() -> None:
 
     svc.save_resume_position(book_id="b1", char_offset=11, chunk_index=3)
     assert repo.save_resume_calls == 1
+
+    svc.delete_book_state(book_id="b1")
+    assert repo.delete_book_calls == 1

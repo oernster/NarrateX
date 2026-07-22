@@ -142,10 +142,14 @@ def refresh_voices(controller) -> None:
 
 
 def apply_picker_availability(controller) -> None:
-    """Enable the picker only once there is a book to voice."""
+    """Enable the book-gated controls only once there is a book.
+
+    The remove-book control shares the gate: with nothing loaded there is
+    nothing to remove.
+    """
 
     available = book_is_loaded(controller)
-    for name in ("voice_combo", "btn_voice_sex", "btn_voice_region"):
+    for name in ("voice_combo", "btn_voice_sex", "btn_voice_region", "btn_remove_book"):
         widget = getattr(controller.window, name, None)
         if widget is not None:
             widget.setEnabled(available)

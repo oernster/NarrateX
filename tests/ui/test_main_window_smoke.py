@@ -43,6 +43,15 @@ def test_main_window_play_pause_button_exists(qapp) -> None:
     assert w.btn_play_pause.toolTip() in {"Play", "Pause"}
 
 
+def test_main_window_remove_book_button_exists_and_starts_locked(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    assert hasattr(w, "btn_remove_book")
+    assert w.btn_remove_book.text() == "❌"
+    assert w.btn_remove_book.isEnabled() is False
+    assert "file is kept" in w.btn_remove_book.toolTip()
+
+
 def test_main_window_sections_button_exists(qapp) -> None:
     del qapp
     w = MainWindow()

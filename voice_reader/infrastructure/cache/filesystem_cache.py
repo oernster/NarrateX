@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -30,3 +31,14 @@ class FilesystemCacheRepository(CacheRepository):
 
     def ensure_parent_dir(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
+
+    def purge_book(self, *, book_id: str) -> None:
+        """Delete the whole per-book cache tree (audio and alignment).
+
+        Only the cache directory named by the id is touched; a missing tree
+        is not an error.
+        """
+
+        target = self.cache_dir / str(book_id)
+        if target.exists():
+            shutil.rmtree(target, ignore_errors=True)

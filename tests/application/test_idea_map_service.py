@@ -8,6 +8,7 @@ from voice_reader.application.services.idea_map_service import IdeaMapService
 @dataclass
 class _FakeRepo:
     doc: dict | None
+    deleted: str | None = None
 
     def load_doc(self, *, book_id: str):
         del book_id
@@ -15,6 +16,18 @@ class _FakeRepo:
 
     def save_doc_atomic(self, *, book_id: str, doc: dict) -> None:
         del book_id, doc
+
+    def delete_doc(self, *, book_id: str) -> None:
+        self.deleted = book_id
+
+
+def test_delete_index_delegates_to_the_repo() -> None:
+    repo = _FakeRepo(doc=None)
+    svc = IdeaMapService(repo=repo)  # type: ignore[arg-type]
+
+    svc.delete_index(book_id="b1")
+
+    assert repo.deleted == "b1"
 
 
 def test_has_completed_index_false_when_missing() -> None:

@@ -51,3 +51,8 @@ class BookmarkService:
 
     def load_resume_position(self, *, book_id: str) -> ResumePosition | None:
         return self.repo.load_resume_position(book_id=book_id)
+
+    def delete_book_state(self, *, book_id: str) -> None:
+        """Delete every bookmark and the resume position for one book."""
+
+        self.repo.delete_book(book_id=book_id)

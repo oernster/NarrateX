@@ -13,3 +13,6 @@ class IdeaIndexRepository(Protocol):
 
     def save_doc_atomic(self, *, book_id: str, doc: dict) -> None:
         """Persist the index doc atomically (write temp then replace)."""
+
+    def delete_doc(self, *, book_id: str) -> None:
+        """Delete the persisted index doc for one book, if present."""

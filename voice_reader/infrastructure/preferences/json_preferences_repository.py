@@ -60,3 +60,9 @@ class JSONPreferencesRepository(PreferencesRepository):
         data = self._load_raw()
         data["last_book_path"] = str(path)
         self._save_raw(data)
+
+    def clear_last_book_path(self) -> None:
+        data = self._load_raw()
+        if "last_book_path" in data:
+            del data["last_book_path"]
+            self._save_raw(data)

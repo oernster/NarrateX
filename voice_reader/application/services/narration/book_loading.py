@@ -75,3 +75,71 @@ def adopt_book(service: NarrationService, book: "Book", source_path: Path) -> "B
 
     _begin_load(service, source_path)
     return _finish_load(service, book, source_path)
+
+
+def forget_current_book(service: NarrationService) -> str | None:
+    """Delete the service's memory of the loaded book, never the file.
+
+    Stops playback WITHOUT persisting a resume position, purges the cached
+    narration audio, deletes the bookmark file (bookmarks plus resume),
+    forgets the last-book preference so the book is not auto-loaded next
+    run, then unloads. Returns the removed book id, or None when nothing
+    was loaded. The caller owns the ideas index (it holds that service).
+    """
+
+    book = service._book  # noqa: SLF001
+    if book is None:
+        return None
+    book_id = str(book.id)
+
+    # The audio cache is keyed by the derived cache id, which needs the
+    # book still loaded, so compute it before anything is torn down.
+    try:
+        from voice_reader.application.services.narration.cache_key import (
+            compute_book_cache_id,
+        )
+
+        cache_id = compute_book_cache_id(service)
+    except Exception:
+        cache_id = None
+
+    try:
+        service.stop(persist_resume=False)
+    except Exception:
+        pass
+
+    if cache_id is not None:
+        try:
+            service.cache_repo.purge_book(book_id=cache_id)
+        except Exception:
+            pass
+
+    if service.bookmark_service is not None:
+        try:
+            service.bookmark_service.delete_book_state(book_id=book_id)
+        except Exception:
+            pass
+
+    if service.preferences_repo is not None:
+        try:
+            service.preferences_repo.clear_last_book_path()
+        except Exception:
+            pass
+
+    service._book = None  # noqa: SLF001
+    service._chunks = []  # noqa: SLF001
+    service._start_char = None  # noqa: SLF001
+    service._cache_book_id = None  # noqa: SLF001
+
+    service._set_state(  # noqa: SLF001
+        NarrationState(
+            status=NarrationStatus.IDLE,
+            current_chunk_id=None,
+            playback_chunk_id=None,
+            prefetch_chunk_id=None,
+            total_chunks=None,
+            progress=0.0,
+            message=f"Removed '{book.title}' (the file is kept)",
+        )
+    )
+    return book_id
