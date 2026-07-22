@@ -11,10 +11,14 @@ everywhere:
 - Inside an OPEN dropdown popup, Space commits the highlighted item, and
   Tab or Shift+Tab commits it AND steps to the next or previous stop, so
   choosing a voice and moving on is one gesture.
-- The volume stop (the speaker button) owns all four arrows, adjusting
-  the slider linked via its `keeb_volume_slider` attribute. NarrateX has
-  no arrow-driven ring, so Left/Right are free to mean quieter/louder
-  here, matching a horizontal slider.
+- Left and Right step the focus ring exactly like Tab and Shift+Tab on
+  every button, closed dropdown and list stop (a closed dropdown would
+  otherwise silently change value on the horizontal arrows). Text panes
+  keep their arrows for the caret and for scrolling.
+- The volume stop (the speaker button) keeps the vertical arrows as its
+  internal cursor, adjusting the slider linked via its
+  `keeb_volume_slider` attribute; the horizontal arrows step the ring
+  like everywhere else.
 
 Delivery detail that shapes the code: an open popup GRABS the keyboard
 without taking focus, so its key events arrive addressed to the popup's
@@ -31,15 +35,30 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import QAbstractButton, QApplication, QComboBox, QWidget
+from PySide6.QtWidgets import (
+    QAbstractButton,
+    QAbstractItemView,
+    QApplication,
+    QComboBox,
+    QWidget,
+)
 
 # Percent moved per arrow press while the volume stop is focused.
 _VOLUME_KEY_STEP = 5
 
 _ACTIVATE_KEYS = (Qt.Key_Return, Qt.Key_Enter)
-_VOLUME_UP_KEYS = (Qt.Key_Up, Qt.Key_Right)
-_VOLUME_DOWN_KEYS = (Qt.Key_Down, Qt.Key_Left)
 _TAB_KEYS = (Qt.Key_Tab, Qt.Key_Backtab)
+_HORIZONTAL_KEYS = (Qt.Key_Left, Qt.Key_Right)
+
+
+def _step_ring(widget, *, forward: bool) -> None:
+    """Move focus one stop, by replaying the equivalent Tab on the widget."""
+
+    if forward:
+        event = QKeyEvent(QEvent.KeyPress, Qt.Key_Tab, Qt.NoModifier)
+    else:
+        event = QKeyEvent(QEvent.KeyPress, Qt.Key_Backtab, Qt.ShiftModifier)
+    QApplication.postEvent(widget, event)
 
 
 def _owning_combo(obj) -> QComboBox | None:
@@ -98,12 +117,21 @@ class KeebKeys(QObject):
 
         slider = getattr(focused, "keeb_volume_slider", None)
         if slider is not None:
-            if key in _VOLUME_UP_KEYS:
+            if key == Qt.Key_Up:
                 slider.setValue(int(slider.value()) + _VOLUME_KEY_STEP)
                 return True
-            if key in _VOLUME_DOWN_KEYS:
+            if key == Qt.Key_Down:
                 slider.setValue(int(slider.value()) - _VOLUME_KEY_STEP)
                 return True
+
+        # Left and Right are ring steps on button and list stops. Text panes
+        # never reach here for the alias (they keep their caret and scroll
+        # arrows), and an open popup was already handled above.
+        if key in _HORIZONTAL_KEYS and isinstance(
+            focused, (QAbstractButton, QAbstractItemView)
+        ):
+            _step_ring(focused, forward=key == Qt.Key_Right)
+            return True
 
         return False
 
@@ -131,6 +159,11 @@ class KeebKeys(QObject):
 
         if key in _ACTIVATE_KEYS or key == Qt.Key_Down:
             combo.showPopup()
+            return True
+        if key in _HORIZONTAL_KEYS:
+            # Natively these would silently change the combo's value; on the
+            # ring they mean stepping to the neighbouring stop.
+            _step_ring(combo, forward=key == Qt.Key_Right)
             return True
         return False
 

@@ -231,7 +231,7 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
 
     window.lbl_volume_icon = QToolButton()
     window.lbl_volume_icon.setText("🔊")
-    window.lbl_volume_icon.setToolTip("Volume (arrow keys adjust while focused)")
+    window.lbl_volume_icon.setToolTip("Volume (Up/Down adjusts while focused)")
     window.lbl_volume_icon.setFont(QFont(_EMOJI_CUE_FONT_FAMILY, 13))
     window.lbl_volume_icon.setAutoRaise(True)
     window.lbl_volume_icon.setFixedSize(38, 38)

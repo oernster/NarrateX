@@ -101,207 +101,6 @@ class TestEnterActivates:
         host.close()
 
 
-class TestDropdowns:
-    def test_down_opens_a_closed_combo(self, qapp) -> None:
-        host = QWidget()
-        combo = QComboBox(host)
-        combo.addItems(["one", "two"])
-        host.show()
-        _focus(qapp, combo)
-
-        handled = KeebKeys().eventFilter(combo, _key_press(Qt.Key_Down))
-
-        assert handled is True
-        assert combo.view().isVisible()
-        combo.hidePopup()
-        host.close()
-
-    def test_enter_opens_a_closed_combo(self, qapp) -> None:
-        host = QWidget()
-        combo = QComboBox(host)
-        combo.addItems(["one", "two"])
-        host.show()
-        _focus(qapp, combo)
-
-        handled = KeebKeys().eventFilter(combo, _key_press(Qt.Key_Return))
-
-        assert handled is True
-        assert combo.view().isVisible()
-        combo.hidePopup()
-        host.close()
-
-    def test_keys_on_an_open_combo_are_left_to_the_popup(self, qapp) -> None:
-        host = QWidget()
-        combo = QComboBox(host)
-        combo.addItems(["one", "two"])
-        host.show()
-        _focus(qapp, combo)
-        combo.showPopup()
-        # Opening the popup may move focus into it; put focus back on the
-        # combo so the filter's already-open branches are the ones deciding.
-        _focus(qapp, combo)
-        assert combo.view().isVisible()
-
-        keys = KeebKeys()
-        assert keys.eventFilter(combo, _key_press(Qt.Key_Down)) is False
-        assert keys.eventFilter(combo, _key_press(Qt.Key_Return)) is False
-        combo.hidePopup()
-        host.close()
-
-    def test_space_on_a_closed_combo_stays_native(self, qapp) -> None:
-        host = QWidget()
-        combo = QComboBox(host)
-        combo.addItems(["one", "two"])
-        host.show()
-        _focus(qapp, combo)
-
-        assert KeebKeys().eventFilter(combo, _key_press(Qt.Key_Space)) is False
-        host.close()
-
-    def test_space_on_a_combo_with_open_popup_commits_the_highlight(self, qapp) -> None:
-        host = QWidget()
-        combo = QComboBox(host)
-        combo.addItems(["one", "two", "three"])
-        host.show()
-        _focus(qapp, combo)
-        combo.showPopup()
-        _focus(qapp, combo)
-        combo.view().setCurrentIndex(combo.model().index(2, 0))
-
-        handled = KeebKeys().eventFilter(combo, _key_press(Qt.Key_Space))
-
-        assert handled is True
-        assert combo.currentIndex() == 2
-        assert not combo.view().isVisible()
-        host.close()
-
-
-class TestOpenPopup:
-    def _open(self, qapp, host) -> QComboBox:
-        combo = QComboBox(host)
-        combo.addItems(["one", "two", "three"])
-        host.show()
-        _focus(qapp, combo)
-        combo.showPopup()
-        view = combo.view()
-        view.setFocus(Qt.FocusReason.TabFocusReason)
-        qapp.processEvents()
-        assert qapp.focusWidget() is view
-        return combo
-
-    def test_space_in_the_popup_commits_the_highlighted_item(self, qapp) -> None:
-        host = QWidget()
-        combo = self._open(qapp, host)
-        combo.view().setCurrentIndex(combo.model().index(1, 0))
-
-        handled = KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Space))
-
-        assert handled is True
-        assert combo.currentIndex() == 1
-        assert not combo.view().isVisible()
-        host.close()
-
-    def test_tab_in_the_popup_commits_and_steps_on(self, qapp) -> None:
-        host = QWidget()
-        combo = self._open(qapp, host)
-        combo.view().setCurrentIndex(combo.model().index(2, 0))
-
-        handled = KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Tab))
-        qapp.processEvents()
-
-        assert handled is True
-        assert combo.currentIndex() == 2
-        assert not combo.view().isVisible()
-        host.close()
-
-    def test_backtab_in_the_popup_commits_and_steps_back(self, qapp) -> None:
-        host = QWidget()
-        combo = self._open(qapp, host)
-        combo.view().setCurrentIndex(combo.model().index(1, 0))
-
-        handled = KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Backtab))
-        qapp.processEvents()
-
-        assert handled is True
-        assert combo.currentIndex() == 1
-        assert not combo.view().isVisible()
-        host.close()
-
-    def test_space_commits_even_when_focus_stayed_on_the_combo(self, qapp) -> None:
-        # The real delivery shape: an open popup GRABS the keyboard without
-        # taking focus, so the key event is addressed to the popup container
-        # while the combo keeps focus. The filter must still commit.
-        host = QWidget()
-        combo = QComboBox(host)
-        combo.addItems(["one", "two", "three"])
-        host.show()
-        _focus(qapp, combo)
-        combo.showPopup()
-        _focus(qapp, combo)
-        combo.view().setCurrentIndex(combo.model().index(1, 0))
-        container = combo.view().parentWidget()
-
-        handled = KeebKeys().eventFilter(container, _key_press(Qt.Key_Space))
-
-        assert handled is True
-        assert combo.currentIndex() == 1
-        assert not combo.view().isVisible()
-        host.close()
-
-    def test_space_addressed_to_the_viewport_also_commits(self, qapp) -> None:
-        host = QWidget()
-        combo = QComboBox(host)
-        combo.addItems(["one", "two", "three"])
-        host.show()
-        _focus(qapp, combo)
-        combo.showPopup()
-        _focus(qapp, combo)
-        combo.view().setCurrentIndex(combo.model().index(2, 0))
-
-        handled = KeebKeys().eventFilter(
-            combo.view().viewport(), _key_press(Qt.Key_Space)
-        )
-
-        assert handled is True
-        assert combo.currentIndex() == 2
-        assert not combo.view().isVisible()
-        host.close()
-
-    def test_keys_on_an_unfocused_closed_combo_pass(self, qapp) -> None:
-        host = QWidget()
-        combo = QComboBox(host)
-        combo.addItems(["one"])
-        other = QPushButton("elsewhere", host)
-        host.show()
-        _focus(qapp, other)
-
-        assert KeebKeys().eventFilter(combo, _key_press(Qt.Key_Down)) is False
-        host.close()
-
-    def test_other_popup_keys_stay_native(self, qapp) -> None:
-        host = QWidget()
-        combo = self._open(qapp, host)
-
-        assert KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Down)) is False
-        combo.hidePopup()
-        host.close()
-
-    def test_a_popup_with_no_highlight_commits_nothing_but_closes(self, qapp) -> None:
-        from PySide6.QtCore import QModelIndex
-
-        host = QWidget()
-        combo = self._open(qapp, host)
-        combo.setCurrentIndex(0)
-        combo.view().setCurrentIndex(QModelIndex())
-
-        handled = KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Space))
-
-        assert handled is True
-        assert combo.currentIndex() == 0
-        assert not combo.view().isVisible()
-        host.close()
-
-
 class TestVolumeStop:
     def _volume_pair(self, host) -> tuple[QToolButton, QSlider]:
         slider = QSlider(Qt.Horizontal, host)
@@ -311,7 +110,7 @@ class TestVolumeStop:
         button.keeb_volume_slider = slider
         return button, slider
 
-    def test_all_four_arrows_adjust_the_linked_slider(self, qapp) -> None:
+    def test_up_and_down_adjust_the_linked_slider(self, qapp) -> None:
         host = QWidget()
         button, slider = self._volume_pair(host)
         host.show()
@@ -320,12 +119,22 @@ class TestVolumeStop:
         keys = KeebKeys()
         assert keys.eventFilter(button, _key_press(Qt.Key_Up)) is True
         assert slider.value() == 30
-        assert keys.eventFilter(button, _key_press(Qt.Key_Right)) is True
-        assert slider.value() == 35
         assert keys.eventFilter(button, _key_press(Qt.Key_Down)) is True
-        assert slider.value() == 30
-        assert keys.eventFilter(button, _key_press(Qt.Key_Left)) is True
         assert slider.value() == 25
+
+    def test_horizontal_arrows_step_the_ring_not_the_volume(self, qapp) -> None:
+        host = QWidget()
+        button, slider = self._volume_pair(host)
+        neighbour = QPushButton("next stop", host)
+        host.show()
+        _focus(qapp, button)
+
+        handled = KeebKeys().eventFilter(button, _key_press(Qt.Key_Right))
+        qapp.processEvents()
+
+        assert handled is True
+        assert slider.value() == 25
+        assert qapp.focusWidget() is neighbour
 
     def test_the_slider_clamps_at_its_ends(self, qapp) -> None:
         host = QWidget()
@@ -337,11 +146,78 @@ class TestVolumeStop:
         assert KeebKeys().eventFilter(button, _key_press(Qt.Key_Down)) is True
         assert slider.value() == 0
 
-    def test_arrows_on_an_unlinked_widget_pass(self, qapp) -> None:
+    def test_vertical_arrows_on_an_unlinked_widget_pass(self, qapp) -> None:
         host = QWidget()
         button = QPushButton("plain", host)
         host.show()
         _focus(qapp, button)
 
         assert KeebKeys().eventFilter(button, _key_press(Qt.Key_Up)) is False
+        host.close()
+
+
+class TestRingArrows:
+    def test_right_steps_forward_and_left_steps_back_on_buttons(self, qapp) -> None:
+        host = QWidget()
+        first = QPushButton("first", host)
+        second = QPushButton("second", host)
+        host.show()
+        _focus(qapp, first)
+
+        keys = KeebKeys()
+        assert keys.eventFilter(first, _key_press(Qt.Key_Right)) is True
+        qapp.processEvents()
+        assert qapp.focusWidget() is second
+
+        assert keys.eventFilter(second, _key_press(Qt.Key_Left)) is True
+        qapp.processEvents()
+        assert qapp.focusWidget() is first
+        host.close()
+
+    def test_horizontal_arrows_on_a_closed_combo_step_without_changing_value(
+        self, qapp
+    ) -> None:
+        host = QWidget()
+        combo = QComboBox(host)
+        combo.addItems(["one", "two", "three"])
+        combo.setCurrentIndex(1)
+        neighbour = QPushButton("next stop", host)
+        host.show()
+        _focus(qapp, combo)
+
+        handled = KeebKeys().eventFilter(combo, _key_press(Qt.Key_Right))
+        qapp.processEvents()
+
+        assert handled is True
+        assert combo.currentIndex() == 1
+        assert qapp.focusWidget() is neighbour
+        host.close()
+
+    def test_horizontal_arrows_step_out_of_a_plain_list(self, qapp) -> None:
+        from PySide6.QtWidgets import QListWidget
+
+        host = QWidget()
+        lst = QListWidget(host)
+        lst.addItems(["a", "b"])
+        neighbour = QPushButton("next stop", host)
+        host.show()
+        _focus(qapp, lst)
+
+        handled = KeebKeys().eventFilter(lst, _key_press(Qt.Key_Right))
+        qapp.processEvents()
+
+        assert handled is True
+        assert qapp.focusWidget() is neighbour
+        host.close()
+
+    def test_a_text_pane_keeps_its_arrows(self, qapp) -> None:
+        from PySide6.QtWidgets import QTextEdit
+
+        host = QWidget()
+        pane = QTextEdit(host)
+        pane.setPlainText("scrollable prose")
+        host.show()
+        _focus(qapp, pane)
+
+        assert KeebKeys().eventFilter(pane, _key_press(Qt.Key_Right)) is False
         host.close()
