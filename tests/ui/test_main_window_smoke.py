@@ -140,11 +140,11 @@ def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
             nxt = nxt.nextInFocusChain()
         return nxt
 
-    assert next_stop(w.btn_next_chapter) is w.btn_select_book
     assert next_stop(w.btn_stop) is w.lbl_volume_icon
     assert next_stop(w.lbl_volume_icon) is w.btn_bookmarks
-    assert next_stop(w.btn_help) is w.reader
-    assert next_stop(w.reader) is w.btn_prev_chapter
+    assert next_stop(w.btn_help) is w.btn_prev_chapter
+    assert next_stop(w.btn_next_chapter) is w.reader
+    assert next_stop(w.reader) is w.btn_select_book
     w.close()
 
 

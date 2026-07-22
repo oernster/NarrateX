@@ -55,8 +55,8 @@ def apply_main_window_theme(window) -> None:
     """
     from PySide6.QtWidgets import QApplication
 
-    # Dark theme with purple accents.
-    purple = "#8b5cf6"
+    # Dark theme with teal accents (the chapter spine's rail teal).
+    teal = "#14b8a6"
     blue = "#2563eb"
     bg = "#0b0f17"
     panel = "#121826"
@@ -236,7 +236,7 @@ def apply_main_window_theme(window) -> None:
                 border: 1px solid #1f2937;
                 height: 18px;
             }}
-            QProgressBar::chunk {{ background: {purple}; }}
+            QProgressBar::chunk {{ background: {teal}; }}
 
             /* Ideas progress bar removed (Sections-only brain button). */
 

@@ -220,9 +220,9 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
         window.btn_ui_licence,
         window.btn_backend_licence,
         window.btn_help,
-        window.reader,
         window.btn_prev_chapter,
         window.btn_next_chapter,
+        window.reader,
     ]
     for earlier, later in zip(ring, ring[1:]):
         QWidget.setTabOrder(earlier, later)

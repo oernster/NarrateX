@@ -271,7 +271,8 @@ class MainWindow(QMainWindow):
 
         sel = QTextEdit.ExtraSelection()
         sel.cursor = cursor
-        sel.format.setBackground(QColor("#2a1d5a"))
+        # Narration highlight: deep teal, matching the app's teal accents.
+        sel.format.setBackground(QColor("#134e4a"))
         sel.format.setForeground(QColor("#ffffff"))
         self.reader.setExtraSelections([sel])
         self.reader.setTextCursor(cursor)
