@@ -16,6 +16,13 @@ everywhere:
   no arrow-driven ring, so Left/Right are free to mean quieter/louder
   here, matching a horizontal slider.
 
+Delivery detail that shapes the code: an open popup GRABS the keyboard
+without taking focus, so its key events arrive addressed to the popup's
+container or view while `QApplication.focusWidget()` still reports the
+combo. Dropdown handling therefore keys off the RECEIVER's combo
+ancestry; only the non-combo rules require the receiver to be the focused
+widget.
+
 One filter installed on the application covers the main window and every
 dialog, so no surface can drift from the model.
 """
@@ -24,12 +31,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import (
-    QAbstractButton,
-    QAbstractItemView,
-    QApplication,
-    QComboBox,
-)
+from PySide6.QtWidgets import QAbstractButton, QApplication, QComboBox, QWidget
 
 # Percent moved per arrow press while the volume stop is focused.
 _VOLUME_KEY_STEP = 5
@@ -40,23 +42,21 @@ _VOLUME_DOWN_KEYS = (Qt.Key_Down, Qt.Key_Left)
 _TAB_KEYS = (Qt.Key_Tab, Qt.Key_Backtab)
 
 
-def _popup_combo(widget) -> QComboBox | None:
-    """The combo owning `widget`, when `widget` is an open popup's view."""
+def _owning_combo(obj) -> QComboBox | None:
+    """The combo `obj` belongs to: itself, or an ancestor of its popup."""
 
-    if not isinstance(widget, QAbstractItemView):
-        return None
-    parent = widget.parent()
-    while parent is not None:
-        if isinstance(parent, QComboBox):
-            return parent
-        parent = parent.parent()
+    widget = obj if isinstance(obj, QWidget) else None
+    while widget is not None:
+        if isinstance(widget, QComboBox):
+            return widget
+        widget = widget.parentWidget()
     return None
 
 
-def _commit_highlight(combo: QComboBox, view) -> None:
+def _commit_highlight(combo: QComboBox) -> None:
     """Choose the popup's highlighted row, then close the popup."""
 
-    row = int(view.currentIndex().row())
+    row = int(combo.view().currentIndex().row())
     if row >= 0:
         combo.setCurrentIndex(row)
     combo.hidePopup()
@@ -65,12 +65,22 @@ def _commit_highlight(combo: QComboBox, view) -> None:
 class KeebKeys(QObject):
     """Application event filter implementing the rules above.
 
-    Stateless: everything is derived from the focused widget, so the filter
-    holds no window references and survives any number of windows.
+    Stateless: everything is derived from the receiving widget, so the
+    filter holds no window references and survives any number of windows.
     """
 
     def eventFilter(self, obj, event) -> bool:  # noqa: N802 (Qt naming)
         if event.type() != QEvent.KeyPress:
+            return False
+
+        key = event.key()
+
+        combo = _owning_combo(obj)
+        if combo is not None:
+            if combo.view().isVisible():
+                return self._popup_keys(combo, key, event)
+            if obj is combo and QApplication.focusWidget() is combo:
+                return self._closed_combo_keys(combo, key)
             return False
 
         focused = QApplication.focusWidget()
@@ -79,15 +89,6 @@ class KeebKeys(QObject):
         # propagates to parents.
         if focused is None or obj is not focused:
             return False
-
-        key = event.key()
-
-        combo = _popup_combo(focused)
-        if combo is not None:
-            return self._popup_keys(combo, focused, key, event)
-
-        if isinstance(focused, QComboBox):
-            return self._combo_keys(focused, key)
 
         if key in _ACTIVATE_KEYS:
             if isinstance(focused, QAbstractButton) and focused.isEnabled():
@@ -107,14 +108,14 @@ class KeebKeys(QObject):
         return False
 
     @staticmethod
-    def _popup_keys(combo: QComboBox, view, key, event) -> bool:
-        """Keys arriving in an open dropdown popup."""
+    def _popup_keys(combo: QComboBox, key, event) -> bool:
+        """Keys arriving anywhere in a combo with its popup open."""
 
         if key == Qt.Key_Space:
-            _commit_highlight(combo, view)
+            _commit_highlight(combo)
             return True
         if key in _TAB_KEYS:
-            _commit_highlight(combo, view)
+            _commit_highlight(combo)
             # Focus is back on the combo now; replay the Tab there so the
             # normal ring step happens after the commit.
             QApplication.postEvent(
@@ -125,14 +126,9 @@ class KeebKeys(QObject):
         return False
 
     @staticmethod
-    def _combo_keys(combo: QComboBox, key) -> bool:
-        """Keys arriving on the combo itself."""
+    def _closed_combo_keys(combo: QComboBox, key) -> bool:
+        """Keys arriving on a focused combo whose popup is closed."""
 
-        if combo.view().isVisible():
-            if key == Qt.Key_Space:
-                _commit_highlight(combo, combo.view())
-                return True
-            return False
         if key in _ACTIVATE_KEYS or key == Qt.Key_Down:
             combo.showPopup()
             return True

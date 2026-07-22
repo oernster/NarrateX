@@ -260,6 +260,31 @@ def test_attention_does_not_start_when_a_voice_is_already_chosen(qapp) -> None:
     assert attention._timer.isActive() is False  # noqa: SLF001
 
 
+def test_losing_a_pick_to_a_toggle_reflashes_the_prompt(qapp) -> None:
+    # Switching region (or sex) can drop the chosen voice back to the
+    # placeholder; that must re-raise the amber prompt like a fresh book.
+    c = _book_aware_controller(qapp, book=object())
+    combo = c.window.voice_combo
+    attention = c._picker_attention  # noqa: SLF001
+    combo.setCurrentIndex(0)
+    assert attention._timer.isActive() is False  # noqa: SLF001
+
+    c.cycle_voice_region()
+
+    assert combo.currentIndex() == -1
+    assert combo.property("attention") is True
+    assert attention._timer.isActive() is True  # noqa: SLF001
+
+
+def test_toggling_with_no_pick_does_not_restart_the_prompt(qapp) -> None:
+    c = _book_aware_controller(qapp, book=object())
+    attention = c._picker_attention  # noqa: SLF001
+
+    c.cycle_voice_region()
+
+    assert attention._timer.isActive() is False  # noqa: SLF001
+
+
 def test_book_probe_failure_counts_as_loaded() -> None:
     # The probe is permissive: a service whose loaded_book raises must not
     # lock the picker shut.

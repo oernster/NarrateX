@@ -227,6 +227,57 @@ class TestOpenPopup:
         assert not combo.view().isVisible()
         host.close()
 
+    def test_space_commits_even_when_focus_stayed_on_the_combo(self, qapp) -> None:
+        # The real delivery shape: an open popup GRABS the keyboard without
+        # taking focus, so the key event is addressed to the popup container
+        # while the combo keeps focus. The filter must still commit.
+        host = QWidget()
+        combo = QComboBox(host)
+        combo.addItems(["one", "two", "three"])
+        host.show()
+        _focus(qapp, combo)
+        combo.showPopup()
+        _focus(qapp, combo)
+        combo.view().setCurrentIndex(combo.model().index(1, 0))
+        container = combo.view().parentWidget()
+
+        handled = KeebKeys().eventFilter(container, _key_press(Qt.Key_Space))
+
+        assert handled is True
+        assert combo.currentIndex() == 1
+        assert not combo.view().isVisible()
+        host.close()
+
+    def test_space_addressed_to_the_viewport_also_commits(self, qapp) -> None:
+        host = QWidget()
+        combo = QComboBox(host)
+        combo.addItems(["one", "two", "three"])
+        host.show()
+        _focus(qapp, combo)
+        combo.showPopup()
+        _focus(qapp, combo)
+        combo.view().setCurrentIndex(combo.model().index(2, 0))
+
+        handled = KeebKeys().eventFilter(
+            combo.view().viewport(), _key_press(Qt.Key_Space)
+        )
+
+        assert handled is True
+        assert combo.currentIndex() == 2
+        assert not combo.view().isVisible()
+        host.close()
+
+    def test_keys_on_an_unfocused_closed_combo_pass(self, qapp) -> None:
+        host = QWidget()
+        combo = QComboBox(host)
+        combo.addItems(["one"])
+        other = QPushButton("elsewhere", host)
+        host.show()
+        _focus(qapp, other)
+
+        assert KeebKeys().eventFilter(combo, _key_press(Qt.Key_Down)) is False
+        host.close()
+
     def test_other_popup_keys_stay_native(self, qapp) -> None:
         host = QWidget()
         combo = self._open(qapp, host)

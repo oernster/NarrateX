@@ -131,6 +131,11 @@ def refresh_voices(controller) -> None:
         combo.setCurrentIndex(names.index(previous))
     else:
         combo.setCurrentIndex(-1)
+        # A toggle just cost the user their pick: re-raise the amber
+        # choose-a-voice prompt exactly as a fresh book does, but only when
+        # there is a book to voice and there was a pick to lose.
+        if previous and book_is_loaded(controller):
+            begin_attention(controller)
 
     _update_toggle_cues(controller)
     apply_picker_availability(controller)
