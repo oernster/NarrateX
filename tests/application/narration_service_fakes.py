@@ -11,7 +11,6 @@ from voice_reader.domain.interfaces.book_repository import BookRepository
 from voice_reader.domain.interfaces.cache_repository import CacheRepository
 from voice_reader.domain.interfaces.preferences_repository import PreferencesRepository
 from voice_reader.domain.interfaces.tts_engine import TTSEngine
-from voice_reader.domain.services.reading_start_service import ReadingStart
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
 from voice_reader.domain.value_objects.playback_volume import PlaybackVolume
 
@@ -167,12 +166,3 @@ class FakePreferences(PreferencesRepository):
 
     def save_playback_volume(self, volume: PlaybackVolume) -> None:
         self.saved.append(volume)
-
-
-class FixedStart:
-    def __init__(self, fixed_start_char: int) -> None:
-        self.fixed_start_char = fixed_start_char
-
-    def detect_start(self, text: str) -> ReadingStart:
-        del text
-        return ReadingStart(start_char=self.fixed_start_char, reason="Fixed")

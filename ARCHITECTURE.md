@@ -58,7 +58,6 @@ Additionally, narration failure handling persists a best-effort resume position 
     - [`VoiceProfileRepository`](voice_reader/domain/interfaces/voice_profile_repository.py:1)
   - Pure services:
     - [`ChunkingService`](voice_reader/domain/services/chunking_service.py:32) via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
-    - [`ReadingStartService`](voice_reader/domain/services/reading_start_service.py:23) via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29): still used by the ideas index alone. Narration, the reading pane and the 🧠 Sections bookmarks all take the answer from the document model below.
     - [`SpokenTextSanitizer`](voice_reader/domain/services/spoken_text_sanitizer.py:27) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28)
   - Document model: [`voice_reader/domain/document`](voice_reader/domain/document:1), pure and format independent
     - [`Document`](voice_reader/domain/document/model.py:123) → [`Section`](voice_reader/domain/document/model.py:90) → [`Block`](voice_reader/domain/document/model.py:34), plus [`TocEntry`](voice_reader/domain/document/model.py:69). `Section` is named so rather than `Chapter` because [`Chapter`](voice_reader/domain/entities/chapter.py:1) already owns navigation metadata, and not every division of a book is a chapter.
@@ -67,7 +66,7 @@ Additionally, narration failure handling persists a best-effort resume position 
     - [`text_index.py`](voice_reader/domain/document/text_index.py:1): how extracted text is matched against the canonical text, shared by anchoring and narration planning
     - [`anchoring.py`](voice_reader/domain/document/anchoring.py:1): locates each draft in `normalized_text`
     - [`sectioning.py`](voice_reader/domain/document/sectioning.py:1), [`assembly.py`](voice_reader/domain/document/assembly.py:1): group anchored blocks into the finished document
-    - [`reading_start.py`](voice_reader/domain/document/reading_start.py:1): where the body begins, for both the pane and the narrator
+    - [`reading_start.py`](voice_reader/domain/document/reading_start.py:1): where the body begins, the single answer for the pane, the narrator, the 🧠 Sections bookmarks and the ideas-index scope
     - [`render_plan.py`](voice_reader/domain/document/render_plan.py:1): what the pane shows, and the source-to-render coordinate mapping
     - [`narration_plan.py`](voice_reader/domain/document/narration_plan.py:1): what the narrator speaks, as chunks in book coordinates
 
@@ -418,7 +417,6 @@ Tests are organized to mirror the architecture.
 - Domain layer tests: [`tests/domain`](tests/domain:1)
   - pure logic (no IO):
     - [`tests/domain/test_chunking_service.py`](tests/domain/test_chunking_service.py:1)
-    - [`tests/domain/test_reading_start_service.py`](tests/domain/test_reading_start_service.py:1)
     - [`tests/domain/test_spoken_text_sanitizer.py`](tests/domain/test_spoken_text_sanitizer.py:1)
   - the document model, one file per module (`tests/domain/test_document_*.py`), covering anchoring, block kinds, the format readers, sectioning, the reading start, the render plan and the narration plan
 
