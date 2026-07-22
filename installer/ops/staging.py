@@ -25,6 +25,12 @@ from installer.ops.progress import (
 
 logger = logging.getLogger("installer.install")
 
+# Streaming granularity for extraction. The bundle carries individual members
+# of hundreds of megabytes (models, Qt libraries); reporting only between
+# members held the bar still for the whole of each one, and gave Cancel
+# nothing to observe while one was in flight.
+_CHUNK_BYTES = 4 * 1024 * 1024
+
 
 def check_cancel(cancel_event) -> None:  # noqa: ANN001
     if cancel_event is not None and getattr(cancel_event, "is_set", lambda: False)():
@@ -43,8 +49,9 @@ def extract_payload_to(
 
     Extraction is the long part of an install and it used to run as a single
     blocking `extractall`, so the bar sat at its opening value until the whole
-    bundle had landed. Going member by member reports real progress and gives
-    Cancel somewhere to take effect, which a single call also denied it.
+    bundle had landed. Streaming each member in chunks reports real progress
+    even through the largest single files and gives Cancel a place to take
+    effect every few megabytes rather than only between members.
 
     `zip_path` defaults to the bundled payload. It is injectable so the
     reporting can be exercised against a small archive rather than only against
@@ -68,15 +75,25 @@ def extract_payload_to(
 
         for member in members:
             check_cancel(cancel_event)
-            zf.extract(member, staging_dir)
-            extracted += member.file_size
-
-            if total_bytes <= 0:
+            target = _member_target(staging_dir, member)
+            if member.is_dir():
+                target.mkdir(parents=True, exist_ok=True)
                 continue
-            pct = EXTRACT_START_PCT + int(span * extracted / total_bytes)
-            if pct != last_pct:
-                report(progress, pct=pct, message=EXTRACT_MESSAGE)
-                last_pct = pct
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with zf.open(member) as src, target.open("wb") as dst:
+                while True:
+                    chunk = src.read(_CHUNK_BYTES)
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+                    extracted += len(chunk)
+
+                    if total_bytes > 0:
+                        pct = EXTRACT_START_PCT + int(span * extracted / total_bytes)
+                        if pct != last_pct:
+                            report(progress, pct=pct, message=EXTRACT_MESSAGE)
+                            last_pct = pct
+                    check_cancel(cancel_event)
 
     check_cancel(cancel_event)
 
@@ -84,6 +101,17 @@ def extract_payload_to(
     internal = staging_dir / "_internal"
     if not exe.exists() or not internal.exists():
         raise InstallerOperationError("Payload is missing NarrateX.exe or _internal/")
+
+
+def _member_target(staging_dir: Path, member: zipfile.ZipInfo) -> Path:
+    """Resolve a member's destination, refusing paths that escape staging."""
+
+    target = (staging_dir / member.filename).resolve()
+    if not target.is_relative_to(staging_dir.resolve()):
+        raise InstallerOperationError(
+            f"Payload entry escapes the staging directory: {member.filename}"
+        )
+    return target
 
 
 def swap_in_bundle(staging_dir: Path, target_dir: Path) -> None:

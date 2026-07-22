@@ -129,6 +129,78 @@ class TestExtractionReportsProgress:
         extract_payload_to(tmp_path / "staging", zip_path=zip_path)
 
 
+class TestExtractionMovesWithinOneLargeMember:
+    # The bundle's biggest members are individually huge (models, Qt). A
+    # per-member report held the bar still for the whole of each one; the
+    # streamed extraction must report while a single member is in flight.
+
+    _BIG_MEMBER_BYTES = 40 * 1024 * 1024
+
+    def test_progress_rises_during_a_single_member(self, tmp_path: Path) -> None:
+        zip_path = tmp_path / "payload.zip"
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("NarrateX.exe", b"\0" * self._BIG_MEMBER_BYTES)
+            zf.writestr("_internal/base_library.zip", b"y")
+        reports = _Reports()
+
+        extract_payload_to(
+            tmp_path / "staging",
+            progress=reports,
+            zip_path=zip_path,
+        )
+
+        # Per-member reporting could produce at most three distinct values
+        # for two members (the opening one included). Streaming produces one
+        # per crossed percent inside the big member.
+        assert len(set(reports.percentages)) > 3, reports.percentages
+        assert reports.percentages == sorted(reports.percentages)
+
+
+class TestUninstallerCopyReportsProgress:
+    # The setup exe embeds the whole payload, so copying it into the install
+    # dir is the other long phase. A single copy2 read as a stall at the end
+    # of extraction and then a jump to the finish.
+
+    _SOURCE_BYTES = 12 * 1024 * 1024
+
+    def _copy(self, tmp_path: Path, monkeypatch, **kwargs):  # noqa: ANN001
+        from installer.constants import InstallerIdentity
+        from installer.ops import install_ops
+
+        source = tmp_path / "NarrateXSetup.exe"
+        source.write_bytes(b"\0" * self._SOURCE_BYTES)
+        monkeypatch.setattr(install_ops.sys, "executable", str(source))
+
+        identity = InstallerIdentity()
+        install_dir = tmp_path / "install"
+        dst = install_ops._copy_self_to_install(identity, install_dir, **kwargs)
+        return source, dst
+
+    def test_the_copy_reports_its_whole_band(self, tmp_path: Path, monkeypatch) -> None:
+        from installer.ops.progress import (
+            COPY_UNINSTALLER_END_PCT,
+            COPY_UNINSTALLER_START_PCT,
+        )
+
+        reports = _Reports()
+        source, dst = self._copy(tmp_path, monkeypatch, progress=reports)
+
+        percentages = reports.percentages
+        assert percentages[0] == COPY_UNINSTALLER_START_PCT
+        assert percentages[-1] == COPY_UNINSTALLER_END_PCT
+        assert percentages == sorted(percentages)
+        assert len(set(percentages)) > 2
+        assert dst.read_bytes() == source.read_bytes()
+
+    def test_cancelling_stops_the_copy(self, tmp_path: Path, monkeypatch) -> None:
+        class _AlreadyCancelled:
+            def is_set(self) -> bool:
+                return True
+
+        with pytest.raises(Exception, match="Cancelled"):
+            self._copy(tmp_path, monkeypatch, cancel_event=_AlreadyCancelled())
+
+
 class TestReportShape:
     def test_a_percentage_report_carries_both_fields(self) -> None:
         reports = _Reports()

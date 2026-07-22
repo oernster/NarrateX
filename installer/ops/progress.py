@@ -8,16 +8,21 @@ one place.
 
 from __future__ import annotations
 
-# Extraction owns the opening band because it is by far the longest phase: it
-# writes the entire application bundle to disk. The steps after it are quick
-# and each reports a single point.
+# Two phases dominate an install and each owns a band reported continuously:
+# extraction writes the application bundle to disk and the uninstaller copy
+# duplicates the whole setup executable (which embeds that same bundle) into
+# the install directory. The steps between and after are quick and each
+# reports a single point.
 EXTRACT_START_PCT = 10
 EXTRACT_END_PCT = 45
+COPY_UNINSTALLER_START_PCT = 50
+COPY_UNINSTALLER_END_PCT = 70
 REGISTER_PCT = 75
 SHORTCUTS_PCT = 90
 COMPLETE_PCT = 100
 
 EXTRACT_MESSAGE = "Extracting payload..."
+COPY_UNINSTALLER_MESSAGE = "Copying uninstaller..."
 
 
 def report(progress, *, pct: int | None, message: str) -> None:  # noqa: ANN001

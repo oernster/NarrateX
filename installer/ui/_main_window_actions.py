@@ -56,9 +56,9 @@ def connect_signals(window: InstallerMainWindow) -> None:
     except Exception:
         pass
     try:
-        window._btn_uninstall.clicked.connect(
-            lambda: window._request_operation(Operation.UNINSTALL)
-        )
+        # Uninstall always confirms first: it is the one destructive action
+        # here and it no longer wears a warning colour.
+        window._btn_uninstall.clicked.connect(window._confirm_and_run_uninstall)
     except Exception:
         pass
 
@@ -146,7 +146,8 @@ def set_buttons_for_allowed_ops(
     allowed: set[Operation] | frozenset[Operation],
 ) -> None:
     # Primary buttons are shown in the center row. We use up to two.
-    # Uninstall is shown separately in red.
+    # Uninstall sits on its own row below them, styled like every other
+    # valid action; its confirmation dialog carries the destructive weight.
     window._btn_uninstall.setVisible(Operation.UNINSTALL in allowed)
 
     primary_ops: list[Operation] = [

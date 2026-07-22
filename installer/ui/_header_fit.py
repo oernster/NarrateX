@@ -125,6 +125,17 @@ class HeaderFitController:
             return
 
         min_layout_h = cw.minimumSizeHint().height()
+
+        # Word-wrapping labels report height-for-width, and the box layout
+        # hands them that allocation first; sizing the window to the plain
+        # minimum then starves the fixed-height button rows below their
+        # minimums and they collide. The height-for-width answer is the real
+        # floor for the current width.
+        layout = cw.layout()
+        if layout is not None and layout.hasHeightForWidth():
+            hfw_width = cw.width() if cw.width() > 0 else w.width()
+            min_layout_h = max(min_layout_h, layout.heightForWidth(hfw_width))
+
         if min_layout_h <= 0:
             return
 

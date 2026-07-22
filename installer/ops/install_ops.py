@@ -17,6 +17,9 @@ from installer.constants import InstallerIdentity
 from installer.ops.errors import AppRunningError
 from installer.ops.progress import (
     COMPLETE_PCT,
+    COPY_UNINSTALLER_END_PCT,
+    COPY_UNINSTALLER_MESSAGE,
+    COPY_UNINSTALLER_START_PCT,
     EXTRACT_END_PCT,
     REGISTER_PCT,
     SHORTCUTS_PCT,
@@ -35,6 +38,10 @@ from voice_reader.version import APP_NAME, APP_AUTHOR, __version__
 
 logger = logging.getLogger("installer.install")
 
+# Streaming granularity for the uninstaller copy; same reasoning as
+# extraction's chunking, the source is one very large file.
+_COPY_CHUNK_BYTES = 4 * 1024 * 1024
+
 
 @dataclass(frozen=True, slots=True)
 class InstallOptions:
@@ -43,14 +50,47 @@ class InstallOptions:
     create_start_menu_shortcut: bool
 
 
-def _copy_self_to_install(identity: InstallerIdentity, install_dir: Path) -> Path:
+def _copy_self_to_install(
+    identity: InstallerIdentity,
+    install_dir: Path,
+    *,
+    progress=None,
+    cancel_event=None,
+) -> Path:  # noqa: ANN001
     install_dir = install_dir.resolve()
     dst = identity.installer_exe_path(install_dir)
     dst.parent.mkdir(parents=True, exist_ok=True)
 
     src = Path(sys.executable).resolve()
     logger.info("Copying installer from %s to %s", src, dst)
-    shutil.copy2(src, dst)
+
+    # The setup executable embeds the whole payload, so this copy is a long
+    # phase in its own right; a single copy2 held the bar still from the end
+    # of extraction until registration, which read as a stall then a jump.
+    total_bytes = src.stat().st_size
+    span = COPY_UNINSTALLER_END_PCT - COPY_UNINSTALLER_START_PCT
+    copied = 0
+    last_pct = COPY_UNINSTALLER_START_PCT
+    _progress(
+        progress,
+        pct=COPY_UNINSTALLER_START_PCT,
+        message=COPY_UNINSTALLER_MESSAGE,
+    )
+    with src.open("rb") as fsrc, dst.open("wb") as fdst:
+        while True:
+            _check_cancel(cancel_event)
+            chunk = fsrc.read(_COPY_CHUNK_BYTES)
+            if not chunk:
+                break
+            fdst.write(chunk)
+            copied += len(chunk)
+
+            if total_bytes > 0:
+                pct = COPY_UNINSTALLER_START_PCT + int(span * copied / total_bytes)
+                if pct != last_pct:
+                    _progress(progress, pct=pct, message=COPY_UNINSTALLER_MESSAGE)
+                    last_pct = pct
+    shutil.copystat(src, dst)
     return dst
 
 
@@ -190,10 +230,14 @@ def install_new(
         # install directory).
         _seed_user_preferences_defaults(volume_multiplier=0.25)
 
+        _check_cancel(cancel_event)
+        installer_copy = _copy_self_to_install(
+            identity, target_dir, progress=progress, cancel_event=cancel_event
+        )
+
         _progress(progress, pct=REGISTER_PCT, message="Registering uninstall entry...")
         _check_cancel(cancel_event)
         logger.info("Registering uninstall entry for %s", target_dir)
-        installer_copy = _copy_self_to_install(identity, target_dir)
         _register_uninstall(
             identity,
             install_dir=target_dir,
@@ -260,10 +304,14 @@ def upgrade_or_reinstall(
         # Ensure icon assets are present for the active install location.
         _deploy_runtime_icon_assets(install_dir=target_dir)
 
+        _check_cancel(cancel_event)
+        installer_copy = _copy_self_to_install(
+            identity, target_dir, progress=progress, cancel_event=cancel_event
+        )
+
         _progress(progress, pct=REGISTER_PCT, message="Registering uninstall entry...")
         _check_cancel(cancel_event)
         logger.info("Registering uninstall entry for %s", target_dir)
-        installer_copy = _copy_self_to_install(identity, target_dir)
         _register_uninstall(
             identity,
             install_dir=target_dir,

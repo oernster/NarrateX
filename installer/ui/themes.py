@@ -1,12 +1,13 @@
 """Light and dark themes (QSS) for the installer UI.
 
 Teal is the accent (the app's chapter-spine teal, #14b8a6): headings, the
-progress fill and the border around every standard button. Interaction
-states follow platform convention rather than the app's ring language: a
-hovered or focused button brightens its teal border, a disabled control
-goes muted grey. Every button is rounded, with each radius kept at or
-below half the rendered height because Qt silently drops a larger radius
-and paints square corners.
+progress fill and the border around every button, Uninstall included; every
+valid action carries the same colour and destructive intent is guarded by
+its confirmation dialog, not by paint. Interaction states follow platform
+convention rather than the app's ring language: a hovered or focused button
+brightens its teal border, a disabled control goes muted grey. Every button
+is rounded, with each radius kept at or below half the rendered height
+because Qt silently drops a larger radius and paints square corners.
 """
 
 from __future__ import annotations
@@ -70,15 +71,15 @@ LIGHT = Theme(
         }
 
         QPushButton#DangerAction {
-            background: #b91c1c; color: white;
-            border: 2px solid transparent;
+            background: #ffffff; color: #1f2937;
+            border: 2px solid #0f766e;
             padding: 6px 26px; border-radius: 23px; font-size: 13px;
             min-height: 46px; max-height: 46px;
             font-weight: 700; min-width: 190px;
         }
         QPushButton#DangerAction:enabled:hover,
         QPushButton#DangerAction:enabled:focus {
-            background: #dc2626;
+            border-color: #14b8a6; background: #f0fdfa;
         }
         QPushButton#DangerAction:disabled {
             background: #f3f4f6; border-color: #d1d5db; color: #9ca3af;
@@ -171,15 +172,15 @@ DARK = Theme(
         }
 
         QPushButton#DangerAction {
-            background: #7a1f25; color: #e5e7eb;
-            border: 2px solid transparent;
+            background: #121826; color: #e5e7eb;
+            border: 2px solid #14b8a6;
             padding: 6px 26px; border-radius: 23px; font-size: 13px;
             min-height: 46px; max-height: 46px;
             font-weight: 700; min-width: 190px;
         }
         QPushButton#DangerAction:enabled:hover,
         QPushButton#DangerAction:enabled:focus {
-            background: #96262e;
+            border-color: #2dd4bf; background: #16202f;
         }
         QPushButton#DangerAction:disabled {
             background: #0f1420; border-color: #374151; color: #64748b;
