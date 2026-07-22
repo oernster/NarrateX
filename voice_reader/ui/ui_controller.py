@@ -102,6 +102,8 @@ class UiController(QObject):
         self._ideas_launch_inflight: bool = False
         self._ideas_launch_cancel: threading.Event | None = None
         self._ideas_launch_thread: threading.Thread | None = None
+        self._book_load_inflight: bool = False
+        self._book_load_thread: threading.Thread | None = None
 
         self._chapter_index_service = ChapterIndexService()
         self._chapters: list[Chapter] = []

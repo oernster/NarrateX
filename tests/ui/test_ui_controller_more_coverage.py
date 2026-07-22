@@ -16,6 +16,7 @@ from tests.ui.ui_controller_fakes import (
     FakeIdeasRepo,
     FakeNarration,
     FakeVoiceRepo,
+    InlineThread,
 )
 
 
@@ -266,4 +267,9 @@ def test_select_book_cover_extractor_failure_is_ignored(
             extract_cover_bytes=lambda path: (_ for _ in ()).throw(RuntimeError("x"))
         ),
     )
+    # Run the load worker inline so the failure path executes deterministically.
+    from voice_reader.ui import _ui_controller_book_loading as book_loading
+
+    monkeypatch.setattr(book_loading.threading, "Thread", InlineThread)
     c.select_book()
+    assert c._book_load_inflight is False  # noqa: SLF001

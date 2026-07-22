@@ -105,3 +105,23 @@ class FakeIdeasRepo:
 
     def save_doc_atomic(self, *, book_id: str, doc: dict) -> None:
         del book_id, doc
+
+
+class InlineThread:
+    """A threading.Thread stand-in that runs its target on start().
+
+    Book loading now runs on a worker thread; patching this in makes the
+    whole pipeline run synchronously so tests stay deterministic.
+    """
+
+    def __init__(
+        self, *, target=None, args=(), kwargs=None, daemon=None, name=None
+    ) -> None:
+        del daemon, name
+        self._target = target
+        self._args = tuple(args)
+        self._kwargs = dict(kwargs or {})
+
+    def start(self) -> None:
+        if self._target is not None:
+            self._target(*self._args, **self._kwargs)
