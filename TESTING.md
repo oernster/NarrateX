@@ -31,10 +31,12 @@ gate, so a substring search for `passed` or `failed` matches coverage filenames
 rather than results. Read the exit code: `0` means every test passed **and** the
 coverage gate was met.
 
-Run lint:
+Run lint (all three run clean from the repo root):
 
 ```bash
+python -m black --check .
 python -m flake8
+python -m ruff check .
 ```
 
 ## Windows UI QA matrix (installer + app)

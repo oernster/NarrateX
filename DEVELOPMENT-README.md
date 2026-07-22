@@ -173,8 +173,10 @@ Two build paths are provided for Linux:
 - Flatpak (sandboxed, self-contained): build and install with
   [`build_flatpak.sh`](build_flatpak.sh). The Flatpak bundles the audio backend,
   the espeak-ng phonemizer and the spaCy model, so no system dependencies are
-  required at run time. To uninstall and purge the Flatpak, use
-  [`cleanup_flatpak.sh`](cleanup_flatpak.sh).
+  required at run time. It ships its own managed Python runtime with pre-built
+  wheels, so the startup Python-window guard detects the sandbox (via
+  `/.flatpak-info`) and stands down there. To uninstall and purge the Flatpak,
+  use [`cleanup_flatpak.sh`](cleanup_flatpak.sh).
 - Native onedir bundle (PyInstaller): build with [`buildlinux.py`](buildlinux.py:1),
   producing `dist-pyinstaller/NarrateX/`.
 
