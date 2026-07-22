@@ -132,6 +132,41 @@ def test_confirmed_removal_forgets_the_book_and_resets_the_ui(qapp) -> None:
     assert window.voice_combo.isEnabled() is False
 
 
+def test_remove_button_enables_when_a_state_update_lands_with_a_book(qapp) -> None:
+    # The reported bug: auto-loading a book drove the state pipeline, which
+    # re-enabled the picker but left the remove control locked.
+    c, _, _ = _controller(qapp)
+    c.window.btn_remove_book.setEnabled(False)  # as built, pre-load
+
+    c._apply_state(  # noqa: SLF001
+        NarrationState(
+            status=NarrationStatus.IDLE,
+            current_chunk_id=None,
+            total_chunks=None,
+            progress=0.0,
+            message="Loaded 'probe'",
+        )
+    )
+
+    assert c.window.btn_remove_book.isEnabled() is True
+
+
+def test_remove_button_locks_while_narration_is_busy(qapp) -> None:
+    c, _, _ = _controller(qapp)
+    c.window.btn_remove_book.setEnabled(True)
+
+    c._apply_state(  # noqa: SLF001
+        NarrationState(
+            status=NarrationStatus.PLAYING,
+            current_chunk_id=1,
+            total_chunks=10,
+            progress=0.1,
+        )
+    )
+
+    assert c.window.btn_remove_book.isEnabled() is False
+
+
 def test_removal_survives_a_hostile_environment(qapp) -> None:
     # Every seam is allowed to fail without aborting the removal or raising.
     del qapp

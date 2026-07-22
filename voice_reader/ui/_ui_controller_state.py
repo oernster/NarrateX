@@ -117,6 +117,8 @@ def apply_state(controller, state: object) -> None:
     # Lock voice + speed only (volume must remain editable). The picker
     # toggles change the effective voice, so they lock with the dropdown;
     # the picker additionally needs a loaded book before it enables at all.
+    # Remove-book shares both gates: there must be a book, and removal is
+    # locked while narration is busy with it.
     editable_statuses = {
         NarrationStatus.IDLE,
         NarrationStatus.PAUSED,
@@ -135,6 +137,7 @@ def apply_state(controller, state: object) -> None:
         (getattr(controller.window, "speed_combo", None), False),
         (getattr(controller.window, "btn_voice_sex", None), True),
         (getattr(controller.window, "btn_voice_region", None), True),
+        (getattr(controller.window, "btn_remove_book", None), True),
     ):
         if combo is None:
             continue
