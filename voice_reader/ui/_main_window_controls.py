@@ -203,12 +203,12 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     window.btn_ideas.setFont(QFont(_EMOJI_CUE_FONT_FAMILY, _EMOJI_CUE_POINT_SIZE))
     window.btn_ideas.setProperty("topIconButton", True)
 
-    # Voice picker toggles: gender and region, filtering the dropdown.
+    # Voice picker toggles: sex and region, filtering the dropdown.
     # Same family as the top icon buttons; glyphs and tooltips are kept
     # current by the controller's refresh.
-    window.btn_voice_gender = QToolButton()
+    window.btn_voice_sex = QToolButton()
     window.btn_voice_region = QToolButton()
-    for b in (window.btn_voice_gender, window.btn_voice_region):
+    for b in (window.btn_voice_sex, window.btn_voice_region):
         b.setCursor(Qt.PointingHandCursor)
         b.setAutoRaise(True)
         b.setFixedSize(38, 38)
@@ -219,7 +219,7 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     # closed dropdown rather than changing its value).
     window._picker_keys = PickerKeys(window)  # noqa: SLF001
     for w in (
-        window.btn_voice_gender,
+        window.btn_voice_sex,
         window.btn_voice_region,
         window.voice_combo,
         window.speed_combo,
@@ -241,7 +241,7 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
         window.lbl_voice_icon.setToolTip(voice_label)
         zone_a.addWidget(window.lbl_voice_icon)
     zone_a.addWidget(QLabel(voice_label))
-    zone_a.addWidget(window.btn_voice_gender)
+    zone_a.addWidget(window.btn_voice_sex)
     zone_a.addWidget(window.btn_voice_region)
     zone_a.addWidget(window.voice_combo)
     zone_a.addWidget(QLabel("Speed"))

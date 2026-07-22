@@ -52,7 +52,7 @@ from voice_reader.ui._ui_controller_book_loading import (
 from voice_reader.ui._ui_controller_voices import (
     cycle_voice_region,
     refresh_voices,
-    toggle_voice_gender,
+    toggle_voice_sex,
     voice_label,
 )
 from voice_reader.ui._ui_controller_wiring import connect_signals
@@ -100,7 +100,7 @@ class UiController(QObject):
 
         self._voices: Sequence[VoiceProfile] = []
         self._voice_region_index: int = 0
-        self._voice_gender_index: int = 0
+        self._voice_sex_index: int = 0
         self._last_prepared_voice_id: str | None = None
         self._cover_extractor: CoverExtractor = cover_extractor or _NullCoverExtractor()
         self._bookmarks_dialog = None
@@ -316,8 +316,8 @@ class UiController(QObject):
     def refresh_voices(self) -> None:
         return refresh_voices(self)
 
-    def toggle_voice_gender(self) -> None:
-        return toggle_voice_gender(self)
+    def toggle_voice_sex(self) -> None:
+        return toggle_voice_sex(self)
 
     def cycle_voice_region(self) -> None:
         return cycle_voice_region(self)

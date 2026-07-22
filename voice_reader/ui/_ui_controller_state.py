@@ -126,7 +126,7 @@ def apply_state(controller, state: object) -> None:
     for combo in (
         getattr(controller.window, "voice_combo", None),
         getattr(controller.window, "speed_combo", None),
-        getattr(controller.window, "btn_voice_gender", None),
+        getattr(controller.window, "btn_voice_sex", None),
         getattr(controller.window, "btn_voice_region", None),
     ):
         if combo is None:

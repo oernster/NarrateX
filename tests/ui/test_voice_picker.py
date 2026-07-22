@@ -1,6 +1,6 @@
-"""The voice picker: gender and region toggles filtering the dropdown.
+"""The voice picker: sex and region toggles filtering the dropdown.
 
-The dropdown only ever shows the current gender and region combination;
+The dropdown only ever shows the current sex and region combination;
 the toggles carry their state as glyphs; the user's pick survives a
 refresh when it still matches; and the deliberate default (bf_emma) wins
 over whatever sorts first alphabetically.
@@ -71,17 +71,17 @@ def test_default_is_british_female_with_emma_selected(qapp) -> None:
     ]
     # The deliberate default beats alphabetical order.
     assert c.window.voice_combo.currentData() == "bf_emma"
-    assert c.window.btn_voice_gender.text() == "♀"
+    assert c.window.btn_voice_sex.text() == "♀"
     assert c.window.btn_voice_region.text() == "🇬🇧"
 
 
-def test_gender_toggle_switches_to_british_males(qapp) -> None:
+def test_sex_toggle_switches_to_british_males(qapp) -> None:
     c = _controller(qapp, FULL_SET)
 
-    c.toggle_voice_gender()
+    c.toggle_voice_sex()
 
     assert _labels(c) == ["Daniel (British Male)", "George (British Male)"]
-    assert c.window.btn_voice_gender.text() == "♂"
+    assert c.window.btn_voice_sex.text() == "♂"
 
 
 def test_region_cycle_reaches_american_voices(qapp) -> None:
@@ -123,7 +123,7 @@ def test_an_unparseable_voice_shows_in_every_combination(qapp) -> None:
             assert "customvoice" in data
             assert "zf_zoe" in data
             assert "bx_bob" in data
-            c.toggle_voice_gender()
+            c.toggle_voice_sex()
         c.cycle_voice_region()
 
 
@@ -145,9 +145,9 @@ def test_toggles_lock_with_the_dropdown_during_playback(qapp) -> None:
         )
 
     c._apply_state(_state(NarrationStatus.PLAYING))  # noqa: SLF001
-    assert c.window.btn_voice_gender.isEnabled() is False
+    assert c.window.btn_voice_sex.isEnabled() is False
     assert c.window.btn_voice_region.isEnabled() is False
 
     c._apply_state(_state(NarrationStatus.IDLE))  # noqa: SLF001
-    assert c.window.btn_voice_gender.isEnabled() is True
+    assert c.window.btn_voice_sex.isEnabled() is True
     assert c.window.btn_voice_region.isEnabled() is True
