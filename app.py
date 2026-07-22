@@ -1,18 +1,26 @@
 from __future__ import annotations
 
+import os
 import sys
 
-from voice_reader.shared.startup_diagnostics import enforce_supported_python
+from voice_reader.shared.startup_diagnostics import (
+    enforce_supported_python,
+    running_in_flatpak,
+)
 
 # Before the heavy imports: on an unsupported interpreter nothing installed, so
-# the next import fails with a message that never mentions the real cause.
-enforce_supported_python(sys.version_info, write=lambda m: print(m, file=sys.stderr))
+# the next import fails with a message that never mentions the real cause. The
+# Flatpak ships its own known-good 3.13 wheels, so the check is skipped there.
+enforce_supported_python(
+    sys.version_info,
+    write=lambda m: print(m, file=sys.stderr),
+    in_managed_runtime=running_in_flatpak(path_exists=os.path.exists),
+)
 
 import importlib
 import importlib.metadata
 import logging
 import multiprocessing as mp
-import os
 import shutil
 import traceback
 from pathlib import Path

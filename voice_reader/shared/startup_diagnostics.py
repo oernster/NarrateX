@@ -53,17 +53,37 @@ def unsupported_python_message(version: tuple[int, ...]) -> str | None:
     )
 
 
+def running_in_flatpak(*, path_exists: Callable[[str], bool]) -> bool:
+    """True when executing inside a Flatpak sandbox.
+
+    The runtime always mounts /.flatpak-info into the sandbox, so its presence
+    is the canonical marker regardless of how the app was launched. Injectable
+    so the guard below stays testable without a real sandbox.
+    """
+
+    return path_exists("/.flatpak-info")
+
+
 def enforce_supported_python(
     version: tuple[int, ...],
     *,
     write: Callable[[str], None],
+    in_managed_runtime: bool = False,
 ) -> None:
     """Stop the program when the interpreter is outside the supported window.
 
     Kept here rather than inline at the entrypoint so the behaviour is tested
     and the entrypoint stays a single call before its heavy imports.
+
+    The guard exists because a venv built on an out-of-range interpreter cannot
+    resolve `requirements.txt` (kokoro pins >=3.10,<3.13). A managed runtime
+    such as Flatpak sidesteps that entirely: it ships pre-built wheels that run
+    on 3.13, so `in_managed_runtime` disables the check where its premise never
+    holds. Without this, the Flatpak (Python 3.13) exits before the UI appears.
     """
 
+    if in_managed_runtime:
+        return
     message = unsupported_python_message(version)
     if message is None:
         return

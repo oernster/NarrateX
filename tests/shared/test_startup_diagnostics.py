@@ -6,6 +6,7 @@ import pytest
 
 from voice_reader.shared.startup_diagnostics import (
     enforce_supported_python,
+    running_in_flatpak,
     unsupported_python_message,
 )
 
@@ -73,3 +74,22 @@ class TestEnforceSupportedPython:
 
         assert len(written) == 1
         assert "3.13" in written[0]
+
+    def test_a_managed_runtime_skips_the_check(self) -> None:
+        # The Flatpak runs on 3.13 with pre-built wheels, so the guard whose
+        # premise is venv resolution must not fire there.
+        written: list[str] = []
+
+        enforce_supported_python(
+            (3, 13, 0), write=written.append, in_managed_runtime=True
+        )
+
+        assert written == []
+
+
+class TestRunningInFlatpak:
+    def test_it_is_true_when_the_sandbox_marker_exists(self) -> None:
+        assert running_in_flatpak(path_exists=lambda p: p == "/.flatpak-info")
+
+    def test_it_is_false_without_the_marker(self) -> None:
+        assert not running_in_flatpak(path_exists=lambda _p: False)
