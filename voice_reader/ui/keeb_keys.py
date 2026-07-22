@@ -11,10 +11,15 @@ everywhere:
 - Inside an OPEN dropdown popup, Space commits the highlighted item, and
   Tab or Shift+Tab commits it AND steps to the next or previous stop, so
   choosing a voice and moving on is one gesture.
-- Left and Right step the focus ring exactly like Tab and Shift+Tab on
-  every button, closed dropdown and list stop (a closed dropdown would
-  otherwise silently change value on the horizontal arrows). Text panes
-  keep their arrows for the caret and for scrolling.
+- Plain Left and Right step the focus ring exactly like Tab and Shift+Tab
+  on every button, closed dropdown, list stop and READ-ONLY text pane (the
+  reader word-wraps, so horizontal scrolling loses nothing; Up/Down still
+  scroll it and Shift+arrows still select). A closed dropdown would
+  otherwise silently change value on the arrows, and an editable field
+  keeps every arrow for its caret.
+- Plain Up and Down on a plain button stop are consumed: a button has no
+  vertical cursor, and Qt would otherwise wander focus geometrically,
+  losing the ring.
 - The volume stop (the speaker button) keeps the vertical arrows as its
   internal cursor, adjusting the slider linked via its
   `keeb_volume_slider` attribute; the horizontal arrows step the ring
@@ -40,6 +45,8 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QComboBox,
+    QPlainTextEdit,
+    QTextEdit,
     QWidget,
 )
 
@@ -59,6 +66,29 @@ def _step_ring(widget, *, forward: bool) -> None:
     else:
         event = QKeyEvent(QEvent.KeyPress, Qt.Key_Backtab, Qt.ShiftModifier)
     QApplication.postEvent(widget, event)
+
+
+def _is_plain(event) -> bool:
+    """No Shift/Ctrl/Alt: a modified arrow keeps its native meaning."""
+
+    blocked = (
+        Qt.KeyboardModifier.ShiftModifier
+        | Qt.KeyboardModifier.ControlModifier
+        | Qt.KeyboardModifier.AltModifier
+    )
+    return not (event.modifiers() & blocked)
+
+
+def _rides_the_ring_horizontally(widget) -> bool:
+    """Stops whose plain Left/Right mean ring travel, not an internal cursor.
+
+    A read-only text pane qualifies: the reader word-wraps, so it has no
+    horizontal scroll to own, while an editable field keeps its caret keys.
+    """
+
+    if isinstance(widget, (QAbstractButton, QAbstractItemView)):
+        return True
+    return isinstance(widget, (QTextEdit, QPlainTextEdit)) and widget.isReadOnly()
 
 
 def _owning_combo(obj) -> QComboBox | None:
@@ -124,13 +154,21 @@ class KeebKeys(QObject):
                 slider.setValue(int(slider.value()) - _VOLUME_KEY_STEP)
                 return True
 
-        # Left and Right are ring steps on button and list stops. Text panes
-        # never reach here for the alias (they keep their caret and scroll
-        # arrows), and an open popup was already handled above.
-        if key in _HORIZONTAL_KEYS and isinstance(
-            focused, (QAbstractButton, QAbstractItemView)
+        # Plain Left and Right are ring steps on button, list and read-only
+        # text stops; an open popup was already handled above.
+        if key in _HORIZONTAL_KEYS and _is_plain(event):
+            if _rides_the_ring_horizontally(focused):
+                _step_ring(focused, forward=key == Qt.Key_Right)
+                return True
+            return False
+
+        # A plain button stop has no vertical cursor; consuming Up and Down
+        # stops Qt wandering focus geometrically and losing the ring.
+        if (
+            key in (Qt.Key_Up, Qt.Key_Down)
+            and _is_plain(event)
+            and isinstance(focused, QAbstractButton)
         ):
-            _step_ring(focused, forward=key == Qt.Key_Right)
             return True
 
         return False
@@ -164,6 +202,10 @@ class KeebKeys(QObject):
             # Natively these would silently change the combo's value; on the
             # ring they mean stepping to the neighbouring stop.
             _step_ring(combo, forward=key == Qt.Key_Right)
+            return True
+        if key == Qt.Key_Up:
+            # Natively Up also changes a closed combo's value silently; a
+            # closed dropdown only ever opens (Down) or is stepped past.
             return True
         return False
 

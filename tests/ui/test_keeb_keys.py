@@ -13,8 +13,8 @@ from PySide6.QtWidgets import QComboBox, QPushButton, QSlider, QToolButton, QWid
 from voice_reader.ui.keeb_keys import KeebKeys, install_keeb_keys
 
 
-def _key_press(key) -> QKeyEvent:
-    return QKeyEvent(QEvent.KeyPress, key, Qt.NoModifier)
+def _key_press(key, modifiers=Qt.NoModifier) -> QKeyEvent:
+    return QKeyEvent(QEvent.KeyPress, key, modifiers)
 
 
 def _focus(qapp, widget) -> None:
@@ -146,13 +146,15 @@ class TestVolumeStop:
         assert KeebKeys().eventFilter(button, _key_press(Qt.Key_Down)) is True
         assert slider.value() == 0
 
-    def test_vertical_arrows_on_an_unlinked_widget_pass(self, qapp) -> None:
+    def test_vertical_arrows_on_a_non_button_widget_pass(self, qapp) -> None:
+        # A focusable widget that is neither a button nor volume-linked
+        # keeps its native vertical arrows (a slider steps itself).
         host = QWidget()
-        button = QPushButton("plain", host)
+        slider = QSlider(Qt.Horizontal, host)
         host.show()
-        _focus(qapp, button)
+        _focus(qapp, slider)
 
-        assert KeebKeys().eventFilter(button, _key_press(Qt.Key_Up)) is False
+        assert KeebKeys().eventFilter(slider, _key_press(Qt.Key_Up)) is False
         host.close()
 
 
@@ -210,14 +212,85 @@ class TestRingArrows:
         assert qapp.focusWidget() is neighbour
         host.close()
 
-    def test_a_text_pane_keeps_its_arrows(self, qapp) -> None:
+    def test_a_read_only_pane_rides_the_ring_horizontally(self, qapp) -> None:
+        # The reader word-wraps, so Left/Right have no scroll to own; they
+        # step the ring rather than trapping the cursor invisibly.
         from PySide6.QtWidgets import QTextEdit
 
         host = QWidget()
         pane = QTextEdit(host)
-        pane.setPlainText("scrollable prose")
+        pane.setPlainText("wrapped prose")
+        pane.setReadOnly(True)
+        pane.setTabChangesFocus(True)
+        neighbour = QPushButton("next stop", host)
+        host.show()
+        _focus(qapp, pane)
+
+        handled = KeebKeys().eventFilter(pane, _key_press(Qt.Key_Right))
+        qapp.processEvents()
+
+        assert handled is True
+        assert qapp.focusWidget() is neighbour
+        host.close()
+
+    def test_an_editable_pane_keeps_its_caret_arrows(self, qapp) -> None:
+        from PySide6.QtWidgets import QTextEdit
+
+        host = QWidget()
+        pane = QTextEdit(host)
+        pane.setPlainText("editable prose")
         host.show()
         _focus(qapp, pane)
 
         assert KeebKeys().eventFilter(pane, _key_press(Qt.Key_Right)) is False
+        host.close()
+
+    def test_a_modified_arrow_keeps_its_native_meaning(self, qapp) -> None:
+        # Shift+Right selects text in the reader; it must never ring-step.
+        from PySide6.QtWidgets import QTextEdit
+
+        host = QWidget()
+        pane = QTextEdit(host)
+        pane.setPlainText("selectable prose")
+        pane.setReadOnly(True)
+        host.show()
+        _focus(qapp, pane)
+
+        handled = KeebKeys().eventFilter(
+            pane, _key_press(Qt.Key_Right, Qt.ShiftModifier)
+        )
+
+        assert handled is False
+        host.close()
+
+    def test_vertical_arrows_on_a_button_are_consumed_not_wandering(self, qapp) -> None:
+        # Qt's default arrow navigation would hop focus geometrically,
+        # losing the ring; a plain button stop has no vertical cursor.
+        host = QWidget()
+        first = QPushButton("first", host)
+        QPushButton("below", host)
+        host.show()
+        _focus(qapp, first)
+
+        keys = KeebKeys()
+        assert keys.eventFilter(first, _key_press(Qt.Key_Down)) is True
+        assert keys.eventFilter(first, _key_press(Qt.Key_Up)) is True
+        qapp.processEvents()
+        assert qapp.focusWidget() is first
+        host.close()
+
+    def test_up_on_a_closed_combo_is_consumed_without_changing_value(
+        self, qapp
+    ) -> None:
+        host = QWidget()
+        combo = QComboBox(host)
+        combo.addItems(["one", "two", "three"])
+        combo.setCurrentIndex(1)
+        host.show()
+        _focus(qapp, combo)
+
+        handled = KeebKeys().eventFilter(combo, _key_press(Qt.Key_Up))
+
+        assert handled is True
+        assert combo.currentIndex() == 1
         host.close()

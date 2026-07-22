@@ -86,6 +86,12 @@ def apply_main_window_theme(window) -> None:
                 background: {panel};
                 border: 1px solid #1f2937;
             }}
+            /* The reader is a ring stop (arrows scroll it, Tab and the
+               horizontal arrows leave it), so focus must be visible on it
+               like any other stop. */
+            QTextEdit:enabled:focus, QPlainTextEdit:enabled:focus {{
+                border: 1px solid {ring_green};
+            }}
             QComboBox {{
                 background: {panel};
                 border: 2px solid #1f2937;
