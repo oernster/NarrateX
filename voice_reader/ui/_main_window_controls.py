@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QEvent, QObject, QSize, Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -28,6 +28,8 @@ from PySide6.QtWidgets import (
     QSlider,
     QToolButton,
 )
+
+from voice_reader.ui.keeb_keys import install_keeb_keys
 
 # The reference emoji size is the top icon buttons (🧠 and 🔖 at 16pt).
 # The book and mic cues render at this size so every emoji reads equally.
@@ -119,29 +121,6 @@ def _split_leading_emoji(text: str) -> tuple[str | None, str]:
     return None, str(text)
 
 
-class PickerKeys(QObject):
-    """Keeb key handling for the voice picker controls.
-
-    - Return/Enter clicks a focused toggle button (Qt only honours Space in
-      a main window).
-    - Down on a CLOSED combo opens its popup instead of silently changing
-      the value; the open popup then owns its own keys natively.
-    """
-
-    def eventFilter(self, obj, event) -> bool:  # noqa: N802 (Qt naming)
-        if event.type() != QEvent.KeyPress:
-            return False
-        key = event.key()
-        if isinstance(obj, QToolButton) and key in (Qt.Key_Return, Qt.Key_Enter):
-            obj.click()
-            return True
-        if isinstance(obj, QComboBox) and key == Qt.Key_Down:
-            if not obj.view().isVisible():
-                obj.showPopup()
-                return True
-        return False
-
-
 def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayout]:
     """Build the controls row and the chapter-nav row.
 
@@ -226,16 +205,25 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
         pass
 
     # Volume control (session-only, editable during playback).
-    window.lbl_volume_icon = QLabel("🔊")
-    window.lbl_volume_icon.setToolTip("Volume")
-    window.lbl_volume_icon.setFont(QFont("Segoe UI Emoji", 13))
-
     window.volume_slider = QSlider(Qt.Horizontal)
     window.volume_slider.setRange(0, 100)
     # UX default: 25% until a persisted preference is loaded.
     window.volume_slider.setValue(25)
     window.volume_slider.setFixedWidth(140)
     window.volume_slider.setToolTip("Volume")
+    # The volume STOP on the keyboard ring is the speaker button, never the
+    # slider: the ring highlights the emoji and Up/Down adjust the level.
+    window.volume_slider.setFocusPolicy(Qt.NoFocus)
+
+    window.lbl_volume_icon = QToolButton()
+    window.lbl_volume_icon.setText("🔊")
+    window.lbl_volume_icon.setToolTip("Volume (Up/Down adjusts while focused)")
+    window.lbl_volume_icon.setFont(QFont(_EMOJI_CUE_FONT_FAMILY, 13))
+    window.lbl_volume_icon.setAutoRaise(True)
+    window.lbl_volume_icon.setFixedSize(38, 38)
+    window.lbl_volume_icon.setProperty("topIconButton", True)
+    # The app-wide keeb filter reads this link to route Up/Down.
+    window.lbl_volume_icon.keeb_volume_slider = window.volume_slider
 
     window.btn_bookmarks = QToolButton()
     window.btn_bookmarks.setText("🔖")
@@ -268,16 +256,10 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
         b.setFont(QFont(_EMOJI_CUE_FONT_FAMILY, _EMOJI_CUE_POINT_SIZE))
         b.setProperty("topIconButton", True)
 
-    # Keeb key handling for the picker (Enter clicks toggles; Down opens a
-    # closed dropdown rather than changing its value).
-    window._picker_keys = PickerKeys(window)  # noqa: SLF001
-    for w in (
-        window.btn_voice_sex,
-        window.btn_voice_region,
-        window.voice_combo,
-        window.speed_combo,
-    ):
-        w.installEventFilter(window._picker_keys)  # noqa: SLF001
+    # Keeb key handling is app-wide now (Enter clicks the focused button,
+    # Down/Enter open a closed dropdown, Up/Down drive the volume stop), so
+    # every dialog inherits the same rules as the picker.
+    install_keeb_keys()
 
     # Zone A: setup/content selection (left). The voice caption lives in
     # the combo's own placeholder now, so no external mic label repeats it.

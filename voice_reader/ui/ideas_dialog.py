@@ -103,6 +103,8 @@ class IdeasDialog(QDialog):
 
         self.btn_goto.clicked.connect(self._on_goto)
         self.btn_close.clicked.connect(self.close)
+        # Double-clicking an idea is the same gesture as Go To.
+        self.list.itemDoubleClicked.connect(lambda _item: self._on_goto())
 
         self.refresh()
 

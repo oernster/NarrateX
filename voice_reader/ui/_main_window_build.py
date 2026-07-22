@@ -171,6 +171,9 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     window.reader = SeekableTextEdit()
     window.reader.setReadOnly(True)
     window.reader.setFont(QFont("Segoe UI", 11))
+    # The reader is the scrollable-content stop: the arrows scroll it and
+    # Tab leaves it. Without this, a read-only QTextEdit swallows Tab.
+    window.reader.setTabChangesFocus(True)
     reader_row.addWidget(window.reader, stretch=1)
 
     cover_panel = QVBoxLayout()
@@ -197,4 +200,30 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     window.log = None
 
     window.setCentralWidget(central)
+
+    # Explicit keyboard ring in visual order, replacing creation-order
+    # traversal. Qt wraps from the last stop back to the first, so Tab on
+    # Next Chapter proceeds to Select Book. Disabled stops are skipped by
+    # Qt natively.
+    ring = [
+        window.btn_select_book,
+        window.btn_voice_sex,
+        window.btn_voice_region,
+        window.voice_combo,
+        window.speed_combo,
+        window.btn_play_pause,
+        window.btn_stop,
+        window.lbl_volume_icon,
+        window.btn_bookmarks,
+        window.btn_ideas,
+        window.btn_ui_licence,
+        window.btn_backend_licence,
+        window.btn_help,
+        window.reader,
+        window.btn_prev_chapter,
+        window.btn_next_chapter,
+    ]
+    for earlier, later in zip(ring, ring[1:]):
+        QWidget.setTabOrder(earlier, later)
+
     apply_main_window_theme(window)

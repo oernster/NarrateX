@@ -6,10 +6,44 @@ Extracted to keep [`MainWindow`](voice_reader/ui/main_window.py:40) compact.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
+from PySide6.QtWidgets import (
+    QDialog,
+    QMessageBox,
+    QProxyStyle,
+    QStyle,
+    QStyleFactory,
+    QWidget,
+)
 
 from voice_reader.ui.licence_dialog import PlainTextLicenceDialog, read_licence_text
 from voice_reader.version import APP_AUTHOR, APP_COPYRIGHT, APP_NAME, __version__
+
+
+class _NoFocusRectStyle(QProxyStyle):
+    """Drop the platform style's native focus rectangle everywhere.
+
+    The QSS green ring is the app's one focus indicator; some platform
+    styles additionally draw an inner focus rectangle (white on the dark
+    theme) on focused buttons and sliders. Suppressing the primitive at the
+    style level constrains that out of existence for every control and
+    every dialog, rather than chasing it per widget with outline rules.
+    """
+
+    def drawPrimitive(self, element, option, painter, widget=None) -> None:
+        if element == QStyle.PrimitiveElement.PE_FrameFocusRect:
+            return
+        super().drawPrimitive(element, option, painter, widget)
+
+
+def _install_no_focus_rect_style(app) -> None:
+    """Wrap the application style once; further calls are no-ops."""
+
+    if getattr(app, "_no_focus_rect_style", None) is not None:
+        return
+    base = QStyleFactory.create(app.style().objectName())
+    style = _NoFocusRectStyle(base) if base is not None else _NoFocusRectStyle()
+    app.setStyle(style)
+    app._no_focus_rect_style = style  # noqa: SLF001 (idempotence anchor)
 
 
 def apply_main_window_theme(window) -> None:
@@ -44,7 +78,10 @@ def apply_main_window_theme(window) -> None:
     disabled_text = "#94a3b8"
     window.setStyleSheet(f"""
             QMainWindow {{ background: {bg}; }}
-            QWidget {{ color: {text}; font-family: Segoe UI; }}
+            /* outline: none suppresses the native inner focus rectangle on
+               every control (buttons, sliders, lists); the green QSS border
+               is the one and only focus indicator. */
+            QWidget {{ color: {text}; font-family: Segoe UI; outline: none; }}
             QTextEdit, QPlainTextEdit {{
                 background: {panel};
                 border: 1px solid #1f2937;
@@ -164,6 +201,28 @@ def apply_main_window_theme(window) -> None:
                 color: {disabled_text};
             }}
 
+            /* Volume slider, themed: dark groove, blue fill, blue handle.
+               It is not a focus stop (the speaker button is), so it never
+               paints a ring of its own. */
+            QSlider::groove:horizontal {{
+                background: #1f2937;
+                height: 6px;
+                border-radius: 3px;
+            }}
+            QSlider::sub-page:horizontal {{
+                background: {blue};
+                border-radius: 3px;
+            }}
+            QSlider::handle:horizontal {{
+                background: #93c5fd;
+                width: 14px;
+                margin: -5px 0;
+                border-radius: 7px;
+            }}
+            QSlider::handle:horizontal:hover {{
+                background: {ring_green};
+            }}
+
             /* Search removed (was tied to Ideas mapping). */
 
             QProgressBar {{
@@ -231,6 +290,7 @@ def apply_main_window_theme(window) -> None:
     try:
         app = QApplication.instance()
         if app is not None:
+            _install_no_focus_rect_style(app)
             app.setStyleSheet(window.styleSheet())
     except Exception:
         pass

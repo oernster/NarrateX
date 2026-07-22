@@ -70,6 +70,7 @@ class StructuralBookmarksDialog(QDialog):
             pass
         self.setStyleSheet("""
             QDialog#sectionsDialog { background: #0b0f17; }
+            QWidget { outline: none; }
             QListWidget { background: #121826; border: 1px solid #1f2937; }
             QListWidget::item:selected { background: #1f2a44; }
             QPushButton { background: #121826; border: 2px solid #1f2937;

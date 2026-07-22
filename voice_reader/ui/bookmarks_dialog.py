@@ -107,6 +107,8 @@ class BookmarksDialog(QDialog):
         self.btn_goto.clicked.connect(self._on_goto)
         self.btn_delete.clicked.connect(self._on_delete)
         self.btn_close.clicked.connect(self.close)
+        # Double-clicking a bookmark is the same gesture as Go To.
+        self.list.itemDoubleClicked.connect(lambda _item: self._on_goto())
 
         self.refresh()
 

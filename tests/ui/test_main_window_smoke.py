@@ -102,6 +102,42 @@ def test_main_window_volume_controls_smoke(qapp) -> None:
     assert hasattr(w, "lbl_volume_icon")
     assert w.lbl_volume_icon.text() in {"🔊", "🔉", "🔇"}
 
+    # The keyboard stop for volume is the speaker button, never the slider.
+    from PySide6.QtCore import Qt
+
+    assert w.volume_slider.focusPolicy() == Qt.NoFocus
+    assert w.lbl_volume_icon.keeb_volume_slider is w.volume_slider
+
+
+def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
+    """Next Chapter proceeds to Select Book; Stop proceeds to the volume stop."""
+
+    from PySide6.QtCore import Qt
+
+    from voice_reader.ui.main_window import _NeutralStart
+
+    w = MainWindow()
+    w.show()
+    qapp.processEvents()
+    w.set_chapter_controls_enabled(previous=True, next_=True)
+
+    def next_stop(widget):
+        nxt = widget.nextInFocusChain()
+        while (
+            not (nxt.focusPolicy() & Qt.TabFocus)
+            or isinstance(nxt, _NeutralStart)
+            or not nxt.isEnabled()
+        ):
+            nxt = nxt.nextInFocusChain()
+        return nxt
+
+    assert next_stop(w.btn_next_chapter) is w.btn_select_book
+    assert next_stop(w.btn_stop) is w.lbl_volume_icon
+    assert next_stop(w.lbl_volume_icon) is w.btn_bookmarks
+    assert next_stop(w.btn_help) is w.reader
+    assert next_stop(w.reader) is w.btn_prev_chapter
+    w.close()
+
 
 def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
     """Smoke test for the two top-right licence buttons."""
