@@ -15,6 +15,8 @@ NarrateX treats books as structured systems rather than raw text.
 - Non-content is excluded from narration by structure rather than by guesswork: page numbers, running heads, contents entries and the back-of-book index are shown where they belong and never read aloud  
 - Navigation loads immediately and processes in the background  
 - Opening a book never freezes the window: parsing, structure and cover extraction run in a separate process while the interface stays responsive, with a live loading indicator  
+- Voice choice is explicit: a sex toggle and a region toggle (British or American, Kokoro's full 28-voice English inventory) filter the dropdown, no voice is pre-selected and an amber prompt asks for a choice once a book loads  
+- One consistent control language: a green ring on hover and keyboard focus, a red ring on any disabled control, everywhere including dialogs  
 - Playback position is deterministic and consistent across sessions  
 - Separator-only divider lines in source texts (e.g. `---`) are treated as non-content and ignored during playback  
 - Click-to-seek: clicking in the reader restarts narration from the nearest chunk boundary (chunk-relative seeking)  

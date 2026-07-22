@@ -36,7 +36,7 @@ Additionally, narration failure handling persists a best-effort resume position 
 - UI layer: [`voice_reader/ui`](voice_reader/ui:1)
   - [`MainWindow`](voice_reader/ui/main_window.py:38): widgets, theming, highlighting, cover display
   - [`UiController`](voice_reader/ui/ui_controller.py:21): file picker, wiring signals, applying narration state to UI
-  - To respect the 400-line guardrail, `UiController` is decomposed into focused helper modules: signal wiring ([`_ui_controller_wiring.py`](voice_reader/ui/_ui_controller_wiring.py:1)), book loading ([`_ui_controller_book_loading.py`](voice_reader/ui/_ui_controller_book_loading.py:1)), and playback/sections/chapters/bookmarks/state/seek/ideas handlers. Application-icon setup lives in [`_app_icon.py`](voice_reader/ui/_app_icon.py:1); first-run weight download is handled by [`model_download_dialog.py`](voice_reader/ui/model_download_dialog.py:1).
+  - To respect the 400-line guardrail, `UiController` is decomposed into focused helper modules: signal wiring ([`_ui_controller_wiring.py`](voice_reader/ui/_ui_controller_wiring.py:1)), book-load orchestration ([`_ui_controller_book_loading.py`](voice_reader/ui/_ui_controller_book_loading.py:1)) with its in-process compute fallback ([`_book_load_compute.py`](voice_reader/ui/_book_load_compute.py:1)), the voice picker ([`_ui_controller_voices.py`](voice_reader/ui/_ui_controller_voices.py:1)) and playback/sections/chapters/bookmarks/state/seek/ideas handlers. `MainWindow` construction is likewise split: the controls rows (selection, voice picker toggles, transport, chapter nav) live in [`_main_window_controls.py`](voice_reader/ui/_main_window_controls.py:1) with the rest in [`_main_window_build.py`](voice_reader/ui/_main_window_build.py:1). Application-icon setup lives in [`_app_icon.py`](voice_reader/ui/_app_icon.py:1); first-run weight download is handled by [`model_download_dialog.py`](voice_reader/ui/model_download_dialog.py:1).
 
 - Application layer: [`voice_reader/application`](voice_reader/application:1)
   - DTOs: [`NarrationState`](voice_reader/application/dto/narration_state.py:21), [`NarrationStatus`](voice_reader/application/dto/narration_state.py:9)
@@ -227,7 +227,7 @@ Implementation details are documented in [`CoverExtractor.extract_cover_bytes()`
 When the user hits Play:
 
 - [`UiController.play()`](voice_reader/ui/ui_controller.py:155) triggers orchestration:
-  - choose a voice profile from the dropdown
+  - read the chosen voice from the picker ([`_ui_controller_voices.py`](voice_reader/ui/_ui_controller_voices.py:1)): a sex toggle plus a region toggle filter the dropdown to one combination, no voice is defaulted and the picker stays disabled until a book loads. With no book or no chosen voice, Play prompts in the status bar instead of preparing.
   - call [`NarrationService.prepare()`](voice_reader/application/services/narration_service.py:103)
 
 Preparation does:
@@ -357,7 +357,9 @@ Notable performance and UX choices:
 The app is **Kokoro-only**.
 
 - The runtime always uses [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30), created by [`TTSEngineFactory.create()`](voice_reader/infrastructure/tts/tts_engine_factory.py:27).
-- Voice choices come from [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19) and are shown with friendly labels by [`UiController._voice_label()`](voice_reader/ui/ui_controller.py:135).
+- Voice choices come from [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19), which lists Kokoro's complete English inventory (28 voices: 8 British, 20 American; Kokoro ships no other English regions), and are shown with friendly labels by [`voice_label()`](voice_reader/ui/_ui_controller_voices.py:1).
+- The picker filters that list by the voice ID's own prefix taxonomy (`bf_emma` is British female): a sex toggle and a region toggle in the controls row, with regions and sexes held as data tuples so a new region is a one-line change.
+- No voice is defaulted. The dropdown rests on a mic placeholder, the picker enables when a book loads, an amber attention ring asks for a choice (flashing until first touched, steady until chosen) and pre-synthesis starts at selection time.
 - Voice profiles are Kokoro voice IDs (e.g. `bf_emma`, `am_michael`) and do not require reference audio.
 
 ## Concurrency model

@@ -32,6 +32,9 @@ Current whitelist:
 - [`app.py`](app.py:1) (primary runtime entrypoint)
 - [`installer/app.py`](installer/app.py:1) (installer entrypoint)
 - [`voice_reader/bootstrap.py`](voice_reader/bootstrap.py:1) (composition-root helper)
+- [`voice_reader/book_load_worker.py`](voice_reader/book_load_worker.py:1) (the book-load child process's own composition root: it wires the parser, converter and cover extraction together with the chunk and chapter services inside the child)
+
+Related: the packagers (`buildexe.py`, `buildlinux.py`, `builddmg.py`) are whitelisted importers of `voice_reader.bootstrap` because they derive their PyInstaller hidden-import lists from [`wiring_module_names()`](voice_reader/bootstrap.py:1) instead of mirroring the wiring table by hand; a mirrored list silently drifts and the frozen app then dies at startup with ModuleNotFoundError while the dev run works.
 
 ## 3) Module size guardrail
 
