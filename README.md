@@ -34,7 +34,7 @@ NarrateX uses a clean, four-layer architecture with every dependency pointing in
 
 # Screenshot
 
-<img width="1050" height="650" src="images/narratex_v2.png" />  
+<img width="1050" height="606" src="images/narratex.png" />  
 
 ## Supported book formats
 

@@ -3,11 +3,11 @@
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
     <loc>https://narratex.co.uk/</loc>
-    <lastmod>2026-06-13</lastmod>
+    <lastmod>2026-07-22</lastmod>
     <changefreq>monthly</changefreq>
     <priority>1.0</priority>
     <image:image>
-      <image:loc>https://narratex.co.uk/site-images/NarrateX2.png</image:loc>
+      <image:loc>https://narratex.co.uk/site-images/NarrateX4.png</image:loc>
       <image:title>NarrateX reader interface</image:title>
     </image:image>
     <image:image>
