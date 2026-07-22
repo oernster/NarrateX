@@ -89,6 +89,11 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
     # UI layer
     "MainWindow": ("voice_reader.ui.main_window", "MainWindow"),
     "UiController": ("voice_reader.ui.ui_controller", "UiController"),
+    # Child-process composition root (book loading off the UI process).
+    "load_book_in_subprocess": (
+        "voice_reader.book_load_worker",
+        "load_in_subprocess",
+    ),
 }
 
 

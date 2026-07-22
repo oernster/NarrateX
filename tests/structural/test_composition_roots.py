@@ -31,6 +31,10 @@ def _is_whitelisted_composition_root(rel: str) -> bool:
         "app.py",
         "installer/app.py",
         "voice_reader/bootstrap.py",
+        # The book-load child process needs its own composition root: the
+        # worker wires infrastructure (parser, converter, covers) together
+        # with application services (chunks, chapters) inside the child.
+        "voice_reader/book_load_worker.py",
     }:
         return True
     return False

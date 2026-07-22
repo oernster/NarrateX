@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 import threading
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
-from voice_reader.domain.document.reading_start import contents_end_offset
-from voice_reader.domain.document.render_plan import build_render_plan
 
+from voice_reader.ui._book_load_compute import LoadedBook, compute_loaded_book
 from voice_reader.ui._ui_controller_chapters import apply_chapter_controls
 
 
@@ -53,17 +51,6 @@ def prepare_for_book_switch(controller) -> None:
         pass
 
 
-@dataclass(frozen=True, slots=True)
-class _LoadedBook:
-    """Everything a finished load hands back to the UI thread in one piece."""
-
-    book: object
-    plan: object | None
-    chapters: tuple
-    start_char: int
-    cover: bytes | None
-
-
 def _post_to_ui(controller, fn) -> None:
     # IMPORTANT:
     # Do not use QTimer.singleShot from a background thread. In PySide/Qt,
@@ -80,106 +67,6 @@ def _post_to_ui(controller, fn) -> None:
         fn()
     except Exception:
         return
-
-
-def _compute_render_plan(controller, *, book):
-    """The book's render plan, or None when raw text should win.
-
-    The fallback is not decoration. A book whose extraction was too poor to
-    structure carries an unstructured document, and if rendering it would show
-    the reader less than the raw text does, the raw text wins. Displaying
-    something imperfect beats displaying almost nothing.
-    """
-
-    document = getattr(book, "document", None)
-    if document is None:
-        return None
-    try:
-        plan = build_render_plan(
-            document,
-            body_start=contents_end_offset(document),
-        )
-        if plan.text.strip():
-            return plan
-    except Exception:
-        controller._log.exception("Reader rendering failed")  # noqa: SLF001
-    return None
-
-
-def _build_chapter_index(controller, *, book, chunks, min_char_offset: int):
-    """Chapter anchors from the model where possible, else by detection.
-
-    The model knows its own sections, so it needs no heading regex and finds
-    prologues, named parts and subsections that the pattern cannot. Detection
-    remains the fallback for a book with no usable structure.
-    """
-
-    service = controller._chapter_index_service  # noqa: SLF001
-    document = getattr(book, "document", None)
-    sections = getattr(document, "sections", ()) if document is not None else ()
-
-    if sections:
-        # Navigation is filtered by where the body begins, so the list
-        # matches what the pane shows: every entry lands on visible text.
-        chapters = service.build_index_from_sections(
-            sections=sections,
-            chunks=chunks,
-            min_char_offset=contents_end_offset(document),
-        )
-        if chapters:
-            return chapters
-
-    return service.build_index(
-        book.normalized_text,
-        chunks=chunks,
-        min_char_offset=min_char_offset,
-    )
-
-
-def _compute_loaded_book(controller, *, path: Path) -> _LoadedBook:
-    """Everything expensive about opening a book, safe off the Qt thread.
-
-    Parsing the file, building the render plan, the chapter index and the
-    cover are pure service work: no widget is touched here, so a worker
-    thread can run the whole thing while the UI stays live.
-    """
-
-    book = controller.narration_service.load_book(path)
-
-    plan = _compute_render_plan(controller, book=book)
-
-    start_char_for_ui = 0
-    chapters: list = []
-    try:
-        if controller._navigation_chunk_service is not None:  # noqa: SLF001
-            chunks, start = controller._navigation_chunk_service.build_chunks(
-                book_text=book.normalized_text,
-                document=book.document_model,
-            )
-            start_char_for_ui = int(start.start_char)
-            chapters = _build_chapter_index(
-                controller,
-                book=book,
-                chunks=chunks,
-                min_char_offset=int(start.start_char),
-            )
-    except Exception:
-        controller._log.exception("Chapter index build failed")  # noqa: SLF001
-        chapters = []
-
-    try:
-        cover = controller._cover_extractor.extract_cover_bytes(path)  # noqa: SLF001
-    except Exception:
-        controller._log.exception("Cover extraction failed")  # noqa: SLF001
-        cover = None
-
-    return _LoadedBook(
-        book=book,
-        plan=plan,
-        chapters=tuple(chapters),
-        start_char=start_char_for_ui,
-        cover=cover,
-    )
 
 
 def _start_presynthesis(controller) -> None:
@@ -201,7 +88,7 @@ def _start_presynthesis(controller) -> None:
         pass
 
 
-def _apply_loaded_book(controller, *, loaded: _LoadedBook) -> None:
+def _apply_loaded_book(controller, *, loaded: LoadedBook) -> None:
     """Widget updates for a finished load. Runs on the Qt thread only."""
 
     book = loaded.book
@@ -284,14 +171,91 @@ def _apply_load_failure(controller, *, path: Path, exc: Exception) -> None:
         pass
 
 
-def load_selected_book(controller, *, path: Path) -> None:
-    """Load a selected book on a worker thread, keeping the Qt loop live.
+def _set_loading_indicator(controller, *, active: bool, path: Path | None) -> None:
+    """Visible feedback while a load runs: status text, animated bar, locks.
 
-    Hard requirement: must not block the Qt/UI thread. Parsing a large book
-    (the combined hardback in particular) takes long enough to freeze the
-    window when run inline, so the heavy pipeline runs on a daemon thread
-    and only the widget updates come back, posted through
-    `ui_call_requested` exactly as the Ideas launcher does.
+    The progress bar goes indeterminate (Qt's sliding fill) so the user sees
+    motion for the whole load, and the controls that would race the load
+    (selecting another book, starting playback of the outgoing book) are
+    disabled, which the app styles as the red inert ring.
+    """
+
+    try:
+        if active and path is not None:
+            controller.window.lbl_status.setText(f"Loading {path.name}...")
+    except Exception:
+        pass
+    try:
+        if active:
+            controller.window.progress.setRange(0, 0)
+        else:
+            controller.window.progress.setRange(0, 100)
+            controller.window.progress.setValue(0)
+    except Exception:
+        pass
+    for name in ("btn_select_book", "btn_play_pause", "btn_stop"):
+        try:
+            widget = getattr(controller.window, name, None)
+            if widget is not None:
+                widget.setEnabled(not active)
+        except Exception:
+            pass
+
+
+def _loader_kwargs(controller, *, path: Path) -> dict:
+    """The subprocess loader's inputs, read from the live app's own wiring.
+
+    The chunker bounds and the converter's temp dir come from the running
+    services rather than fresh literals, so the child process can never
+    drift from what narration itself would build.
+    """
+
+    chunker = controller.narration_service.chunking_service
+    temp_books_dir = controller.narration_service.book_repo.converter.temp_books_dir
+    return {
+        "path": path,
+        "temp_books_dir": temp_books_dir,
+        "chunk_min_chars": int(chunker.min_chars),
+        "chunk_max_chars": int(chunker.max_chars),
+    }
+
+
+def _load_via_subprocess(controller, *, loader, path: Path) -> LoadedBook:
+    """Run the parse in the child process, then adopt the book here.
+
+    Adoption is the fast half of `load_book`: it swaps the service's book
+    and emits the usual LOADING then IDLE states, so the state-driven UI
+    (status label, button locks) behaves exactly as it always has.
+    """
+
+    result = loader(**_loader_kwargs(controller, path=path))
+    if not isinstance(result, dict) or result.get("type") != "result":
+        message = "book load failed"
+        if isinstance(result, dict):
+            message = str(result.get("message") or message)
+        raise RuntimeError(message)
+
+    book = result["book"]
+    controller.narration_service.adopt_book(book, path)
+    return LoadedBook(
+        book=book,
+        plan=result.get("plan"),
+        chapters=tuple(result.get("chapters") or ()),
+        start_char=int(result.get("start_char") or 0),
+        cover=result.get("cover"),
+    )
+
+
+def load_selected_book(controller, *, path: Path) -> None:
+    """Load a selected book without blocking the Qt/UI thread.
+
+    A thread alone is not enough: the parse is CPU-bound pure Python, so a
+    worker thread holds the GIL and starves the event loop regardless. The
+    heavy pipeline therefore runs in a separate process (the same isolation
+    Ideas indexing uses) and this thread only waits on the result queue,
+    which releases the GIL. Widget updates come back through
+    `ui_call_requested`. Without an injected loader (tests, or a platform
+    where spawn fails) the compute falls back to running on this thread.
     """
 
     # Prevent book switching during playback/preparation. The UI should already
@@ -311,26 +275,26 @@ def load_selected_book(controller, *, path: Path) -> None:
         pass
 
     # One load at a time. The LOADING status lands asynchronously once the
-    # worker reaches the service, so this flag covers the gap in between.
+    # load reaches the service, so this flag covers the gap in between.
     if getattr(controller, "_book_load_inflight", False):  # noqa: SLF001
         return
 
     prepare_for_book_switch(controller)
     controller._book_load_inflight = True  # noqa: SLF001
-
-    # Immediate feedback while the worker spins up.
-    try:
-        controller.window.lbl_status.setText(f"Loading {path.name}...")
-    except Exception:
-        pass
+    _set_loading_indicator(controller, active=True, path=path)
 
     def _worker() -> None:
+        loader = getattr(controller, "_book_loader", None)  # noqa: SLF001
         try:
-            loaded = _compute_loaded_book(controller, path=path)
+            if loader is not None:
+                loaded = _load_via_subprocess(controller, loader=loader, path=path)
+            else:
+                loaded = compute_loaded_book(controller, path=path)
         except Exception as exc:
 
             def _on_failed(exc: Exception = exc) -> None:
                 controller._book_load_inflight = False  # noqa: SLF001
+                _set_loading_indicator(controller, active=False, path=None)
                 _apply_load_failure(controller, path=path, exc=exc)
 
             _post_to_ui(controller, _on_failed)
@@ -338,6 +302,7 @@ def load_selected_book(controller, *, path: Path) -> None:
 
         def _on_loaded() -> None:
             controller._book_load_inflight = False  # noqa: SLF001
+            _set_loading_indicator(controller, active=False, path=None)
             _apply_loaded_book(controller, loaded=loaded)
 
         _post_to_ui(controller, _on_loaded)

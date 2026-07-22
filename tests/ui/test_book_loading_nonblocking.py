@@ -91,6 +91,13 @@ def test_load_selected_book_returns_before_any_parsing(qapp, monkeypatch) -> Non
     assert narration.load_calls == 0
     assert c._book_load_inflight is True  # noqa: SLF001
 
+    # The loading indicator is on: animated bar, locked controls.
+    assert c.window.progress.minimum() == 0
+    assert c.window.progress.maximum() == 0
+    assert c.window.btn_select_book.isEnabled() is False
+    assert c.window.btn_play_pause.isEnabled() is False
+    assert "Loading" in c.window.lbl_status.text()
+
 
 def test_inline_pipeline_populates_the_window(qapp, monkeypatch) -> None:
     narration = _CountingNarration(listeners=[], state=_idle_state())
@@ -132,6 +139,80 @@ def test_reentry_is_blocked_while_a_load_is_in_flight(qapp, monkeypatch) -> None
 
     assert narration.load_calls == 0
     assert c._book_load_inflight is True  # noqa: SLF001
+
+
+@dataclass
+class _AdoptingNarration(FakeNarration):
+    adopted: list = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        self.chunking_service = SimpleNamespace(min_chars=120, max_chars=220)
+        self.book_repo = SimpleNamespace(
+            converter=SimpleNamespace(temp_books_dir=Path("temp_books"))
+        )
+
+    def adopt_book(self, book, source_path: Path):
+        self.adopted.append((book, source_path))
+        return book
+
+
+def test_subprocess_loader_result_is_adopted_and_applied(qapp, monkeypatch) -> None:
+    narration = _AdoptingNarration(listeners=[], state=_idle_state())
+    c = _controller(qapp, narration)
+
+    seen_kwargs: dict = {}
+
+    def _loader(**kwargs) -> dict:
+        seen_kwargs.update(kwargs)
+        return {
+            "type": "result",
+            "book": SimpleNamespace(normalized_text="Process hello", title="T"),
+            "plan": None,
+            "chapters": (),
+            "start_char": 0,
+            "cover": None,
+        }
+
+    c._book_loader = _loader  # noqa: SLF001
+    monkeypatch.setattr(book_loading.threading, "Thread", InlineThread)
+
+    book_loading.load_selected_book(c, path=Path("big.pdf"))
+
+    # The loader received the live app's own wiring, not fresh literals.
+    assert seen_kwargs["chunk_min_chars"] == 120
+    assert seen_kwargs["chunk_max_chars"] == 220
+    assert seen_kwargs["temp_books_dir"] == Path("temp_books")
+
+    assert [p for _, p in narration.adopted] == [Path("big.pdf")]
+    assert "Process hello" in c.window.reader.toPlainText()
+    assert c._book_load_inflight is False  # noqa: SLF001
+
+    # The indicator is off again: determinate bar, controls back.
+    assert c.window.progress.maximum() == 100
+    assert c.window.btn_select_book.isEnabled() is True
+    assert c.window.btn_play_pause.isEnabled() is True
+
+
+def test_subprocess_loader_error_surfaces_the_failure(qapp, monkeypatch) -> None:
+    narration = _AdoptingNarration(listeners=[], state=_idle_state())
+    states: list = []
+    narration._set_state = states.append  # type: ignore[attr-defined]
+    c = _controller(qapp, narration)
+
+    c._book_loader = lambda **kwargs: {  # noqa: SLF001
+        "type": "error",
+        "message": "the book load process ended without a result",
+    }
+    monkeypatch.setattr(book_loading.threading, "Thread", InlineThread)
+
+    book_loading.load_selected_book(c, path=Path("big.pdf"))
+
+    assert narration.adopted == []
+    assert c._book_load_inflight is False  # noqa: SLF001
+    assert c.window.progress.maximum() == 100
+    assert states, "no error state was set"
+    assert states[-1].status == NarrationStatus.ERROR
+    assert "without a result" in (states[-1].message or "")
 
 
 def test_post_to_ui_falls_back_without_a_signal() -> None:

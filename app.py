@@ -269,6 +269,7 @@ def main() -> int:
             device=device,
             engine_name=tts_engine.engine_name,
             cover_extractor=_g("CoverExtractor")(),
+            book_loader=_g("load_book_in_subprocess"),
         )
 
         try:

@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 import threading
-from typing import Sequence
+from typing import Callable, Sequence
 
 from PySide6.QtCore import QObject, QTimer, Signal, Slot
 from PySide6.QtWidgets import QFileDialog
@@ -76,6 +76,7 @@ class UiController(QObject):
         device: str,
         engine_name: str,
         cover_extractor: CoverExtractor | None = None,
+        book_loader: Callable[..., dict] | None = None,
     ) -> None:
         super().__init__()
         self._log = logging.getLogger(self.__class__.__name__)
@@ -104,6 +105,9 @@ class UiController(QObject):
         self._ideas_launch_thread: threading.Thread | None = None
         self._book_load_inflight: bool = False
         self._book_load_thread: threading.Thread | None = None
+        # Parent-side subprocess loader, injected by the composition root.
+        # None falls back to loading on the worker thread (tests, dev).
+        self._book_loader = book_loader
 
         self._chapter_index_service = ChapterIndexService()
         self._chapters: list[Chapter] = []

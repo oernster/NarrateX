@@ -13,7 +13,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from voice_reader.domain.entities.book import Book
 
 
-def load_book(service: NarrationService, source_path: Path) -> "Book":
+def _begin_load(service: NarrationService, source_path: Path) -> None:
     maybe_save_resume_position(service)
     service._persist_resume = True  # noqa: SLF001
 
@@ -34,7 +34,8 @@ def load_book(service: NarrationService, source_path: Path) -> "Book":
         )
     )
 
-    book = service.book_repo.load(source_path)
+
+def _finish_load(service: NarrationService, book: "Book", source_path: Path) -> "Book":
     service._book = book  # noqa: SLF001
     service._start_char = None  # noqa: SLF001
     service._cache_book_id = None  # noqa: SLF001
@@ -57,3 +58,20 @@ def load_book(service: NarrationService, source_path: Path) -> "Book":
         )
     )
     return book
+
+
+def load_book(service: NarrationService, source_path: Path) -> "Book":
+    _begin_load(service, source_path)
+    book = service.book_repo.load(source_path)
+    return _finish_load(service, book, source_path)
+
+
+def adopt_book(service: NarrationService, book: "Book", source_path: Path) -> "Book":
+    """Take ownership of an already-parsed book without re-parsing it.
+
+    The book-load worker process does the expensive parse; this is the
+    parent-side half, which is everything `load_book` does around the parse.
+    """
+
+    _begin_load(service, source_path)
+    return _finish_load(service, book, source_path)

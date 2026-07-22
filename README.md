@@ -14,7 +14,7 @@ NarrateX treats books as structured systems rather than raw text.
 - Section navigation is derived from headings and bookmarks  
 - Non-content is excluded from narration by structure rather than by guesswork: page numbers, running heads, contents entries and the back-of-book index are shown where they belong and never read aloud  
 - Navigation loads immediately and processes in the background  
-- Opening a book never freezes the window: parsing, structure and cover extraction run on a worker thread while the interface stays responsive  
+- Opening a book never freezes the window: parsing, structure and cover extraction run in a separate process while the interface stays responsive, with a live loading indicator  
 - Playback position is deterministic and consistent across sessions  
 - Separator-only divider lines in source texts (e.g. `---`) are treated as non-content and ignored during playback  
 - Click-to-seek: clicking in the reader restarts narration from the nearest chunk boundary (chunk-relative seeking)  

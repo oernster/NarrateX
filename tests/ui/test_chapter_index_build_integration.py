@@ -23,7 +23,7 @@ from voice_reader.application.services.navigation_chunk_service import (
 from voice_reader.domain.document import plain_text
 from voice_reader.domain.entities.book import Book
 from voice_reader.domain.services.chunking_service import ChunkingService
-from voice_reader.ui._ui_controller_book_loading import _build_chapter_index
+from voice_reader.ui._book_load_compute import _build_chapter_index
 
 BOOK_TEXT = (
     "Contents\n"

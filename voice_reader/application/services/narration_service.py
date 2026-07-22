@@ -24,6 +24,7 @@ from voice_reader.application.services.narration.persistence import (
     maybe_save_resume_position,
 )
 from voice_reader.application.services.narration.book_loading import (
+    adopt_book as _adopt_book,
     load_book as _load_book,
 )
 from voice_reader.application.services.narration.control import (
@@ -130,6 +131,11 @@ class NarrationService:
 
     def load_book(self, source_path: Path) -> Book:
         return _load_book(self, source_path)
+
+    def adopt_book(self, book: Book, source_path: Path) -> Book:
+        """Take ownership of a book parsed elsewhere (the load worker)."""
+
+        return _adopt_book(self, book, source_path)
 
     def loaded_book_id(self) -> str | None:
         """Return the current domain book id for bookmark storage."""
