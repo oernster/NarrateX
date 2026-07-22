@@ -45,7 +45,13 @@ class HeaderFitController:
         # Lock in a minimum size based on the post-style size hint. This prevents
         # the header row from being sized to a slightly-too-small height/width
         # due to font metric rounding.
+        #
+        # Release the previous lock first: the recomputed hint reflects the
+        # current minimum and the SafeLabel buffer is added on top, so
+        # re-locking without a reset grows the header by the buffer on every
+        # theme change and the whole UI walks down the window.
         try:
+            title.setMinimumSize(0, 0)
             title.setMinimumSize(title.sizeHint())
         except Exception:
             pass

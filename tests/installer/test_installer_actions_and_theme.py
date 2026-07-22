@@ -95,6 +95,30 @@ class TestTheRowsHoldTheirShape:
         ).y()
         assert uninstall_top - primary_bottom >= root.layout().spacing()
 
+    def test_toggling_the_theme_moves_nothing(self, window, qapp) -> None:
+        # The header lock used to re-measure on every theme application with
+        # the previous lock still in place, so each toggle grew the header by
+        # the SafeLabel buffer and walked the whole UI down the window.
+        root = window.centralWidget()
+
+        def _snapshot():
+            button = window._btn_primary_left
+            return (
+                window.height(),
+                window.minimumHeight(),
+                window._header_title.minimumHeight(),
+                button.mapTo(root, button.rect().topLeft()).y(),
+            )
+
+        before = _snapshot()
+        for _ in range(3):
+            window._toggle_theme()
+            qapp.processEvents()
+            window._header_fit.ensure_now()
+            qapp.processEvents()
+
+        assert _snapshot() == before
+
     def test_the_uninstall_button_asks_before_acting(
         self, window, qapp, monkeypatch
     ) -> None:
