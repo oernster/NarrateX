@@ -363,6 +363,7 @@ The app is **Kokoro-only**.
 ## Concurrency model
 
 - UI runs on Qt main thread.
+- Book loading runs on a `book-load` worker thread (see [`load_selected_book()`](voice_reader/ui/_ui_controller_book_loading.py:1)): parsing the file, building the render plan, the chapter index and the cover all happen off the Qt thread, so selecting a large book (a multi-book compilation in particular) never freezes the window. Only the widget updates return to the UI thread, posted through the `ui_call_requested` signal; an in-flight flag blocks re-entry until the load lands.
 - Narration runs on a background thread started by [`NarrationService.start()`](voice_reader/application/services/narration_service.py:156).
 - Audio playback (`sounddevice` + `soundfile`) uses internal producer/player threads inside [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72).
 - In Kokoro-native mode, TTS synthesis can be parallelized by multiple worker threads and a publisher thread (see [`run()`](voice_reader/application/services/narration/run.py:24)).
