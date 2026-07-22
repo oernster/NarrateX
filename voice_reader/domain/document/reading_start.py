@@ -15,9 +15,19 @@ after the last contents entry is what avoids landing in the table itself.
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from voice_reader.domain.document.block_kind import BlockKind
 from voice_reader.domain.document.model import Document
+
+
+@dataclass(frozen=True, slots=True)
+class ReadingStart:
+    """Where narration begins, and why, for the status line to report."""
+
+    start_char: int
+    reason: str
+
 
 # Sections that open the body proper. Matches the long-standing behaviour of
 # the reading-start detector these rules replace.
@@ -51,8 +61,26 @@ def _is_body_opening(title: str) -> bool:
     return bool(_NUMBERED_DIVISION.match(stripped))
 
 
+def _has_prose(section) -> bool:
+    return any(block.kind is BlockKind.PARAGRAPH for block in section.blocks)
+
+
 def _is_contents_title(title: str) -> bool:
     return str(title or "").strip().rstrip(".").casefold() in _CONTENTS_TITLES
+
+
+def _body_began_at(document: Document) -> int | None:
+    """Where the body demonstrably starts, or None if nothing shows it has.
+
+    An opening section carrying actual prose is the demonstration. A contents
+    page names the same sections but carries no prose under them, so it cannot
+    satisfy this.
+    """
+
+    for section in document.sections:
+        if _is_body_opening(section.title) and _has_prose(section):
+            return section.source_start
+    return None
 
 
 def contents_end_offset(document: Document) -> int:
@@ -63,19 +91,67 @@ def contents_end_offset(document: Document) -> int:
     contents is usually a plain list of links with no leaders at all, leaving
     no entries to find; there the evidence is a section actually titled
     "Contents". Using only the first would miss every EPUB.
+
+    Evidence past the point where the body started is not front matter. Books
+    carry back-of-book indexes and essay indexes that leave entries looking
+    exactly like contents entries, and counting those would push the boundary
+    over real sections and hide them.
     """
+
+    limit = _body_began_at(document)
+
+    def in_front_matter(start: int) -> bool:
+        return limit is None or start < limit
 
     ends = [
         block.source_end
         for block in document.blocks
-        if block.kind is BlockKind.TOC_ENTRY
+        if block.kind is BlockKind.TOC_ENTRY and in_front_matter(block.source_start)
     ]
     ends += [
         section.source_end
         for section in document.sections
-        if _is_contents_title(section.title)
+        if _is_contents_title(section.title) and in_front_matter(section.source_start)
     ]
     return max(ends) if ends else 0
+
+
+def _body_opening_sections(document: Document, *, after: int) -> list:
+    """Sections at or past the contents whose title opens the body.
+
+    Where the book has a contents, an opening carrying prose is preferred over
+    one carrying none: a contents boundary that lands slightly short leaves a
+    contents line wearing a section's title with nothing under it, and that is
+    what this passes over.
+
+    The preference is deliberately conditional. With no contents there is
+    nothing to leave leftovers behind, and a heading whose first child is
+    another heading is then perfectly ordinary, so skipping it would drop a
+    real section instead of a stray one.
+    """
+
+    openings = [
+        section
+        for section in document.sections
+        if section.source_start >= after and _is_body_opening(section.title)
+    ]
+    if after <= 0:
+        return openings
+    return [section for section in openings if _has_prose(section)] or openings
+
+
+def body_opening_offset(document: Document) -> int:
+    """Offset of the heading that opens the body, or the contents end.
+
+    Distinct from `reading_start_offset` on purpose. Navigation lands on the
+    heading line, so it wants the heading's own offset; narration wants the
+    first sentence under it. Using the narration offset as a navigation
+    boundary would clamp the heading itself out of reach.
+    """
+
+    after_contents = contents_end_offset(document)
+    openings = _body_opening_sections(document, after=after_contents)
+    return openings[0].source_start if openings else after_contents
 
 
 def _first_spoken_offset_at_or_after(document: Document, offset: int) -> int | None:
@@ -95,11 +171,7 @@ def reading_start_offset(document: Document) -> int | None:
 
     after_contents = contents_end_offset(document)
 
-    for section in document.sections:
-        if section.source_start < after_contents:
-            continue
-        if not _is_body_opening(section.title):
-            continue
+    for section in _body_opening_sections(document, after=after_contents):
         for block in section.blocks:
             if block.is_spoken:
                 return block.source_start

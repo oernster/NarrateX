@@ -6,7 +6,6 @@ from voice_reader.application.services.structural_bookmark_service import (
     StructuralBookmarkService,
     classify_heading,
     dedupe_candidates,
-    detect_body_start_offset,
     scan_structural_headings,
 )
 
@@ -17,17 +16,24 @@ from voice_reader.application.services.navigation_chunk_service import (
 from voice_reader.domain.document import plain_text
 
 
+def _document(text: str):
+    """The structure a plain-text book load would produce."""
+
+    return plain_text.build_document(source=text)
+
+
 def _build(nav: NavigationChunkService, text: str):
     """Chunk `text` through the document model, as a real book load would."""
 
-    document = plain_text.build_document(source=text)
-    return nav.build_chunks(book_text=text, document=document)
+    return nav.build_chunks(book_text=text, document=_document(text))
 
 
 def test_includes_chapter_headings() -> None:
     text = "\n\nChapter 1: Start\n\nA real paragraph.\n"
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     assert [b.kind for b in out] == ["chapter"]
     assert out[0].label.startswith("Chapter 1")
     assert out[0].char_offset >= 0
@@ -36,7 +42,9 @@ def test_includes_chapter_headings() -> None:
 def test_includes_part_headings() -> None:
     text = "\n\nPart I - Foundations\n\nChapter 1: Start\n\n"
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     kinds = [b.kind for b in out]
     assert "part" in kinds
 
@@ -44,7 +52,9 @@ def test_includes_part_headings() -> None:
 def test_includes_prologue_and_conclusion() -> None:
     text = "\n\nPrologue\n\nOnce upon a time.\n\nConclusion\n\nThe end.\n"
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     assert [b.kind for b in out] == ["prologue", "conclusion"]
 
 
@@ -56,7 +66,9 @@ def test_excludes_table_of_contents_and_essay_index() -> None:
 
     text = "\n\nTable of Contents\n\n1 Something\n\nChapter 1: Start\n\n"
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     assert [b.kind for b in out] == ["chapter"]
 
 
@@ -84,6 +96,7 @@ def test_prefers_metadata_candidate_over_text_scan_duplicate() -> None:
     out = svc.build_for_loaded_book(
         book_id="b1",
         normalized_text=text,
+        document=_document(text),
         chapter_candidates=[
             type(
                 "Ch",
@@ -100,7 +113,9 @@ def test_prefers_metadata_candidate_over_text_scan_duplicate() -> None:
 def test_sorts_by_char_offset() -> None:
     text = "\n\nChapter 2: Two\n\nX\n\nChapter 1: One\n\n"
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     # Output should be ordered by appearance, not chapter number.
     assert [b.label for b in out] == ["Chapter 2: Two", "Chapter 1: One"]
     assert out[0].char_offset < out[1].char_offset
@@ -112,6 +127,8 @@ def test_uses_char_offset_as_primary_navigation_anchor() -> None:
     assert cand
     assert cand[0].char_offset is not None
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     assert out
     assert isinstance(out[0].char_offset, int)

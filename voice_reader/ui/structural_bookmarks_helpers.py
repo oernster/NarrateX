@@ -12,14 +12,10 @@ import logging
 from dataclasses import dataclass
 
 from voice_reader.domain.document.model import Document
+from voice_reader.domain.document.reading_start import body_opening_offset
 from voice_reader.domain.entities.structural_bookmark import StructuralBookmark
 from voice_reader.domain.entities.text_chunk import TextChunk
-from voice_reader.domain.services.reading_start_service import ReadingStartService
 
-from voice_reader.application.services.structural_bookmarks.front_matter import (
-    detect_body_start_offset,
-    detect_toc_end_offset,
-)
 from voice_reader.application.services.structural_bookmarks.normalization import (
     normalize_marker_line,
 )
@@ -100,72 +96,30 @@ def compute_structural_bookmarks(
     except Exception:
         chunks = None
 
-    # Compute a safe navigation boundary in the same coordinate system as
-    # normalized_text. This boundary is used only as a *defensive UI guard* to
-    # avoid forcing narration into obvious front matter.
-    #
-    # IMPORTANT: this should NOT be the narration start paragraph offset.
-    # Sections GoTo should land on the heading line; if we use the narration
-    # paragraph offset as a boundary, the UI would clamp away from the heading.
-    min_char_offset: int | None = None
+    model = getattr(book, "document_model", None)
+    document = (
+        model if model is not None else Document.unstructured(text=normalized_text)
+    )
+
+    # The navigation chunks come from the same document, so the offsets the
+    # dialog resolves against match the ones narration uses.
     try:
-        # Prefer the navigation-chunk service when available (stable with the
-        # rest of the UI + existing tests), but compute a heading-safe boundary:
-        # clamp to the earliest of {toc_end, body_start} rather than to the first
-        # narratable paragraph.
         nav = getattr(controller, "_navigation_chunk_service", None)  # noqa: SLF001
         if nav is not None:
-            model = getattr(book, "document_model", None)
-            chunks0, start = nav.build_chunks(
+            chunks0, _start = nav.build_chunks(
                 book_text=normalized_text,
-                document=(
-                    model
-                    if model is not None
-                    else Document.unstructured(text=normalized_text)
-                ),
+                document=document,
             )
             chunks = list(chunks0)
+    except Exception:
+        pass
 
-            # Derive a heading-safe boundary.
-            toc_end = detect_toc_end_offset(normalized_text)
-            body_start = detect_body_start_offset(normalized_text)
-            base = int(getattr(start, "start_char", 0) or 0)
-            cut = max(0, int(body_start or 0))
-            if toc_end is not None:
-                cut = max(int(cut), int(toc_end))
-            # Keep boundary >= TOC/body cutoff, but never after narration start.
-            # Also: never set a boundary > 0 when TOC/body cutoffs are 0, because
-            # that would clamp heading-line navigation for simple documents.
-            if int(cut) <= 0:
-                min_char_offset = 0
-            else:
-                min_char_offset = min(int(base), int(cut)) if base > 0 else int(cut)
-
-            # Ensure the boundary is never *before* the narration start.
-            # This preserves the UI guard semantics used by tests.
-            if base > 0:
-                min_char_offset = max(int(min_char_offset), int(base))
-        else:
-            # No nav service: fall back to reading-start detector for base,
-            # but still clamp to TOC/body cutoff so headings remain navigable.
-            start = ReadingStartService().detect_start(normalized_text)
-            base = int(getattr(start, "start_char", 0) or 0)
-            toc_end = detect_toc_end_offset(normalized_text)
-            body_start = detect_body_start_offset(normalized_text)
-            cut = max(0, int(body_start or 0))
-            if toc_end is not None:
-                cut = max(int(cut), int(toc_end))
-            if int(cut) <= 0:
-                min_char_offset = 0
-            else:
-                min_char_offset = min(int(base), int(cut)) if base > 0 else int(cut)
-
-            if base > 0:
-                min_char_offset = max(int(min_char_offset), int(base))
-
-            # Coverage: exercise the exception handler in strict suites.
-            if False:  # pragma: no cover
-                min_char_offset = None
+    # The navigation boundary is where the body opens, which is the heading
+    # line itself rather than the first sentence under it: Sections GoTo has to
+    # be able to land on the heading. The model answers this once, so the UI no
+    # longer reconciles a second answer of its own.
+    try:
+        min_char_offset: int | None = body_opening_offset(document)
     except Exception:
         min_char_offset = None
 
@@ -174,6 +128,7 @@ def compute_structural_bookmarks(
             svc.build_for_loaded_book(
                 book_id=str(book_id),
                 normalized_text=normalized_text,
+                document=document,
                 chapter_candidates=chapter_candidates,
                 chunks=chunks,
                 min_char_offset=min_char_offset,

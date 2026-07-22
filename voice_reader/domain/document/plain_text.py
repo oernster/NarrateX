@@ -31,6 +31,13 @@ _MAX_HEADING_WORDS = 12
 # running head. Prose rarely repeats word for word.
 _MIN_REPEATS_FOR_RUNNING_HEAD = 3
 
+# Titles that announce a contents list.
+_CONTENTS_TITLES = frozenset({"contents", "table of contents"})
+
+# How many adjacent title-like lines under a contents heading make a list. One
+# line on its own is more likely a real heading that follows the contents.
+_MIN_CONTENTS_ENTRIES = 2
+
 # A numbered division: "Chapter 4", "Part Two", "Book III", "Appendix A".
 _NUMBERED_DIVISION = re.compile(
     r"^(chapter|part|book|section|appendix|volume)\b[\s.:-]*\S",
@@ -167,6 +174,48 @@ def _kind_of(
     return BlockKind.PARAGRAPH, 0
 
 
+def _is_contents_heading(text: str) -> bool:
+    return text.strip().rstrip(".").casefold() in _CONTENTS_TITLES
+
+
+def _is_title_like(text: str) -> bool:
+    """Whether a line could be a title, judged on shape alone."""
+
+    return bool(text) and _is_short(text) and not _SENTENCE_END.search(text)
+
+
+def _contents_entry_indices(lines: tuple[Line, ...]) -> frozenset[int]:
+    """Line indices belonging to a contents list, if the text has one.
+
+    Wording cannot settle this. "Chapter 1" listed in the contents and
+    "Chapter 1" where the chapter begins are the same characters, which is why
+    reading them as chapter headings sends a reader to the contents page.
+    Placement settles it instead: contents entries sit adjacent to one another
+    directly under the heading, while a real heading stands alone with prose
+    beneath it and so is never part of such a block.
+
+    Only the block under the first contents heading counts. A later run of
+    adjacent titles is a book's own structure, not a second contents.
+    """
+
+    for index, line in enumerate(lines):
+        if not _is_contents_heading(line.text.strip()):
+            continue
+
+        cursor = index + 1
+        while cursor < len(lines) and is_blank(lines[cursor].text):
+            cursor += 1
+
+        run: list[int] = []
+        while cursor < len(lines) and _is_title_like(lines[cursor].text.strip()):
+            run.append(cursor)
+            cursor += 1
+
+        return frozenset(run) if len(run) >= _MIN_CONTENTS_ENTRIES else frozenset()
+
+    return frozenset()
+
+
 def _is_isolated(lines: tuple[Line, ...], index: int) -> bool:
     before_blank = index == 0 or is_blank(lines[index - 1].text)
     after_blank = index + 1 >= len(lines) or is_blank(lines[index + 1].text)
@@ -181,6 +230,7 @@ def scan_blocks(*, source: str) -> tuple[Block, ...]:
         return ()
 
     running = _running_head_keys(lines)
+    contents = _contents_entry_indices(lines)
 
     blocks: list[Block] = []
     pending: list[Line] = []
@@ -207,11 +257,14 @@ def scan_blocks(*, source: str) -> tuple[Block, ...]:
             flush()
             continue
 
-        kind, level = _kind_of(
-            text,
-            isolated=_is_isolated(lines, index),
-            running=running,
-        )
+        if index in contents:
+            kind, level = BlockKind.TOC_ENTRY, 0
+        else:
+            kind, level = _kind_of(
+                text,
+                isolated=_is_isolated(lines, index),
+                running=running,
+            )
         if kind is BlockKind.PARAGRAPH:
             pending.append(line)
             continue

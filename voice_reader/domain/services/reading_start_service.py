@@ -5,15 +5,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from voice_reader.domain.document.reading_start import ReadingStart
 from voice_reader.domain.text_patterns import contains_dotted_leader
 
 from voice_reader.domain.services import reading_start_toc
 
-
-@dataclass(frozen=True, slots=True)
-class ReadingStart:
-    start_char: int
-    reason: str
+__all__ = ["ReadingStart", "ReadingStartService"]
 
 
 @dataclass(frozen=True, slots=True)

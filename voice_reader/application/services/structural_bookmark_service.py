@@ -15,10 +15,6 @@ from voice_reader.application.services.structural_bookmarks.classification impor
 from voice_reader.application.services.structural_bookmarks.dedupe import (
     dedupe_candidates,
 )
-from voice_reader.application.services.structural_bookmarks.front_matter import (
-    detect_body_start_offset,
-    detect_toc_end_offset,
-)
 from voice_reader.application.services.structural_bookmarks.text_scan import (
     scan_structural_headings,
 )
@@ -35,8 +31,6 @@ __all__ = [
     "StructuralBookmarkService",
     "classify_heading",
     "dedupe_candidates",
-    "detect_body_start_offset",
-    "detect_toc_end_offset",
     "scan_structural_headings",
 ]
 
@@ -49,7 +43,5 @@ def _touch_exports_for_coverage() -> None:  # pragma: no cover
         StructuralBookmarkService,
         classify_heading,
         dedupe_candidates,
-        detect_body_start_offset,
-        detect_toc_end_offset,
         scan_structural_headings,
     )

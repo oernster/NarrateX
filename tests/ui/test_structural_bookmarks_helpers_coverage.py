@@ -164,13 +164,7 @@ def test_compute_handles_book_access_exceptions() -> None:
     assert comp.normalized_text == ""
 
 
-def test_compute_handles_chapters_and_chunks_exceptions(monkeypatch) -> None:
-    # Force detect_start path (no navigation chunk service).
-    monkeypatch.setattr(
-        "voice_reader.ui.structural_bookmarks_helpers.ReadingStartService.detect_start",
-        lambda _self, _text: _Start(start_char=9),
-    )
-
+def test_compute_handles_chapters_and_chunks_exceptions() -> None:
     c = _Controller(
         narration_service=_Narration(
             book_id="book-1",
@@ -203,13 +197,7 @@ def test_compute_when_chapters_attribute_missing() -> None:
     assert comp is not None
 
 
-def test_compute_handles_chapters_getattr_exception(monkeypatch) -> None:
-    # Ensure we take the ReadingStartService path.
-    monkeypatch.setattr(
-        "voice_reader.ui.structural_bookmarks_helpers.ReadingStartService.detect_start",
-        lambda _self, _text: _Start(start_char=0),
-    )
-
+def test_compute_handles_chapters_getattr_exception() -> None:
     class _C:
         def __init__(self):
             self.narration_service = _Narration(
@@ -288,8 +276,37 @@ def test_compute_prefers_navigation_chunk_service_outputs() -> None:
     assert len(comp.bookmarks) == 1
 
 
-def test_compute_handles_navigation_chunk_service_exception(monkeypatch) -> None:
-    # If nav fails, we should fall back (min_char_offset becomes None via the except).
+def test_compute_survives_an_unreadable_document_model() -> None:
+    # A book whose model cannot be read leaves the dialog without a boundary
+    # rather than without a list of sections.
+    class _Unreadable:
+        @property
+        def blocks(self):
+            raise RuntimeError("model unavailable")
+
+    @dataclass
+    class _BookWithBadModel:
+        normalized_text: str
+        title: str | None = None
+        document_model: object = _Unreadable()
+
+    c = _Controller(
+        narration_service=_Narration(
+            book_id="book-1",
+            book=_BookWithBadModel(normalized_text="Chapter 1\n\nBody.\n"),
+        ),
+        structural_bookmark_service=_Svc(bookmarks=[]),
+        navigation_chunk_service=None,
+    )
+
+    comp = compute_structural_bookmarks(c)
+    assert comp is not None
+    assert comp.min_char_offset is None
+
+
+def test_compute_handles_navigation_chunk_service_exception() -> None:
+    # A failing nav service costs the chunk list, not the boundary: the
+    # boundary comes from the document model, which is still available.
     nav = _Nav(chunks=[], start_char=0, boom=True)
     svc = _Svc(bookmarks=[])
     c = _Controller(
@@ -299,7 +316,7 @@ def test_compute_handles_navigation_chunk_service_exception(monkeypatch) -> None
     )
     comp = compute_structural_bookmarks(c)
     assert comp is not None
-    assert comp.min_char_offset is None
+    assert comp.min_char_offset == 0
 
 
 def test_compute_nav_boundary_is_zero_when_no_front_matter_cutoff() -> None:

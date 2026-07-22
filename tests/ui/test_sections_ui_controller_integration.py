@@ -10,9 +10,8 @@ from voice_reader.application.services.structural_bookmark_service import (
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.domain.document import plain_text
-from voice_reader.domain.document.reading_start import reading_start_offset
+from voice_reader.domain.document.reading_start import body_opening_offset
 from voice_reader.domain.services.chunking_service import ChunkingService
-from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.application.services.navigation_chunk_service import (
     NavigationChunkService,
 )
@@ -157,7 +156,15 @@ def test_sections_go_to_prefers_body_heading_when_toc_duplicates_exist(qapp) -> 
         ),
         prepare_calls=[],
     )
-    narration._book = type("B", (), {"normalized_text": text, "title": "T"})()
+    narration._book = type(
+        "B",
+        (),
+        {
+            "normalized_text": text,
+            "title": "T",
+            "document_model": plain_text.build_document(source=text),
+        },
+    )()
 
     controller = SimpleNamespace(
         window=w,
@@ -213,9 +220,9 @@ def test_sections_go_to_defensive_guard_never_forces_pre_boundary_offset(qapp) -
     # guard won't force narration there.
     text = "\n\nChapter 1\n\nBody paragraph.\n"
 
-    # Precompute the readable-start boundary the controller will compute.
-    # Sections uses a heading-safe boundary (TOC/body cutoff, capped by narration start).
-    boundary = int(reading_start_offset(plain_text.build_document(source=text)) or 0)
+    # The boundary the controller computes is where the body opens, which is the
+    # heading itself rather than the first sentence under it.
+    boundary = int(body_opening_offset(plain_text.build_document(source=text)))
 
     # Provide a navigation-chunk service so the controller uses the same path as
     # real book load.
@@ -241,7 +248,15 @@ def test_sections_go_to_defensive_guard_never_forces_pre_boundary_offset(qapp) -
         ),
         prepare_calls=[],
     )
-    narration._book = type("B", (), {"normalized_text": text, "title": "T"})()
+    narration._book = type(
+        "B",
+        (),
+        {
+            "normalized_text": text,
+            "title": "T",
+            "document_model": plain_text.build_document(source=text),
+        },
+    )()
 
     class _Svc:
         def build_for_loaded_book(self, **_):

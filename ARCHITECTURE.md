@@ -58,7 +58,7 @@ Additionally, narration failure handling persists a best-effort resume position 
     - [`VoiceProfileRepository`](voice_reader/domain/interfaces/voice_profile_repository.py:1)
   - Pure services:
     - [`ChunkingService`](voice_reader/domain/services/chunking_service.py:32) via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
-    - [`ReadingStartService`](voice_reader/domain/services/reading_start_service.py:23) via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29): still used by the 🧠 Sections bookmarks and the ideas index. Narration no longer consults it, see the document model below.
+    - [`ReadingStartService`](voice_reader/domain/services/reading_start_service.py:23) via [`ReadingStartService.detect_start()`](voice_reader/domain/services/reading_start_service.py:29): still used by the ideas index alone. Narration, the reading pane and the 🧠 Sections bookmarks all take the answer from the document model below.
     - [`SpokenTextSanitizer`](voice_reader/domain/services/spoken_text_sanitizer.py:27) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28)
   - Document model: [`voice_reader/domain/document`](voice_reader/domain/document:1), pure and format independent
     - [`Document`](voice_reader/domain/document/model.py:123) → [`Section`](voice_reader/domain/document/model.py:90) → [`Block`](voice_reader/domain/document/model.py:34), plus [`TocEntry`](voice_reader/domain/document/model.py:69). `Section` is named so rather than `Chapter` because [`Chapter`](voice_reader/domain/entities/chapter.py:1) already owns navigation metadata, and not every division of a book is a chapter.
@@ -271,9 +271,10 @@ Computation entry points:
 
 At a high level, the service:
 
-1. Establishes a safe boundary between front matter / TOC and body:
-   - body start cutoff via [`detect_body_start_offset()`](voice_reader/application/services/structural_bookmarks/front_matter.py:54)
-   - TOC end cutoff via [`detect_toc_end_offset()`](voice_reader/application/services/structural_bookmarks/toc_end.py:78)
+1. Takes the boundary between front matter and body from the document model, rather than re-deriving it:
+   - body start via [`body_opening_offset()`](voice_reader/domain/document/reading_start.py:1), which is the opening heading itself so Sections GoTo can land on it, not the first sentence under it
+   - contents extent via [`contents_end_offset()`](voice_reader/domain/document/reading_start.py:1)
+   - the model places the body opening at or after the contents by construction, so one boundary serves both and there is nothing to reconcile
 
 2. Collects *candidate heading labels* from multiple sources:
    - parsed chapter-like candidates adapted by [`StructuralBookmarkService._adapt_chapter_like_candidates()`](voice_reader/application/services/structural_bookmarks/service.py:372)

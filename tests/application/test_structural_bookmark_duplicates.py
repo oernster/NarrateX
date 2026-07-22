@@ -14,7 +14,6 @@ from voice_reader.application.services.structural_bookmark_service import (
     StructuralBookmarkService,
     classify_heading,
     dedupe_candidates,
-    detect_body_start_offset,
     scan_structural_headings,
 )
 
@@ -23,13 +22,19 @@ from voice_reader.application.services.navigation_chunk_service import (
     NavigationChunkService,
 )
 from voice_reader.domain.document import plain_text
+from voice_reader.domain.document.reading_start import body_opening_offset
+
+
+def _document(text: str):
+    """The structure a plain-text book load would produce."""
+
+    return plain_text.build_document(source=text)
 
 
 def _build(nav: NavigationChunkService, text: str):
     """Chunk `text` through the document model, as a real book load would."""
 
-    document = plain_text.build_document(source=text)
-    return nav.build_chunks(book_text=text, document=document)
+    return nav.build_chunks(book_text=text, document=_document(text))
 
 
 def test_chapter_label_duplicated_toc_and_body_prefers_body_occurrence() -> None:
@@ -48,7 +53,9 @@ def test_chapter_label_duplicated_toc_and_body_prefers_body_occurrence() -> None
     )
 
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     labels = [b.label for b in out]
     assert "Chapter 3" in labels
 
@@ -72,7 +79,9 @@ def test_chapter_label_duplicated_pdf_spaced_dot_toc_and_body_prefers_body_occur
     )
 
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
 
     # We expect Chapter 2 bookmark to anchor to the body occurrence (CHAPTER 2).
     b2 = [b for b in out if "chapter" in b.kind and "2" in b.label][0]
@@ -91,7 +100,9 @@ def test_part_label_duplicated_toc_and_body_prefers_body_occurrence() -> None:
     )
 
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     part = [b for b in out if b.kind == "part"][0]
     assert part.label == "Part I"
     # Prefer the later (body) occurrence, not the TOC copy.
@@ -107,7 +118,9 @@ def test_exact_full_line_matching_only_inline_mention_is_not_a_heading() -> None
     )
 
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
 
     # We should *not* create a Chapter 3 bookmark anchored to the inline mention.
     # Since there's no body occurrence of Chapter 3 after the body start, and
@@ -124,8 +137,7 @@ def test_body_start_cutoff_prefers_first_real_body_heading_after_front_matter() 
         "Once upon a time.\n"
     )
 
-    off = detect_body_start_offset(text)
-    assert off == text.index("Prologue")
+    assert body_opening_offset(_document(text)) == text.index("Prologue")
 
 
 def test_metadata_candidate_before_body_start_is_corrected_to_body_occurrence() -> None:
@@ -144,7 +156,10 @@ def test_metadata_candidate_before_body_start_is_corrected_to_body_occurrence() 
 
     svc = StructuralBookmarkService()
     out = svc.build_for_loaded_book(
-        book_id="b1", normalized_text=text, chapter_candidates=[md]
+        book_id="b1",
+        normalized_text=text,
+        document=_document(text),
+        chapter_candidates=[md],
     )
     b3 = [b for b in out if b.label == "Chapter 3"][0]
     assert b3.char_offset == text.index("\nChapter 3\nBody") + 1
@@ -162,7 +177,9 @@ def test_no_safe_occurrence_means_no_bookmark() -> None:
     )
 
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     assert all(b.label != "Chapter 7" for b in out)
 
 
@@ -185,6 +202,7 @@ def test_excludes_chapter_like_toc_entries_before_reading_start() -> None:
     out = svc.build_for_loaded_book(
         book_id="b1",
         normalized_text=text,
+        document=_document(text),
         chunks=chunks,
         min_char_offset=min_off,
     )
@@ -218,6 +236,7 @@ def test_prefers_post_boundary_duplicate_over_early_toc_duplicate() -> None:
     out = svc.build_for_loaded_book(
         book_id="b1",
         normalized_text=text,
+        document=_document(text),
         chunks=chunks,
         min_char_offset=min_off,
     )
@@ -242,6 +261,7 @@ def test_keeps_real_preface_or_prologue_when_it_is_after_boundary_or_is_the_boun
     out = svc.build_for_loaded_book(
         book_id="b1",
         normalized_text=text,
+        document=_document(text),
         chunks=chunks,
         min_char_offset=min_off,
     )
@@ -278,6 +298,7 @@ def test_sections_include_intro_when_essay_index_is_inside_body_after_prologue()
     out = svc.build_for_loaded_book(
         book_id="b1",
         normalized_text=text,
+        document=_document(text),
         chunks=chunks,
         min_char_offset=min_off,
     )
@@ -304,6 +325,7 @@ def test_filters_resolved_chunk_index_candidates_before_boundary() -> None:
     out = svc.build_for_loaded_book(
         book_id="b1",
         normalized_text=text,
+        document=_document(text),
         chapter_candidates=[md],
         chunks=chunks,
         min_char_offset=min_off,

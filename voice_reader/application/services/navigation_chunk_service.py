@@ -7,10 +7,12 @@ from dataclasses import dataclass
 
 from voice_reader.domain.document.model import Document
 from voice_reader.domain.document.narration_plan import build_narration_chunks
-from voice_reader.domain.document.reading_start import reading_start_offset
+from voice_reader.domain.document.reading_start import (
+    ReadingStart,
+    reading_start_offset,
+)
 from voice_reader.domain.entities.text_chunk import TextChunk
 from voice_reader.domain.services.chunking_service import ChunkingService
-from voice_reader.domain.services.reading_start_service import ReadingStart
 
 from voice_reader.application.text_patterns import (
     contains_dotted_leader,

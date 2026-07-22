@@ -4,12 +4,21 @@ from __future__ import annotations
 from voice_reader.application.services.structural_bookmark_service import (
     StructuralBookmarkService,
 )
+from voice_reader.domain.document import plain_text
+
+
+def _document(text: str):
+    """The structure a plain-text book load would produce."""
+
+    return plain_text.build_document(source=text)
 
 
 def test_includes_axiom_headings() -> None:
     text = "\n\nPrologue\n\nX\n\nAxiom 1: Decision Events\n\nY\n\nAxiom 2: Authority\n\nZ\n"
     svc = StructuralBookmarkService()
-    out = svc.build_for_loaded_book(book_id="b1", normalized_text=text)
+    out = svc.build_for_loaded_book(
+        book_id="b1", normalized_text=text, document=_document(text)
+    )
     kinds = [b.kind for b in out]
     assert "prologue" in kinds
     assert "axiom" in kinds
@@ -27,7 +36,7 @@ def test_includes_title_case_section_headings_without_chapter_prefix() -> None:
         "More text.\n"
     )
     out = StructuralBookmarkService().build_for_loaded_book(
-        book_id="b1", normalized_text=text
+        book_id="b1", normalized_text=text, document=_document(text)
     )
     labels = [b.label for b in out]
     assert "Prologue" in labels
@@ -48,7 +57,7 @@ def test_does_not_treat_inline_book_title_list_as_sections() -> None:
         "Explores how perspective\n"
     )
     out = StructuralBookmarkService().build_for_loaded_book(
-        book_id="b1", normalized_text=text
+        book_id="b1", normalized_text=text, document=_document(text)
     )
     labels = [b.label for b in out]
     assert "The Move Space" not in labels
@@ -63,7 +72,7 @@ def test_merges_wrapped_heading_lines_into_one_bookmark_label() -> None:
         "Body text starts here.\n"
     )
     out = StructuralBookmarkService().build_for_loaded_book(
-        book_id="b1", normalized_text=text
+        book_id="b1", normalized_text=text, document=_document(text)
     )
     labels = [b.label for b in out]
     assert "Chapter 35: Structural Design for Technical Organisations" in labels
@@ -77,7 +86,7 @@ def test_drops_truncated_heading_when_full_joined_heading_is_adjacent() -> None:
         "Body.\n"
     )
     out = StructuralBookmarkService().build_for_loaded_book(
-        book_id="b1", normalized_text=text
+        book_id="b1", normalized_text=text, document=_document(text)
     )
     labels = [b.label for b in out]
     assert "Chapter 1: What Is Decision" not in labels
@@ -93,7 +102,7 @@ def test_drops_title_case_section_heading_between_two_chapters() -> None:
         "Body.\n"
     )
     out = StructuralBookmarkService().build_for_loaded_book(
-        book_id="b1", normalized_text=text
+        book_id="b1", normalized_text=text, document=_document(text)
     )
     labels = [b.label for b in out]
     assert "Chapter 13: Introducing KPIs to Improve Performance" in labels
@@ -111,7 +120,7 @@ def test_includes_book_headings() -> None:
         "Body.\n"
     )
     out = StructuralBookmarkService().build_for_loaded_book(
-        book_id="b1", normalized_text=text
+        book_id="b1", normalized_text=text, document=_document(text)
     )
     labels = [b.label for b in out]
     kinds = [b.kind for b in out]
