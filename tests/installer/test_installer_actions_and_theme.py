@@ -78,9 +78,16 @@ class TestTheRowsHoldTheirShape:
         assert window.minimumHeight() >= layout.heightForWidth(root.width())
 
     def test_no_layout_row_is_squeezed_below_its_minimum(self, window) -> None:
+        # Height-for-width items (the word-wrapping labels) are exempt: Qt
+        # allocates them heightForWidth(width), which on real font metrics
+        # can sit below the SafeLabel's padded minimum without any clipping.
+        # The defect under test is the fixed-height rows (the buttons, the
+        # bar) being starved, and those must always receive their minimum.
         outer = window.centralWidget().layout()
         for index in range(outer.count()):
             item = outer.itemAt(index)
+            if item.hasHeightForWidth():
+                continue
             assert (
                 item.geometry().height() >= item.minimumSize().height()
             ), f"outer layout item {index} was starved below its minimum"
