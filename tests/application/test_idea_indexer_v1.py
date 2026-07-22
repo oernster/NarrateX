@@ -5,7 +5,6 @@ from voice_reader.application.services.idea_indexer_v1 import (
     detect_headings,
     extract_top_concepts,
 )
-from voice_reader.domain.services.reading_start_service import ReadingStartService
 
 
 def test_detect_headings_finds_chapter_lines_with_offsets() -> None:

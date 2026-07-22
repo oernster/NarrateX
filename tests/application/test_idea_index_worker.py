@@ -216,6 +216,40 @@ def test_run_worker_accepts_none_normalized_text() -> None:
     assert any(ev.get("type") == "result" for ev in events)
 
 
+def test_run_worker_honours_a_supplied_main_start_offset() -> None:
+    """The near-side body opening bounds what the worker indexes."""
+
+    ctx = get_context("spawn")
+    q = ctx.Queue()
+
+    import tempfile
+    from pathlib import Path
+
+    p = Path(tempfile.mkdtemp()) / "b1.normalized.txt"
+    text = (
+        "Front matter that should be excluded.\n\n"
+        "CHAPTER 1\n\nDecision fatigue is real and worth indexing.\n"
+    )
+    p.write_text(text, encoding="utf-8")
+    main_start = text.index("CHAPTER 1")
+
+    run_worker(
+        out_q=q,
+        payload={
+            "book_id": "b1",
+            "book_title": None,
+            "text_path": str(p),
+            "main_start_offset": main_start,
+        },
+    )
+
+    events = _drain_until_result(q)
+    result = next(ev for ev in events if ev.get("type") == "result")
+    anchors = result["doc"]["anchors"]
+    assert anchors
+    assert all(int(a["char_offset"]) >= main_start for a in anchors)
+
+
 def test_run_worker_emits_error_when_missing_book_id() -> None:
     ctx = get_context("spawn")
     q = ctx.Queue()

@@ -77,6 +77,14 @@ def run_worker(*, out_q, payload: dict) -> None:
             raise ValueError("text_path is required")
         text_path = Path(str(text_path))
 
+        # The body opening is computed on the near side, where the book's real
+        # document model exists, and travels here as a single offset. None means
+        # no model was available, and the builder falls back to the canonical
+        # text itself.
+        main_start_offset = payload.get("main_start_offset")
+        if main_start_offset is not None:
+            main_start_offset = int(main_start_offset)
+
         _dbg("worker start book_id=%s text_path=%s", book_id, str(text_path))
         normalized_text = text_path.read_text(encoding="utf-8", errors="replace")
 
@@ -118,6 +126,7 @@ def run_worker(*, out_q, payload: dict) -> None:
             book_id=book_id,
             book_title=book_title,
             normalized_text=normalized_text,
+            main_start_offset=main_start_offset,
         )
 
         _dbg("worker built doc keys=%s", ",".join(sorted(doc.keys())))

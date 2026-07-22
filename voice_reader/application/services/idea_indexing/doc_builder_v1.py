@@ -13,8 +13,10 @@ from voice_reader.application.services.idea_indexing.labels import (
 from voice_reader.application.services.navigation_chunk_service import (
     NavigationChunkService,
 )
+from voice_reader.domain.document import plain_text
+from voice_reader.domain.document.artefacts import is_artefact
+from voice_reader.domain.document.reading_start import body_opening_offset
 from voice_reader.domain.services.chunking_service import ChunkingService
-from voice_reader.domain.services.reading_start_service import ReadingStartService
 from voice_reader.domain.services.sanitized_text_mapper import SanitizedTextMapper
 
 
@@ -45,11 +47,31 @@ def _touch_resolve_chunk_index_for_coverage() -> None:  # pragma: no cover
         return
 
 
+def _scope_start(text: str, provided: int | None) -> int:
+    """Where the main text begins, in `text` coordinates.
+
+    The scope start is where the body opens, past the title page and the
+    contents. The caller has the book's real document model and answers this
+    with `body_opening_offset`, so it is passed straight through here.
+
+    When no offset is supplied (an unstructured book, or a direct call), the
+    canonical text is still the coordinate system every offset lives in, so a
+    plain-text model of it answers the same question rather than a second
+    heuristic of this module's own.
+    """
+
+    if provided is not None:
+        return max(0, min(int(provided), len(text)))
+    document = plain_text.build_document(source=text)
+    return max(0, min(int(body_opening_offset(document)), len(text)))
+
+
 def build_idea_index_doc_v1(
     *,
     book_id: str,
     book_title: str | None,
     normalized_text: str,
+    main_start_offset: int | None = None,
     max_text_chars: int = 200_000,
 ) -> dict:
     """Build a schema_version=1 idea index document."""
@@ -63,63 +85,9 @@ def build_idea_index_doc_v1(
 
     # --- Determine indexing scope ---
     # We index only the main text. Exclude:
-    # - everything before the detected main start (prefer Chapter 1 when present)
-    # - Essay Index block (if detected)
-    start_service = ReadingStartService()
-
-    def _chapter_one_start(text: str) -> int | None:
-        if not text:
-            return None
-        scan = text[: min(len(text), 200_000)]
-        for pat in start_service._chapter_one_patterns():  # noqa: SLF001
-            m = pat.search(scan)
-            if not m:
-                continue
-
-            # Reject ToC-like matches (e.g. "Chapter 1 .... 1") so we don't anchor
-            # into the Table of Contents.
-            try:
-                line = start_service._line_at(text, int(m.start()))  # noqa: SLF001
-            except Exception:
-                line = ""
-            if line:
-                try:
-                    if start_service._looks_like_toc_entry(
-                        line.strip()
-                    ):  # noqa: SLF001
-                        continue
-                except Exception:
-                    pass
-
-            # Main-text scope begins at Chapter 1 heading.
-            return int(m.start())
-        return None
-
-    def _prologue_or_intro_start(text: str) -> int | None:
-        """Fallback scope start when Chapter 1 isn't present."""
-
-        if not text:
-            return None
-        scan = text[: min(len(text), 200_000)]
-        pats = list(start_service._prologue_patterns()) + list(  # noqa: SLF001
-            start_service._introduction_patterns()  # noqa: SLF001
-        )
-        for pat in pats:
-            m = pat.search(scan)
-            if m:
-                return int(m.start())
-        return None
-
-    main_start = _chapter_one_start(full_text)
-    if main_start is None:
-        main_start = _prologue_or_intro_start(full_text)
-
-    if main_start is None:
-        try:
-            main_start = int(start_service.detect_start(full_text).start_char)
-        except Exception:
-            main_start = 0
-    main_start = max(0, min(int(main_start), len(full_text)))
+    # - everything before the body opening (from the document model)
+    # - the Essay Index block (if detected)
+    main_start = _scope_start(full_text, main_start_offset)
 
     nav = NavigationChunkService(
         chunking_service=ChunkingService(min_chars=120, max_chars=220),
@@ -200,12 +168,10 @@ def build_idea_index_doc_v1(
         add_node(label="Top Concepts", char_offset=0)
 
     for label, off in detect_headings(text=text):
-        # Never emit ToC-like headings as idea nodes.
-        try:
-            if start_service._looks_like_toc_entry(str(label).strip()):  # noqa: SLF001
-                continue
-        except Exception:
-            pass
+        # Never emit page furniture (a contents entry or a folio) as an idea
+        # node, on the model's own textual evidence.
+        if is_artefact(str(label).strip()):
+            continue
         add_node(
             label=expand_label_from_text(label=label, text=text, char_offset=int(off)),
             char_offset=int(off),

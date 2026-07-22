@@ -58,6 +58,7 @@ class IdeaIndexingManager:
         book_id: str,
         book_title: str | None,
         text_path: str | Path,
+        main_start_offset: int | None = None,
     ) -> IdeaIndexJob:
         """Start a new indexing job for a book (no-op if already running)."""
 
@@ -97,6 +98,9 @@ class IdeaIndexingManager:
             "book_id": book_id,
             "book_title": book_title,
             "text_path": text_path,
+            "main_start_offset": (
+                int(main_start_offset) if main_start_offset is not None else None
+            ),
         }
         p = ctx.Process(target=run_worker, kwargs={"out_q": out_q, "payload": payload})
         p.daemon = True

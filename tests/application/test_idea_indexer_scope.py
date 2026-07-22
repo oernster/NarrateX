@@ -1,69 +1,117 @@
 """Choosing which part of a book the ideas index covers.
 
-The index is built over the main text only, so front matter, the contents and
-an essay index are excluded. Working out where that scope begins is the awkward
-part, including the paths taken when detection raises.
+The index is built over the main text only, so the front matter, the contents
+and an essay index are excluded. The scope start is where the body opens, which
+the caller reads from the book's document model and passes in. When no offset is
+supplied, the builder answers the same question from a plain-text model of the
+canonical text, so there is one definition of "where the body begins", not two.
 """
 
 from __future__ import annotations
 
 from voice_reader.application.services.idea_indexer_v1 import (
     build_idea_index_doc_v1,
-    detect_headings,
-    extract_top_concepts,
 )
-from voice_reader.domain.services.reading_start_service import ReadingStartService
 
 
-def test_build_doc_v1_indexes_only_main_text_excluding_chapter1_prelude_and_essay_index() -> (
-    None
-):
+def _anchor_offsets(doc: dict) -> list[int]:
+    return [
+        int(a["char_offset"]) for a in doc.get("anchors", []) if isinstance(a, dict)
+    ]
+
+
+def _labels(doc: dict) -> list[str]:
+    return [
+        n["label"]
+        for n in doc.get("nodes", [])
+        if isinstance(n, dict) and isinstance(n.get("label"), str)
+    ]
+
+
+def test_a_supplied_offset_bounds_the_scope() -> None:
     text = (
-        "Foreword\n\nSome foreword text.\n\n"
+        "Front matter that should be excluded.\n\n"
         "Prologue\n\nSome prologue text.\n\n"
+        "CHAPTER 1\n\nDecision fatigue is real.\n"
+    )
+    main_start = text.index("CHAPTER 1")
+
+    doc = build_idea_index_doc_v1(
+        book_id="b1",
+        book_title=None,
+        normalized_text=text,
+        main_start_offset=main_start,
+    )
+
+    offsets = _anchor_offsets(doc)
+    assert offsets, "expected at least one anchor in main text"
+    assert all(off >= main_start for off in offsets)
+
+
+def test_a_supplied_offset_is_clamped_into_the_text() -> None:
+    text = "CHAPTER 1\n\nDecision fatigue is real.\n"
+
+    doc = build_idea_index_doc_v1(
+        book_id="b1",
+        book_title=None,
+        normalized_text=text,
+        main_start_offset=10_000,
+    )
+
+    # An offset past the end clamps to the end, leaving nothing to index rather
+    # than raising.
+    assert doc["schema_version"] == 1
+    assert doc["anchors"] == []
+
+
+def test_without_an_offset_the_model_finds_the_body_past_the_contents() -> None:
+    # The contents entry "Chapter 1 ..... 1" has a dotted leader, so the model
+    # skips it and the scope begins at the real heading, not inside the table.
+    text = (
+        "Table of Contents\n"
+        "Chapter 1 ........ 1\n\n"
+        "CHAPTER 1\n\nDecision fatigue is real.\n"
+    )
+    body_start = text.index("CHAPTER 1")
+
+    doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text=text)
+
+    offsets = _anchor_offsets(doc)
+    assert offsets
+    assert min(offsets) >= body_start
+    # The contents line itself is never emitted as an idea node.
+    assert not any(
+        ".." in label and "chapter" in label.casefold() for label in _labels(doc)
+    )
+
+
+def test_without_an_offset_the_model_opens_on_the_prologue() -> None:
+    text = "Front matter\n\nTitle\n\nPrologue\n\nDecision fatigue is real."
+    prologue_pos = text.index("Prologue")
+
+    doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text=text)
+
+    offsets = _anchor_offsets(doc)
+    assert offsets
+    assert min(offsets) >= prologue_pos
+
+
+def test_an_essay_index_inside_the_scope_is_excluded() -> None:
+    text = (
+        "CHAPTER 1 Start\n\n"
         "Essay Index\n"
-        "A dotted entry ........ 1\n"
-        "Another entry ........ 2\n\n"
+        "One ........ 1\n"
+        "Two ........ 2\n\n"
         "CHAPTER 1\n\n"
         "Decision fatigue is real.\n"
     )
 
     doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text=text)
 
-    # All anchors should be at/after Chapter 1 start (and thus not in foreword/prologue).
-    import re
-
-    m = re.search(r"(?im)^\s*chapter\s+1\b", text)
-    assert m is not None
-    chapter1_pos = int(m.start())
-    anchors = [a for a in doc.get("anchors", []) if isinstance(a, dict)]
-    assert anchors, "expected at least one anchor in main text"
-    # Indexing begins at the Chapter 1 heading start, so anchors must be at/after it.
-    assert all(int(a["char_offset"]) >= chapter1_pos for a in anchors)
-
-    # Ensure we didn't index the Essay Index heading.
-    labels = [n.get("label") for n in doc.get("nodes", []) if isinstance(n, dict)]
-    assert not any(
-        isinstance(s, str) and s.strip().casefold() == "essay index" for s in labels
-    )
+    assert not any(label.strip().casefold() == "essay index" for label in _labels(doc))
 
 
-def test_build_doc_v1_uses_prologue_as_scope_start_when_no_chapter1_present() -> None:
-    text = "Front matter\n\nTitle\n\nPrologue\n\nDecision fatigue is real."
-    doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text=text)
-
-    prologue_pos = text.casefold().find("prologue")
-    assert prologue_pos >= 0
-    anchors = [a for a in doc.get("anchors", []) if isinstance(a, dict)]
-    assert anchors
-    # Scope begins at the Prologue heading line.
-    # Allow anchors to land on the preceding newline boundary due to conservative
-    # heading detection emitting line-start offsets.
-    assert min(int(a["char_offset"]) for a in anchors) >= (prologue_pos - 1)
-
-
-def test_build_doc_v1_essay_span_detection_exception_is_handled(monkeypatch) -> None:
-    # Force the Essay Index detector to fail; indexing should still complete.
+def test_an_essay_span_detection_failure_still_completes(monkeypatch) -> None:
     from voice_reader.application.services.navigation_chunk_service import (
         NavigationChunkService,
     )
@@ -78,136 +126,38 @@ def test_build_doc_v1_essay_span_detection_exception_is_handled(monkeypatch) -> 
         book_title=None,
         normalized_text="Chapter 1 Start\n\nDecision fatigue is real.",
     )
+
     assert doc["schema_version"] == 1
     assert isinstance(doc.get("nodes"), list)
 
 
-def test_build_doc_v1_detect_start_exception_falls_back_to_zero(monkeypatch) -> None:
-    # No Chapter 1 / Prologue / Introduction markers; force detect_start to fail.
-    from voice_reader.domain.services.reading_start_service import ReadingStartService
-
-    def boom(self, text: str):
-        raise RuntimeError("boom")
-
-    monkeypatch.setattr(ReadingStartService, "detect_start", boom)
-
-    doc = build_idea_index_doc_v1(
-        book_id="b1",
-        book_title=None,
-        normalized_text="Decision fatigue is real.",
-    )
-    assert doc["schema_version"] == 1
-
-
-def test_build_doc_v1_excludes_essay_index_span_when_present() -> None:
-    # Ensure the essay-span path is exercised and that nodes inside it are excluded.
+def test_a_dotted_leader_heading_is_never_an_idea_node() -> None:
+    # A contents entry that survives into the scoped text is page furniture, and
+    # the builder drops it on the model's own textual evidence.
     text = (
-        "Chapter 1 Start\n\n"
-        "Essay Index\n"
-        "One ........ 1\n"
-        "Two ........ 2\n\n"
         "CHAPTER 1\n\n"
-        "Decision fatigue is real.\n"
+        "Decision fatigue is real and worth a sentence.\n\n"
+        "A stray entry ........ 42\n\n"
+        "More real prose follows here to anchor.\n"
     )
+
     doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text=text)
-    labels = [n.get("label") for n in doc.get("nodes", []) if isinstance(n, dict)]
-    assert not any(
-        isinstance(s, str) and s.strip().casefold() == "essay index" for s in labels
-    )
+
+    assert not any(".." in label for label in _labels(doc))
 
 
-def test_build_doc_v1_detect_start_is_used_when_no_markers_present() -> None:
-    # Exercise the detect_start path (no Chapter 1 / Prologue / Introduction).
-    text = "Random header\n\nThis is a real sentence that should be accepted.\n"
-    doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text=text)
-    assert doc["schema_version"] == 1
-
-
-def test_build_doc_v1_does_not_start_scope_on_toc_like_chapter1_entry() -> None:
-    # Table of contents often contains lines like: "Chapter 1 .... 1".
-    # Scope detection must not anchor inside ToC.
-    text = (
-        "Table of Contents\n"
-        "Chapter 1 ........ 1\n\n"
-        "CHAPTER 1\n\n"
-        "Decision fatigue is real.\n"
-    )
-    doc = build_idea_index_doc_v1(book_id="b1", book_title=None, normalized_text=text)
-    labels = [n.get("label") for n in doc.get("nodes", []) if isinstance(n, dict)]
-    assert not any(
-        isinstance(s, str) and ".." in s and "chapter" in s.casefold() for s in labels
-    )
-
-
-def test_build_doc_v1_chapter_one_start_line_at_exception_is_handled(
-    monkeypatch,
-) -> None:
-    """Coverage: exercise the exception handler around ReadingStartService._line_at."""
-
-    def _boom_line_at(_text: str, _idx: int) -> str:
-        raise RuntimeError("boom")
-
-    monkeypatch.setattr(ReadingStartService, "_line_at", staticmethod(_boom_line_at))
-
-    text = "Front\n\nCHAPTER 1\n\nBody text."
-    # Patterns can match starting at the first non-whitespace *or* include a
-    # preceding newline depending on the exact regex; allow a 1-char tolerance.
-    expected = text.index("CHAPTER 1")
-
-    doc = build_idea_index_doc_v1(
-        book_id="b1",
-        book_title=None,
-        normalized_text=text,
-        max_text_chars=10_000,
-    )
-
-    # When candidates exist, the Top Concepts anchor should be placed at the scope start.
-    assert doc["anchors"], "Expected at least one anchor"
-    assert abs(int(doc["anchors"][0]["char_offset"]) - int(expected)) <= 1
-
-
-def test_build_doc_v1_toc_entry_probe_exceptions_are_handled(monkeypatch) -> None:
-    """Coverage: exercise exception handlers around _looks_like_toc_entry."""
-
-    def _boom_toc_entry(_line: str) -> bool:
-        raise RuntimeError("boom")
-
-    monkeypatch.setattr(
-        ReadingStartService,
-        "_looks_like_toc_entry",
-        staticmethod(_boom_toc_entry),
-    )
-
-    # Use a Chapter 1 heading at the start of the text so the chapter-one regex
-    # match begins *inside* a non-empty line (not on a preceding blank line).
-    # This ensures _looks_like_toc_entry is actually invoked.
-    text = "CHAPTER 1\n\nBody text.\n\nCHAPTER 2\n\nMore body."
-    doc = build_idea_index_doc_v1(
-        book_id="b1",
-        book_title=None,
-        normalized_text=text,
-        max_text_chars=10_000,
-    )
-    assert doc["schema_version"] == 1
-
-
-def test_build_doc_v1_handles_no_playback_candidates() -> None:
-    """If the text sanitizes to nothing, doc should still be well-formed."""
-
+def test_no_playback_candidates_still_produces_a_valid_doc() -> None:
     doc = build_idea_index_doc_v1(
         book_id="b1", book_title=None, normalized_text="   \n\n   "
     )
+
     assert doc["schema_version"] == 1
     assert doc["status"]["state"] == "completed"
     assert doc["anchors"] == []
     assert doc["nodes"] == []
 
 
-def test_resolve_chunk_index_fallback_path_is_used_when_offset_before_first_chunk() -> (
-    None
-):
-    # Import the private helper intentionally for coverage: it encodes a key
-    # navigation guarantee.
+def test_resolve_chunk_index_maps_an_offset_before_the_first_chunk() -> None:
     from voice_reader.application.services.idea_indexer_v1 import _resolve_chunk_index
     from voice_reader.domain.entities.text_chunk import TextChunk
 
@@ -215,8 +165,7 @@ def test_resolve_chunk_index_fallback_path_is_used_when_offset_before_first_chun
     assert _resolve_chunk_index(char_offset=0, candidates=candidates) == 0
 
 
-def test_resolve_chunk_index_path_for_offsets_before_start_is_reachable() -> None:
-    # Ensure the resolver path "start_char >= char_offset" is exercised.
+def test_resolve_chunk_index_walks_to_the_first_chunk_at_or_after() -> None:
     from voice_reader.application.services.idea_indexer_v1 import _resolve_chunk_index
     from voice_reader.domain.entities.text_chunk import TextChunk
 
@@ -227,7 +176,7 @@ def test_resolve_chunk_index_path_for_offsets_before_start_is_reachable() -> Non
     assert _resolve_chunk_index(char_offset=0, candidates=candidates) == 0
 
 
-def test_resolve_chunk_index_returns_none_when_offset_after_last_chunk() -> None:
+def test_resolve_chunk_index_returns_none_past_the_last_chunk() -> None:
     from voice_reader.application.services.idea_indexer_v1 import _resolve_chunk_index
     from voice_reader.domain.entities.text_chunk import TextChunk
 
@@ -244,12 +193,9 @@ def test_build_doc_v1_requires_book_id() -> None:
 
 
 def test_touch_weak_label_expansion_for_coverage_smoke() -> None:
-    # Keep coverage stable for heuristic helpers.
     from voice_reader.application.services import idea_indexer_v1 as m
 
     m._touch_weak_label_expansion_for_coverage()  # noqa: SLF001
-
-    # Also exercise index-scope helpers to keep coverage stable.
     m._touch_index_scope_for_coverage()  # noqa: SLF001
 
 

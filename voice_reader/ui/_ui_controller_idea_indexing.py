@@ -5,7 +5,22 @@ from pathlib import Path
 
 from voice_reader.application.dto.narration_state import NarrationStatus
 from voice_reader.application.services.ideas_staging import stage_normalized_text
+from voice_reader.domain.document.reading_start import body_opening_offset
 from voice_reader.shared.config import Config
+
+
+def _body_opening_offset(book) -> int | None:
+    """The book's body opening from its document model, or None without one.
+
+    The ideas index scope starts where the body opens, past the title page and
+    the contents. The model already answers this, so the launcher reads it here
+    and hands the worker the offset rather than a second scan of the text.
+    """
+
+    document = getattr(book, "document_model", None)
+    if document is None:
+        return None
+    return int(body_opening_offset(document))
 
 
 def start_ideas_indexing(controller, *, book_id: str) -> None:
@@ -74,12 +89,14 @@ def start_ideas_indexing(controller, *, book_id: str) -> None:
             # but avoids blocking the Qt loop).
             book_title = None
             normalized_text = ""
+            main_start_offset = None
             try:
                 book = getattr(
                     controller.narration_service, "_book", None
                 )  # noqa: SLF001
                 book_title = getattr(book, "title", None)
                 normalized_text = str(getattr(book, "normalized_text", ""))
+                main_start_offset = _body_opening_offset(book)
             except Exception:
                 pass
 
@@ -112,6 +129,7 @@ def start_ideas_indexing(controller, *, book_id: str) -> None:
                 book_id=book_id,
                 book_title=str(book_title) if book_title is not None else None,
                 text_path=str(text_path),
+                main_start_offset=main_start_offset,
             )
 
             def _on_launched() -> None:
