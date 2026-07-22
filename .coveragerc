@@ -93,6 +93,7 @@ omit =
     voice_reader/ui/_book_load_compute.py
     voice_reader/ui/_message_box_utils.py
     voice_reader/ui/_main_window_build.py
+    voice_reader/ui/_main_window_controls.py
 
     # Windows path variants (coverage on win32 reports backslashes).
     voice_reader\ui\_ideas_navigation.py
@@ -101,6 +102,7 @@ omit =
     voice_reader\ui\_book_load_compute.py
     voice_reader\ui\_message_box_utils.py
     voice_reader\ui\_main_window_build.py
+    voice_reader\ui\_main_window_controls.py
 
     # Windows path variants (coverage on win32 reports backslashes).
     voice_reader\application\services\narration\*
