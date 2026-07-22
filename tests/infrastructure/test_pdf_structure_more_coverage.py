@@ -157,7 +157,7 @@ def test_page_and_block_indices_track_the_walk() -> None:
     ]
 
 
-def test_drafts_come_back_classified_from_the_walk() -> None:
+def test_layout_comes_back_classified_from_the_walk() -> None:
     page = FakePage(
         {
             "blocks": [
@@ -167,12 +167,42 @@ def test_drafts_come_back_classified_from_the_walk() -> None:
         }
     )
 
-    drafts = pdf_structure.drafts_from_document([page])
+    furniture, drafts = pdf_structure.layout_from_document([page])
 
+    assert furniture == {}
     assert [draft.kind for draft in drafts] == [
         BlockKind.HEADING,
         BlockKind.PARAGRAPH,
     ]
+
+
+def test_layout_reports_the_furniture_to_strip() -> None:
+    def _furnished_page(folio: str) -> FakePage:
+        return FakePage(
+            {
+                "blocks": [
+                    _text_block(
+                        [_line([_span("A History of Everything")], bbox=(0, 2, 0, 8))]
+                    ),
+                    _text_block([_line([_span("Distinct body prose " + folio)])]),
+                    _text_block([_line([_span(folio)], bbox=(0, 92, 0, 98))]),
+                ]
+            }
+        )
+
+    furniture, drafts = pdf_structure.layout_from_document(
+        [_furnished_page("10"), _furnished_page("11"), _furnished_page("12")]
+    )
+
+    assert furniture == {
+        0: ("A History of Everything", "10"),
+        1: ("A History of Everything", "11"),
+        2: ("A History of Everything", "12"),
+    }
+    assert all(
+        draft.kind not in {BlockKind.RUNNING_HEAD, BlockKind.PAGE_NUMBER}
+        for draft in drafts
+    )
 
 
 def test_layout_failure_leaves_the_book_unstructured() -> None:
@@ -181,4 +211,4 @@ def test_layout_failure_leaves_the_book_unstructured() -> None:
         def rect(self):
             raise RuntimeError("layout unavailable")
 
-    assert pdf_structure.drafts_from_document([ExplodingPage()]) == ()
+    assert pdf_structure.layout_from_document([ExplodingPage()]) == ({}, ())

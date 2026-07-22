@@ -8,7 +8,6 @@ from voice_reader.domain.document.pdf_lines import (
     body_size,
     drafts_from_lines,
     join_paragraph_lines,
-    running_head_keys,
 )
 
 PAGE_HEIGHT = 800.0
@@ -59,55 +58,6 @@ class TestBodySize:
         assert body_size(lines) == 12.0
 
 
-class TestRunningHeads:
-    def test_a_margin_line_repeating_across_pages_is_detected(self) -> None:
-        lines = tuple(
-            _line("A History of Everything", top=10.0, page=page) for page in range(4)
-        )
-
-        assert running_head_keys(lines) != frozenset()
-
-    def test_two_pages_are_not_enough(self) -> None:
-        lines = tuple(
-            _line("A History of Everything", top=10.0, page=page) for page in range(2)
-        )
-
-        assert running_head_keys(lines) == frozenset()
-
-    def test_repetition_ignores_the_changing_page_number(self) -> None:
-        lines = tuple(
-            _line(f"Chapter 3 | {40 + page}", top=10.0, page=page) for page in range(4)
-        )
-
-        assert running_head_keys(lines) != frozenset()
-
-    def test_a_line_in_the_body_is_never_a_running_head(self) -> None:
-        lines = tuple(
-            _line("Repeated body phrase", top=MIDDLE, page=page) for page in range(5)
-        )
-
-        assert running_head_keys(lines) == frozenset()
-
-    def test_a_line_with_no_letters_is_not_a_repetition_key(self) -> None:
-        lines = tuple(_line("12", top=10.0, page=page) for page in range(5))
-
-        assert running_head_keys(lines) == frozenset()
-
-    def test_a_zero_height_page_has_no_margins(self) -> None:
-        line = PdfLine(
-            text="Header",
-            size=BODY_SIZE,
-            bold=False,
-            top=0.0,
-            bottom=10.0,
-            page_index=0,
-            page_height=0.0,
-            block_index=0,
-        )
-
-        assert running_head_keys((line,) * 5) == frozenset()
-
-
 class TestClassification:
     def test_no_lines_yields_no_drafts(self) -> None:
         assert drafts_from_lines(()) == ()
@@ -156,15 +106,6 @@ class TestClassification:
             ("A Subsection", 3),
         ]
 
-    def test_a_standalone_page_number_in_the_margin_is_a_folio(self) -> None:
-        lines = (
-            _line("A" * 200, block=0),
-            _line("12", top=770.0, block=1),
-        )
-        drafts = drafts_from_lines(lines)
-
-        assert drafts[-1].kind is BlockKind.PAGE_NUMBER
-
     def test_a_number_in_the_body_is_not_a_folio(self) -> None:
         lines = (_line("A" * 200, block=0), _line("12", top=MIDDLE, block=1))
         drafts = drafts_from_lines(lines)
@@ -176,26 +117,6 @@ class TestClassification:
         drafts = drafts_from_lines(lines)
 
         assert drafts[0].kind is BlockKind.TOC_ENTRY
-
-    def test_a_repeated_margin_line_becomes_a_running_head(self) -> None:
-        lines = tuple(
-            _line("A History of Everything", top=10.0, page=page, block=0)
-            for page in range(4)
-        ) + (
-            _line("A" * 200, page=4, block=1),
-        )
-        drafts = drafts_from_lines(lines)
-
-        assert drafts[0].kind is BlockKind.RUNNING_HEAD
-
-    def test_artefacts_are_neither_displayed_nor_spoken(self) -> None:
-        lines = (
-            _line("Prologue . . . . . . 2", block=0),
-            _line("12", top=770.0, block=1),
-        )
-        for draft in drafts_from_lines(lines):
-            assert draft.kind.is_displayed is False
-            assert draft.kind.is_spoken is False
 
 
 class TestParagraphMerging:
@@ -230,20 +151,6 @@ class TestParagraphMerging:
         assert [d.kind for d in drafts] == [
             BlockKind.PARAGRAPH,
             BlockKind.HEADING,
-            BlockKind.PARAGRAPH,
-        ]
-
-    def test_a_folio_interrupts_a_paragraph(self) -> None:
-        lines = (
-            _line("Prose before the break.", block=0),
-            _line("12", top=770.0, block=0),
-            _line("Prose after the break.", block=0),
-        )
-        drafts = drafts_from_lines(lines)
-
-        assert [d.kind for d in drafts] == [
-            BlockKind.PARAGRAPH,
-            BlockKind.PAGE_NUMBER,
             BlockKind.PARAGRAPH,
         ]
 

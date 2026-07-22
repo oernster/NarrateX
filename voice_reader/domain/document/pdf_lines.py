@@ -5,6 +5,13 @@ throws away: font size, weight, position on the page, and which lines the
 extractor grouped together. Headings are set larger, folios sit in the margins,
 running heads repeat in the same band on page after page.
 
+The furniture verdicts serve two consumers that must agree. The drafts a
+caller anchors onto the canonical text omit running heads and margin folios,
+because `furniture_texts_by_page` tells the text extraction to strip those
+same lines from the canonical text itself. One classification pass produces
+both answers, so a line can never be stripped from the text yet still be
+sought by a draft, or kept in the text with no draft aware of it.
+
 This module is pure. It takes already-extracted lines and decides what each one
 is, so every rule here is testable without opening a PDF.
 """
@@ -17,6 +24,10 @@ from dataclasses import dataclass
 from voice_reader.domain.document.anchoring import BlockDraft
 from voice_reader.domain.document.artefacts import is_contents_entry, is_folio
 from voice_reader.domain.document.block_kind import BlockKind
+from voice_reader.domain.document.pdf_line_assembly import (
+    join_paragraph_lines,
+    rejoin_split_numbering,
+)
 
 # A heading is set noticeably larger than body text. Below this the difference
 # is more likely to be extraction noise than an editorial decision.
@@ -45,48 +56,10 @@ _INDEX_HEAD_KEYS = frozenset({"index", "subject index", "name index"})
 _DIGITS = re.compile(r"\d+")
 _WHITESPACE = re.compile(r"\s+")
 
-# A heading that is nothing but its own section number: "8", "8.1", "3.1.1".
-# These are set on their own line often enough that they need rejoining with
-# the title that follows.
-_SECTION_NUMBER = re.compile(r"^\d+(?:\.\d+)*\.?$")
-
 # Kinds whose text wraps across lines, so consecutive lines the extractor
 # grouped together belong to one block. Furniture does not wrap: a folio or a
 # running head is a line in its own right.
 _WRAPPING_KINDS = frozenset({BlockKind.PARAGRAPH, BlockKind.HEADING})
-
-# A word broken across a line end: "deci-" followed by "sion". A lowercase
-# continuation means a split word; an uppercase one means a real hyphenated
-# compound at a line end, which is left alone.
-#
-# Both hyphens count. A typeset PDF breaks words on a non-breaking hyphen as
-# readily as on a plain one, and the extraction folds the two together before
-# healing them, so matching only the plain one leaves every paragraph broken on
-# the other kind unanchorable.
-_LINE_BREAK_HYPHEN = re.compile(r"([A-Za-z])[-‑]$")
-_LOWERCASE_START = re.compile(r"^[a-z]")
-
-
-def join_paragraph_lines(parts: tuple[str, ...]) -> str:
-    """Join wrapped lines into one paragraph, healing split words.
-
-    Mirrors the dehyphenation the text extraction already applies, so the
-    resulting text matches the canonical text and can be anchored to it.
-    """
-
-    joined = ""
-    for part in parts:
-        piece = part.strip()
-        if not piece:
-            continue
-        if not joined:
-            joined = piece
-            continue
-        if _LINE_BREAK_HYPHEN.search(joined) and _LOWERCASE_START.match(piece):
-            joined = joined[:-1] + piece
-            continue
-        joined = f"{joined} {piece}"
-    return joined
 
 
 @dataclass(frozen=True, slots=True)
@@ -249,23 +222,71 @@ def _reclassify_contents_folios(
     return classified
 
 
+def _classify(lines: tuple[PdfLine, ...]) -> list[tuple[PdfLine, BlockKind]]:
+    """One classification pass shared by drafts and furniture selection."""
+
+    body = body_size(lines)
+    running = running_head_keys(lines)
+    indexed = index_pages(lines, body=body)
+
+    return _reclassify_contents_folios(
+        [
+            (line, _kind_of(line, body=body, running=running, indexed=indexed))
+            for line in lines
+        ]
+    )
+
+
+def _is_stripped_furniture(line: PdfLine, kind: BlockKind) -> bool:
+    """Whether this line is removed from the canonical text entirely.
+
+    Running heads always are. A folio is only stripped when it sits in the
+    margin band; a reclassified contents-column number sits mid-page, stays in
+    the text and therefore keeps its draft.
+    """
+
+    if kind is BlockKind.RUNNING_HEAD:
+        return True
+    return kind is BlockKind.PAGE_NUMBER and _in_edge_band(line)
+
+
+def furniture_texts_by_page(
+    lines: tuple[PdfLine, ...],
+) -> dict[int, tuple[str, ...]]:
+    """Texts of the furniture lines to strip from each page's extracted text.
+
+    Keyed by page index. The counts matter: a page contributes one entry per
+    furniture line, so the caller can consume at most that many matching lines
+    and leave body text that happens to repeat the header's words alone.
+    """
+
+    populated = tuple(line for line in lines if line.text.strip())
+    if not populated:
+        return {}
+
+    texts: dict[int, list[str]] = {}
+    for line, kind in _classify(populated):
+        if _is_stripped_furniture(line, kind):
+            texts.setdefault(line.page_index, []).append(line.text.strip())
+
+    return {page: tuple(entries) for page, entries in texts.items()}
+
+
 def drafts_from_lines(lines: tuple[PdfLine, ...]) -> tuple[BlockDraft, ...]:
-    """Classify lines and merge consecutive body lines into paragraphs."""
+    """Classify lines and merge consecutive body lines into paragraphs.
+
+    Stripped furniture (running heads, margin folios) yields no draft: its
+    text is removed from the canonical source, so a draft for it could only
+    fail to anchor, or worse, anchor onto an innocent body occurrence of the
+    same words and steal the paragraph that owns them. It still breaks up the
+    surrounding blocks exactly as it did on the page.
+    """
 
     populated = tuple(line for line in lines if line.text.strip())
     if not populated:
         return ()
 
-    body = body_size(populated)
-    running = running_head_keys(populated)
-    indexed = index_pages(populated, body=body)
-
-    classified = _reclassify_contents_folios(
-        [
-            (line, _kind_of(line, body=body, running=running, indexed=indexed))
-            for line in populated
-        ]
-    )
+    classified = _classify(populated)
     levels = _heading_levels(
         {round(line.size, 1) for line, kind in classified if kind is BlockKind.HEADING}
     )
@@ -310,55 +331,9 @@ def drafts_from_lines(lines: tuple[PdfLine, ...]) -> tuple[BlockDraft, ...]:
 
         flush()
         pending_key = None
+        if _is_stripped_furniture(line, kind):
+            continue
         drafts.append(BlockDraft(kind=kind, text=text, level=level))
 
     flush()
-    return _rejoin_split_numbering(tuple(drafts))
-
-
-def _rejoin_split_numbering(drafts: tuple[BlockDraft, ...]) -> tuple[BlockDraft, ...]:
-    """Rejoin a heading whose number was typeset on its own line.
-
-    Typesetting often sets "8.1" and "From possibility to constraint" as
-    separate lines, so they arrive as two headings. Left apart, the number
-    becomes a navigation entry of its own that says nothing, and the title
-    loses the number that identifies it.
-
-    Rejoining is safe against the canonical text because matching ignores
-    whitespace: "8.1 From possibility to constraint" and the source's
-    "8.1\\nFrom possibility to constraint" reduce to the same thing.
-    """
-
-    rejoined: list[BlockDraft] = []
-    pending: BlockDraft | None = None
-
-    for draft in drafts:
-        is_heading = draft.kind is BlockKind.HEADING
-
-        if is_heading and _SECTION_NUMBER.match(draft.text):
-            # Two numbers in a row means the first had no title to join.
-            if pending is not None:
-                rejoined.append(pending)
-            pending = draft
-            continue
-
-        if pending is not None:
-            if is_heading:
-                rejoined.append(
-                    BlockDraft(
-                        kind=BlockKind.HEADING,
-                        text=f"{pending.text} {draft.text}",
-                        level=min(pending.level, draft.level),
-                    )
-                )
-                pending = None
-                continue
-            rejoined.append(pending)
-            pending = None
-
-        rejoined.append(draft)
-
-    if pending is not None:
-        rejoined.append(pending)
-
-    return tuple(rejoined)
+    return rejoin_split_numbering(tuple(drafts))

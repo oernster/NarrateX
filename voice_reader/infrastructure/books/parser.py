@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import warnings
 import re
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -68,6 +69,28 @@ def normalize_markdown_text(text: str) -> str:
     return text.strip()
 
 
+def _strip_furniture_lines(page_text: str, furniture: tuple[str, ...]) -> str:
+    """Drop page-furniture lines (running heads, margin folios) from one page.
+
+    Matching is by exact stripped text and consumes at most as many
+    occurrences as the layout pass counted for the page, so a body line that
+    happens to repeat the header's words is preserved.
+    """
+
+    if not furniture:
+        return page_text
+
+    remaining = Counter(furniture)
+    kept: list[str] = []
+    for line in page_text.split("\n"):
+        key = line.strip()
+        if remaining.get(key, 0) > 0:
+            remaining[key] -= 1
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
 def _dehyphenate(text: str) -> str:
     """Remove PDF line-break hyphenation artefacts.
 
@@ -121,17 +144,25 @@ class BookParser:
             import fitz  # PyMuPDF
 
             doc = fitz.open(str(path))
+            # One layout-aware pass yields both the structure and the page
+            # furniture (running heads, margin folios) to strip from the
+            # text, so the canonical text never narrates or indexes a page
+            # header. On layout failure it yields nothing and the text keeps
+            # every extracted line.
+            furniture, drafts = pdf_structure.layout_from_document(doc)
             pages: list[str] = []
-            for page in doc:
-                pages.append(page.get_text("text"))
+            for index, page in enumerate(doc):
+                pages.append(
+                    _strip_furniture_lines(
+                        page.get_text("text"), furniture.get(index, ())
+                    )
+                )
             raw = "\n\n".join(pages)
             normalized = _dehyphenate(raw)
-            # Structure comes from a second, layout-aware pass over the same
-            # document. The text above is untouched by it.
             return ParsedBook(
                 raw_text=raw,
                 normalized_text=normalize_text(normalized),
-                drafts=pdf_structure.drafts_from_document(doc),
+                drafts=drafts,
             )
         except Exception as exc:
             raise BookParseError(str(exc)) from exc

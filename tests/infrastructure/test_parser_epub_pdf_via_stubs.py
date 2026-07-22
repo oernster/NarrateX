@@ -26,6 +26,86 @@ def test_parser_pdf_uses_fitz_stub(monkeypatch, tmp_path: Path) -> None:
     assert "Hello PDF" in norm
 
 
+def test_parser_pdf_strips_running_heads_and_margin_folios(
+    monkeypatch, tmp_path: Path
+) -> None:
+    p = tmp_path / "furnished.pdf"
+    p.write_bytes(b"%PDF")
+
+    page_height = 100.0
+
+    def _span(text: str) -> dict:
+        return {"text": text, "size": 10.0, "flags": 0}
+
+    class FakeRect:
+        height = page_height
+
+    class FakePage:
+        """A page whose dict and text modes describe the same three lines."""
+
+        rect = FakeRect()
+
+        def __init__(self, body: str, folio: str) -> None:
+            self._body = body
+            self._folio = folio
+
+        def get_text(self, mode: str):
+            if mode == "dict":
+                return {
+                    "blocks": [
+                        {
+                            "type": 0,
+                            "lines": [
+                                {
+                                    "spans": [_span("Contents")],
+                                    "bbox": (0.0, 2.0, 0.0, 8.0),
+                                }
+                            ],
+                        },
+                        {
+                            "type": 0,
+                            "lines": [
+                                {
+                                    "spans": [_span(self._body)],
+                                    "bbox": (0.0, 40.0, 0.0, 50.0),
+                                }
+                            ],
+                        },
+                        {
+                            "type": 0,
+                            "lines": [
+                                {
+                                    "spans": [_span(self._folio)],
+                                    "bbox": (0.0, 92.0, 0.0, 98.0),
+                                }
+                            ],
+                        },
+                    ]
+                }
+            assert mode == "text"
+            return f"Contents\n{self._body}\n{self._folio}"
+
+    class FakeDoc(list):
+        pass
+
+    # Page 1's body repeats the header's exact word mid-page, proving the
+    # strip is count-limited and never eats a body line.
+    bodies = ["First page prose stays.", "Contents", "Third page prose stays."]
+    pages = [FakePage(body, str(10 + i)) for i, body in enumerate(bodies)]
+    fake_fitz = types.SimpleNamespace(open=lambda _: FakeDoc(pages))
+    monkeypatch.setitem(__import__("sys").modules, "fitz", fake_fitz)
+
+    parsed = BookParser().parse(p)
+    norm = parsed.normalized_text
+
+    assert norm.count("Contents") == 1
+    assert "First page prose stays." in norm
+    assert "Third page prose stays." in norm
+    for folio in ("10", "11", "12"):
+        assert folio not in norm
+    assert [d.text for d in parsed.drafts] == bodies
+
+
 def test_parser_epub_uses_ebooklib_bs4_stubs(monkeypatch, tmp_path: Path) -> None:
     p = tmp_path / "a.epub"
     p.write_bytes(b"EPUB")

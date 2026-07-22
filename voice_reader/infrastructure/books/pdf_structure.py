@@ -4,8 +4,11 @@ PyMuPDF's `dict` extraction mode reports font size, weight and position for
 every span, and groups lines into blocks. Plain `text` mode discards all of it.
 This adapter reads the richer form and hands it to the pure classifier.
 
-The extracted *text* used elsewhere still comes from `text` mode, unchanged, so
-`normalized_text` and every offset anchored to it stay exactly as they were.
+The extracted *text* used elsewhere still comes from `text` mode, but the
+classifier's furniture verdicts feed back into it: the parser strips running
+heads and margin folios from each page's text, guided by
+`furniture_texts_by_page`, so the canonical text and the drafts anchored onto
+it describe the same book.
 """
 
 from __future__ import annotations
@@ -13,7 +16,11 @@ from __future__ import annotations
 import logging
 
 from voice_reader.domain.document.anchoring import BlockDraft
-from voice_reader.domain.document.pdf_lines import PdfLine, drafts_from_lines
+from voice_reader.domain.document.pdf_lines import (
+    PdfLine,
+    drafts_from_lines,
+    furniture_texts_by_page,
+)
 
 log = logging.getLogger(__name__)
 
@@ -74,16 +81,20 @@ def lines_from_document(document) -> tuple[PdfLine, ...]:
     return tuple(lines)
 
 
-def drafts_from_document(document) -> tuple[BlockDraft, ...]:
-    """Return structural drafts for a PDF, or none if layout is unavailable.
+def layout_from_document(
+    document,
+) -> tuple[dict[int, tuple[str, ...]], tuple[BlockDraft, ...]]:
+    """Furniture texts to strip per page, and structural drafts, in one pass.
 
-    Failure here is not fatal. Returning no drafts means the book falls back to
-    the unstructured model and behaves exactly as it always has, which is
-    preferable to failing the load over a layout quirk.
+    Failure here is not fatal. Returning nothing means the text keeps every
+    line it was extracted with and the book falls back to the unstructured
+    model, exactly as it always has, which is preferable to failing the load
+    over a layout quirk.
     """
 
     try:
-        return drafts_from_lines(lines_from_document(document))
+        lines = lines_from_document(document)
+        return furniture_texts_by_page(lines), drafts_from_lines(lines)
     except Exception:
         log.warning("PDF layout extraction failed; continuing without structure")
-        return ()
+        return {}, ()
