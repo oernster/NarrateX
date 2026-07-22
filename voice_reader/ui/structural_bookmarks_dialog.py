@@ -74,8 +74,8 @@ class StructuralBookmarksDialog(QDialog):
             QListWidget::item:selected { background: #1f2a44; }
             QPushButton { background: #121826; border: 2px solid #1f2937;
                 padding: 6px 10px; border-radius: 6px; }
-            QPushButton:enabled:hover { border-color: #f59e0b; }
-            QPushButton:enabled:focus { border-color: #f59e0b; }
+            QPushButton:enabled:hover { border-color: #22c55e; }
+            QPushButton:enabled:focus { border-color: #22c55e; }
             QPushButton:disabled { border: 2px solid #dc2626; color: #94a3b8; }
             """)
 

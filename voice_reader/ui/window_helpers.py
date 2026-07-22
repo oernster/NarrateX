@@ -29,13 +29,14 @@ def apply_main_window_theme(window) -> None:
     text = "#e5e7eb"
 
     # Interaction rings, applied uniformly to every control:
-    # - hover or keyboard focus on an ENABLED control shows an amber ring
+    # - hover or keyboard focus on an ENABLED control shows a green ring
+    #   (terminal green, matching command text in the dev tooling)
     # - a DISABLED control shows a permanent red ring until re-enabled,
     #   with a muted fill so the red reads on it
     # Hover and focus rules are gated on :enabled because Qt's stylesheet
     # engine nests :hover under enabled anyway; the red ring must be the
     # plain :disabled form to be permanent rather than hover-gated.
-    ring_amber = "#f59e0b"
+    ring_green = "#22c55e"
     ring_red = "#dc2626"
     disabled_text = "#94a3b8"
     window.setStyleSheet(f"""
@@ -50,8 +51,8 @@ def apply_main_window_theme(window) -> None:
                 border: 2px solid #1f2937;
                 padding: 4px 8px;
             }}
-            QComboBox:enabled:hover {{ border-color: {ring_amber}; }}
-            QComboBox:enabled:focus {{ border-color: {ring_amber}; }}
+            QComboBox:enabled:hover {{ border-color: {ring_green}; }}
+            QComboBox:enabled:focus {{ border-color: {ring_green}; }}
             QComboBox:disabled {{
                 border: 2px solid {ring_red};
                 background: {panel};
@@ -76,8 +77,8 @@ def apply_main_window_theme(window) -> None:
                 padding: 6px 10px;
                 border-radius: 6px;
             }}
-            QPushButton:enabled:hover {{ border-color: {ring_amber}; }}
-            QPushButton:enabled:focus {{ border-color: {ring_amber}; }}
+            QPushButton:enabled:hover {{ border-color: {ring_green}; }}
+            QPushButton:enabled:focus {{ border-color: {ring_green}; }}
             QPushButton:pressed {{ background: #111827; }}
             QPushButton:disabled {{
                 border: 2px solid {ring_red};
@@ -93,10 +94,10 @@ def apply_main_window_theme(window) -> None:
                 color: {text};
             }}
             QToolButton[topIconButton="true"]:enabled:hover {{
-                border-color: {ring_amber};
+                border-color: {ring_green};
             }}
             QToolButton[topIconButton="true"]:enabled:focus {{
-                border-color: {ring_amber};
+                border-color: {ring_green};
             }}
             QToolButton[topIconButton="true"]:pressed {{
                 background: rgba(255, 255, 255, 0.08);
@@ -118,11 +119,11 @@ def apply_main_window_theme(window) -> None:
                 color: {text};
             }}
             QToolButton#playPauseButton:enabled:hover {{
-                border-color: {ring_amber};
+                border-color: {ring_green};
                 background: #0d172a;
             }}
             QToolButton#playPauseButton:enabled:focus {{
-                border-color: {ring_amber};
+                border-color: {ring_green};
             }}
             QToolButton#playPauseButton:pressed {{
                 background: #0a1020;
@@ -144,10 +145,10 @@ def apply_main_window_theme(window) -> None:
                 border-radius: 6px;
             }}
             QPushButton#stopButton:enabled:hover {{
-                border-color: {ring_amber};
+                border-color: {ring_green};
             }}
             QPushButton#stopButton:enabled:focus {{
-                border-color: {ring_amber};
+                border-color: {ring_green};
             }}
             QPushButton#stopButton:pressed {{
                 background: #111827;

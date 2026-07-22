@@ -1,4 +1,4 @@
-"""The app-wide interaction rings: amber on hover/focus, red when disabled.
+"""The app-wide interaction rings: green on hover/focus, red when disabled.
 
 QSS cannot be asserted visually here, so these tests pin the contract at the
 stylesheet level: every hover and focus rule is gated on :enabled and the
@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from voice_reader.ui.main_window import MainWindow
 
-AMBER = "#f59e0b"
+GREEN = "#22c55e"
 RED = "#dc2626"
 
 
-def test_hover_and_focus_rings_are_amber_and_gated_on_enabled(qapp) -> None:
+def test_hover_and_focus_rings_are_green_and_gated_on_enabled(qapp) -> None:
     del qapp
     sheet = MainWindow().styleSheet()
 
@@ -25,7 +25,7 @@ def test_hover_and_focus_rings_are_amber_and_gated_on_enabled(qapp) -> None:
         "QComboBox:enabled:focus",
     ):
         assert selector in sheet, f"missing {selector}"
-    assert AMBER in sheet
+    assert GREEN in sheet
 
     # No ungated hover rules for buttons: a disabled control must never
     # light up under the mouse.
