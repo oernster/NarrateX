@@ -72,10 +72,11 @@ class StructuralBookmarksDialog(QDialog):
             QDialog#sectionsDialog { background: #0b0f17; }
             QListWidget { background: #121826; border: 1px solid #1f2937; }
             QListWidget::item:selected { background: #1f2a44; }
-            QPushButton { background: #121826; border: 1px solid #1f2937;
+            QPushButton { background: #121826; border: 2px solid #1f2937;
                 padding: 6px 10px; border-radius: 6px; }
-            QPushButton:hover { border-color: #8b5cf6; }
-            QPushButton:disabled { color: #94a3b8; }
+            QPushButton:enabled:hover { border-color: #f59e0b; }
+            QPushButton:enabled:focus { border-color: #f59e0b; }
+            QPushButton:disabled { border: 2px solid #dc2626; color: #94a3b8; }
             """)
 
         # On some Windows configurations Qt can briefly show an unstyled (white)

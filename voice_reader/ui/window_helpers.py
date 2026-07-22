@@ -28,10 +28,16 @@ def apply_main_window_theme(window) -> None:
     panel = "#121826"
     text = "#e5e7eb"
 
-    # Locked dropdown accent: amber (readable on dark UI, clearly different
-    # from normal focus/hover purple).
-    locked_bg = "#172033"
-    locked_border = "#f59e0b"
+    # Interaction rings, applied uniformly to every control:
+    # - hover or keyboard focus on an ENABLED control shows an amber ring
+    # - a DISABLED control shows a permanent red ring until re-enabled,
+    #   with a muted fill so the red reads on it
+    # Hover and focus rules are gated on :enabled because Qt's stylesheet
+    # engine nests :hover under enabled anyway; the red ring must be the
+    # plain :disabled form to be permanent rather than hover-gated.
+    ring_amber = "#f59e0b"
+    ring_red = "#dc2626"
+    disabled_text = "#94a3b8"
     window.setStyleSheet(f"""
             QMainWindow {{ background: {bg}; }}
             QWidget {{ color: {text}; font-family: Segoe UI; }}
@@ -41,8 +47,15 @@ def apply_main_window_theme(window) -> None:
             }}
             QComboBox {{
                 background: {panel};
-                border: 1px solid #1f2937;
+                border: 2px solid #1f2937;
                 padding: 4px 8px;
+            }}
+            QComboBox:enabled:hover {{ border-color: {ring_amber}; }}
+            QComboBox:enabled:focus {{ border-color: {ring_amber}; }}
+            QComboBox:disabled {{
+                border: 2px solid {ring_red};
+                background: {panel};
+                color: {disabled_text};
             }}
             QComboBox QAbstractItemView {{
                 background: {panel};
@@ -53,42 +66,23 @@ def apply_main_window_theme(window) -> None:
                 outline: 0;
             }}
 
-            /* Clearly indicate "locked while playing" dropdowns. */
-            QComboBox[locked="true"] {{
-                background: {locked_bg};
-                border: 1px solid {locked_border};
-                color: {text};
-            }}
-            QComboBox[locked="true"]::drop-down {{
-                border-left: 1px solid {locked_border};
-            }}
-            QComboBox[locked="true"]:disabled {{
-                /* Keep text readable even when disabled. */
-                color: #cbd5e1;
-            }}
-
             QLabel#cover {{
                 background: {panel};
                 border: 1px solid #1f2937;
             }}
             QPushButton {{
                 background: {panel};
-                border: 1px solid #1f2937;
+                border: 2px solid #1f2937;
                 padding: 6px 10px;
                 border-radius: 6px;
             }}
-            QPushButton:hover {{ border-color: {purple}; }}
+            QPushButton:enabled:hover {{ border-color: {ring_amber}; }}
+            QPushButton:enabled:focus {{ border-color: {ring_amber}; }}
             QPushButton:pressed {{ background: #111827; }}
-
-            /* Clearly indicate a control is locked while playback is active. */
-            QPushButton[selectBookLocked="true"] {{
-                background: {locked_bg};
-                border: 2px solid {locked_border};
-                color: {text};
-            }}
-            QPushButton[selectBookLocked="true"]:disabled {{
-                /* Keep it readable while disabled; border is the primary affordance. */
-                color: #cbd5e1;
+            QPushButton:disabled {{
+                border: 2px solid {ring_red};
+                background: {panel};
+                color: {disabled_text};
             }}
 
             QToolButton[topIconButton="true"] {{
@@ -98,11 +92,18 @@ def apply_main_window_theme(window) -> None:
                 padding: 0px;
                 color: {text};
             }}
-            QToolButton[topIconButton="true"]:hover {{
-                border-color: #ffffff;
+            QToolButton[topIconButton="true"]:enabled:hover {{
+                border-color: {ring_amber};
+            }}
+            QToolButton[topIconButton="true"]:enabled:focus {{
+                border-color: {ring_amber};
             }}
             QToolButton[topIconButton="true"]:pressed {{
                 background: rgba(255, 255, 255, 0.08);
+            }}
+            QToolButton[topIconButton="true"]:disabled {{
+                border-color: {ring_red};
+                color: {disabled_text};
             }}
             QToolButton#helpButton {{
                 color: #3b82f6;
@@ -116,9 +117,12 @@ def apply_main_window_theme(window) -> None:
                 padding: 0px;
                 color: {text};
             }}
-            QToolButton#playPauseButton:hover {{
-                border-color: rgba(59, 130, 246, 0.95);
+            QToolButton#playPauseButton:enabled:hover {{
+                border-color: {ring_amber};
                 background: #0d172a;
+            }}
+            QToolButton#playPauseButton:enabled:focus {{
+                border-color: {ring_amber};
             }}
             QToolButton#playPauseButton:pressed {{
                 background: #0a1020;
@@ -127,19 +131,30 @@ def apply_main_window_theme(window) -> None:
                 /* Slightly stronger ring when actively playing. */
                 border-color: {blue};
             }}
+            QToolButton#playPauseButton:disabled {{
+                border-color: {ring_red};
+                color: {disabled_text};
+            }}
 
             /* Secondary transport: Stop should read clearly, but stay subordinate. */
             QPushButton#stopButton {{
                 background: {panel};
-                border: 1px solid #334155;
+                border: 2px solid #334155;
                 padding: 7px 12px;
                 border-radius: 6px;
             }}
-            QPushButton#stopButton:hover {{
-                border-color: #94a3b8;
+            QPushButton#stopButton:enabled:hover {{
+                border-color: {ring_amber};
+            }}
+            QPushButton#stopButton:enabled:focus {{
+                border-color: {ring_amber};
             }}
             QPushButton#stopButton:pressed {{
                 background: #111827;
+            }}
+            QPushButton#stopButton:disabled {{
+                border: 2px solid {ring_red};
+                color: {disabled_text};
             }}
 
             /* Search removed (was tied to Ideas mapping). */
