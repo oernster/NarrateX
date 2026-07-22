@@ -51,14 +51,28 @@ def _matches_filter(name: str, *, region: str, sex: str) -> bool:
 
 
 def _update_toggle_cues(controller) -> None:
+    from PySide6.QtGui import QIcon
+
+    from voice_reader.ui._main_window_controls import emoji_cue_pixmap
+
     region = VOICE_REGIONS[controller._voice_region_index]  # noqa: SLF001
     sex = VOICE_SEXES[controller._voice_sex_index]  # noqa: SLF001
 
     window = controller.window
-    window.btn_voice_region.setText(region[1])
-    window.btn_voice_region.setToolTip(f"{region[2]} voices (click to change region)")
-    window.btn_voice_sex.setText(sex[1])
-    window.btn_voice_sex.setToolTip(f"{sex[2]} voices (click to change)")
+    # The glyph is shown as an icon rather than button text: Qt centres an
+    # icon geometrically, while text sits on the emoji font's lopsided
+    # baseline and rides high in the circular ring. The text is still set
+    # (an icon-only QToolButton does not display it) so the state stays
+    # readable to tests and accessibility tooling.
+    for button, glyph, tip in (
+        (window.btn_voice_region, region[1], f"{region[2]} voices (click to change)"),
+        (window.btn_voice_sex, sex[1], f"{sex[2]} voices (click to change)"),
+    ):
+        pm = emoji_cue_pixmap(glyph)
+        button.setIcon(QIcon(pm))
+        button.setIconSize(pm.size())
+        button.setText(glyph)
+        button.setToolTip(tip)
 
 
 def refresh_voices(controller) -> None:

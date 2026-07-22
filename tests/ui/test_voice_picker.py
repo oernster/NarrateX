@@ -73,6 +73,9 @@ def test_default_is_british_female_with_emma_selected(qapp) -> None:
     assert c.window.voice_combo.currentData() == "bf_emma"
     assert c.window.btn_voice_sex.text() == "♀"
     assert c.window.btn_voice_region.text() == "🇬🇧"
+    # The glyphs display as centred icons, not baseline-riding text.
+    assert not c.window.btn_voice_sex.icon().isNull()
+    assert not c.window.btn_voice_region.icon().isNull()
 
 
 def test_sex_toggle_switches_to_british_males(qapp) -> None:

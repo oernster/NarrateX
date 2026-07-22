@@ -42,7 +42,7 @@ _TRANSPORT_GLYPH_POINT_SIZE = 18
 _STOP_CUE_PX = 20
 
 
-def _emoji_pixmap(emoji: str) -> QPixmap:
+def emoji_cue_pixmap(emoji: str) -> QPixmap:
     """Render one emoji at the reference cue size on a transparent square."""
 
     font = QFont(_EMOJI_CUE_FONT_FAMILY, _EMOJI_CUE_POINT_SIZE)
@@ -109,7 +109,7 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     book_cue, book_label = _split_leading_emoji(strings.select_book)
     window.btn_select_book = QPushButton(book_label)
     if book_cue is not None:
-        pm = _emoji_pixmap(book_cue)
+        pm = emoji_cue_pixmap(book_cue)
         window.btn_select_book.setIcon(QIcon(pm))
         window.btn_select_book.setIconSize(pm.size())
     window.btn_select_book.setMinimumHeight(top_row_min_h)
