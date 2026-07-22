@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QImage, QPixmap, QTextCursor
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QTextEdit
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QTextEdit, QWidget
 
 from voice_reader.ui.window_helpers import (
     build_about_dialog,
@@ -31,6 +31,26 @@ class UiStrings:
     stop: str = "■ Stop"
     play_tooltip: str = "Play"
     pause_tooltip: str = "Pause"
+
+
+class _NeutralStart(QWidget):
+    """A 0x0 focus sink so nothing is highlighted on launch.
+
+    Without it, Qt hands initial focus to the first focusable control (the
+    play/pause button), which now paints the green focus ring and reads as
+    active before the user has touched anything. The sink takes that first
+    focus; on losing it, it drops out of the tab chain so the cycle that
+    follows holds only real controls.
+    """
+
+    def __init__(self, parent: QWidget) -> None:
+        super().__init__(parent)
+        self.setFixedSize(0, 0)
+        self.setFocusPolicy(Qt.FocusPolicy.TabFocus)
+
+    def focusOutEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        super().focusOutEvent(event)
 
 
 class MainWindow(QMainWindow):
@@ -59,11 +79,21 @@ class MainWindow(QMainWindow):
         build_main_window_widgets(self, strings=self._strings)
         self._connect_signals()
 
+        # Neutral start: see _NeutralStart. Focused once in showEvent.
+        self._neutral_start = _NeutralStart(self)
+        self._started = False
+
         # Default: disabled until a chapter index is loaded.
         try:
             self.set_chapter_controls_enabled(previous=False, next_=False)
         except Exception:
             pass
+
+    def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        super().showEvent(event)
+        if not self._started:
+            self._started = True
+            self._neutral_start.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _connect_signals(self) -> None:
         self.btn_select_book.clicked.connect(self.select_book_clicked.emit)
