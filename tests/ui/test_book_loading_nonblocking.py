@@ -99,6 +99,34 @@ def test_load_selected_book_returns_before_any_parsing(qapp, monkeypatch) -> Non
     assert "Loading" in c.window.lbl_status.text()
 
 
+def test_loading_does_not_hop_focus_to_the_picker(qapp, monkeypatch) -> None:
+    """Regression: disabling the focused Select Book button made Qt move
+    focus to the next control (the voice sex toggle), which lit up with
+    the green focus ring mid-load."""
+
+    narration = _CountingNarration(listeners=[], state=_idle_state())
+    c = _controller(qapp, narration)
+    c.window.show()
+    qapp.processEvents()
+    c.window.btn_select_book.setFocus()
+    qapp.processEvents()
+
+    import threading
+
+    monkeypatch.setattr(threading.Thread, "start", lambda self: None)
+
+    book_loading.load_selected_book(c, path=Path("book.txt"))
+    qapp.processEvents()
+
+    from PySide6.QtWidgets import QApplication
+
+    focused = QApplication.focusWidget()
+    assert focused is not c.window.btn_voice_sex
+    assert focused is not c.window.btn_voice_region
+
+    c.window.close()
+
+
 def test_inline_pipeline_populates_the_window(qapp, monkeypatch) -> None:
     narration = _CountingNarration(listeners=[], state=_idle_state())
     c = _controller(qapp, narration)

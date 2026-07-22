@@ -193,6 +193,18 @@ def _set_loading_indicator(controller, *, active: bool, path: Path | None) -> No
             controller.window.progress.setValue(0)
     except Exception:
         pass
+    # Disabling the focused control makes Qt hop focus to its neighbour
+    # (the voice picker), which then paints its focus ring mid-load. Clear
+    # focus first so the load runs with a neutral focus state.
+    if active:
+        try:
+            from PySide6.QtWidgets import QApplication
+
+            focused = QApplication.focusWidget()
+            if focused is not None:
+                focused.clearFocus()
+        except Exception:
+            pass
     for name in ("btn_select_book", "btn_play_pause", "btn_stop"):
         try:
             widget = getattr(controller.window, name, None)

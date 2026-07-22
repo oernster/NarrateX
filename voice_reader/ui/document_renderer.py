@@ -117,18 +117,29 @@ def apply_render_plan(
 
     document = text_edit.document()
     document.setUndoRedoEnabled(False)
+    text_edit.setUpdatesEnabled(False)
     try:
         text_edit.setPlainText(plan.text)
 
+        # One edit block for the whole formatting pass. Without it every
+        # merge triggers an incremental relayout of the visible document,
+        # which turns a large book into a ten-second freeze; coalesced,
+        # the document lays out once.
         cursor = QTextCursor(document)
-        for block in plan.blocks:
-            cursor.setPosition(positions.to_qt(block.render_start))
-            cursor.setPosition(
-                positions.to_qt(block.render_end),
-                QTextCursor.MoveMode.KeepAnchor,
-            )
-            cursor.mergeCharFormat(char_format_for(block=block, base=base_point_size))
-            cursor.mergeBlockFormat(block_format_for(block=block))
+        cursor.beginEditBlock()
+        try:
+            for block in plan.blocks:
+                cursor.setPosition(positions.to_qt(block.render_start))
+                cursor.setPosition(
+                    positions.to_qt(block.render_end),
+                    QTextCursor.MoveMode.KeepAnchor,
+                )
+                cursor.mergeCharFormat(
+                    char_format_for(block=block, base=base_point_size)
+                )
+                cursor.mergeBlockFormat(block_format_for(block=block))
+        finally:
+            cursor.endEditBlock()
 
         # Leave the caret at the start rather than inside the last block.
         reset = QTextCursor(document)
@@ -136,5 +147,6 @@ def apply_render_plan(
         text_edit.setTextCursor(reset)
     finally:
         document.setUndoRedoEnabled(True)
+        text_edit.setUpdatesEnabled(True)
 
     return positions
