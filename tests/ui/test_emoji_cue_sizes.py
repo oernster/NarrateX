@@ -26,14 +26,14 @@ def test_select_book_has_an_emoji_icon_cue(qapp) -> None:
     assert w.btn_select_book.iconSize().height() >= REFERENCE_POINT_SIZE
 
 
-def test_voice_emoji_is_a_reference_size_label(qapp) -> None:
+def test_voice_combo_carries_the_mic_placeholder(qapp) -> None:
+    # The voice caption lives in the combo's own placeholder now; there is
+    # no external mic label repeating it.
     del qapp
     w = MainWindow()
 
-    assert w.lbl_voice_icon.text() == "🎙"
-    assert w.lbl_voice_icon.font().pointSize() == REFERENCE_POINT_SIZE
-    # Same size as the brain button's emoji.
-    assert w.lbl_voice_icon.font().pointSize() == w.btn_ideas.font().pointSize()
+    assert w.voice_combo.placeholderText() == "🎙 Select Voice"
+    assert not hasattr(w, "lbl_voice_icon")
 
 
 def test_transport_glyphs_are_enlarged(qapp) -> None:

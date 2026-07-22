@@ -28,6 +28,7 @@ def _make_window(**extras):
         "select_book_clicked": _SilentSignal(),
         "stop_clicked": _SilentSignal(),
         # Optional: inside try/except, intentionally raise to cover except branches.
+        "voice_combo": SimpleNamespace(currentIndexChanged=_ExplodingSignal()),
         "voice_sex_toggle_clicked": _ExplodingSignal(),
         "voice_region_toggle_clicked": _ExplodingSignal(),
         "reader_seek_requested": _ExplodingSignal(),

@@ -9,6 +9,15 @@ from __future__ import annotations
 def connect_signals(controller) -> None:
     controller.window.select_book_clicked.connect(controller.select_book)
 
+    # A voice selection clears the attention prompt and pre-synthesises.
+    if hasattr(controller.window, "voice_combo"):
+        try:
+            controller.window.voice_combo.currentIndexChanged.connect(
+                lambda _index: controller._on_voice_selected()  # noqa: SLF001
+            )
+        except Exception:
+            pass
+
     # Voice picker toggles (sex + region filter the voice dropdown).
     if hasattr(controller.window, "voice_sex_toggle_clicked"):
         try:

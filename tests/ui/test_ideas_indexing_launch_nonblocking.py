@@ -129,6 +129,7 @@ def test_start_ideas_indexing_is_nonblocking_and_play_can_run_immediately(
     assert mgr.start_calls == 0
 
     # Playback should still be callable immediately.
+    c.window.voice_combo.setCurrentIndex(0)
     c.play()
     assert narration.prepare_calls == 1
     assert narration.start_calls == 1

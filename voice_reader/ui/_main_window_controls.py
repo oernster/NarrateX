@@ -166,6 +166,9 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     window.voice_combo = QComboBox()
     window.voice_combo.setMinimumWidth(220)
     window.voice_combo.setMinimumHeight(top_row_min_h)
+    # No voice is defaulted: the combo rests on this placeholder until the
+    # user chooses, and the picker stays disabled until a book loads.
+    window.voice_combo.setPlaceholderText(strings.select_voice)
 
     window.speed_combo = QComboBox()
     window.speed_combo.setMinimumWidth(95)
@@ -276,21 +279,11 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     ):
         w.installEventFilter(window._picker_keys)  # noqa: SLF001
 
-    # Zone A: setup/content selection (left)
+    # Zone A: setup/content selection (left). The voice caption lives in
+    # the combo's own placeholder now, so no external mic label repeats it.
     zone_a = QHBoxLayout()
     zone_a.setSpacing(8)
     zone_a.addWidget(window.btn_select_book)
-    # The mic emoji gets its own label at the reference cue size so it
-    # matches the other emoji instead of the caption's font.
-    voice_cue, voice_label = _split_leading_emoji(strings.select_voice)
-    if voice_cue is not None:
-        window.lbl_voice_icon = QLabel(voice_cue)
-        window.lbl_voice_icon.setFont(
-            QFont(_EMOJI_CUE_FONT_FAMILY, _EMOJI_CUE_POINT_SIZE)
-        )
-        window.lbl_voice_icon.setToolTip(voice_label)
-        zone_a.addWidget(window.lbl_voice_icon)
-    zone_a.addWidget(QLabel(voice_label))
     zone_a.addWidget(window.btn_voice_sex)
     zone_a.addWidget(window.btn_voice_region)
     zone_a.addWidget(window.voice_combo)

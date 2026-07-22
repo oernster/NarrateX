@@ -106,6 +106,13 @@ def play(controller) -> None:
 
     voice = controller._selected_voice()  # noqa: SLF001
     if voice is None:
+        # Voices exist but none is chosen: prompt rather than log-and-die.
+        if getattr(controller, "_voices", None):
+            try:
+                controller.window.lbl_status.setText("Choose a voice first (🎙)")
+            except Exception:
+                pass
+            return
         controller._log.warning("No voice profiles available")  # noqa: SLF001
         return
 

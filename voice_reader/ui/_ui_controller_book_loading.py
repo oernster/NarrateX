@@ -125,6 +125,15 @@ def _apply_loaded_book(controller, *, loaded: LoadedBook) -> None:
     except Exception:
         pass
 
+    # Ask for a voice (the flashing amber prompt) unless one is chosen;
+    # pre-synthesis follows the choice rather than the load now.
+    try:
+        from voice_reader.ui._ui_controller_voices import begin_attention
+
+        begin_attention(controller)
+    except Exception:
+        pass
+
     _start_presynthesis(controller)
 
 

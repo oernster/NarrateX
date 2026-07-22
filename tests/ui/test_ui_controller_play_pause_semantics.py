@@ -147,7 +147,8 @@ def test_play_when_paused_and_voice_changed_restarts(qapp) -> None:
         cover_extractor=None,
     )
 
-    # Start with default selection: system.
+    # Choose the first visible voice explicitly (no default exists now).
+    c.window.voice_combo.setCurrentIndex(0)
     c.toggle_play_pause()
     assert narration.prepare_calls == 1
     assert narration.start_calls == 1
@@ -227,6 +228,7 @@ def test_play_when_idle_prepares_and_starts(qapp) -> None:
         cover_extractor=None,
     )
 
+    c.window.voice_combo.setCurrentIndex(0)
     c.toggle_play_pause()
     assert narration.prepare_calls == 1
     assert narration.start_calls == 1

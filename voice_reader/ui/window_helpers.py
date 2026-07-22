@@ -38,6 +38,9 @@ def apply_main_window_theme(window) -> None:
     # plain :disabled form to be permanent rather than hover-gated.
     ring_green = "#22c55e"
     ring_red = "#dc2626"
+    # The choose-a-voice prompt: an amber ring the picker flashes after a
+    # book loads, held steady after first interaction, cleared on choice.
+    ring_attention = "#f59e0b"
     disabled_text = "#94a3b8"
     window.setStyleSheet(f"""
             QMainWindow {{ background: {bg}; }}
@@ -51,6 +54,9 @@ def apply_main_window_theme(window) -> None:
                 border: 2px solid #1f2937;
                 padding: 4px 8px;
             }}
+            /* Attention sits before hover and focus, so live interaction
+               feedback still wins while the prompt is showing. */
+            QComboBox[attention="true"] {{ border-color: {ring_attention}; }}
             QComboBox:enabled:hover {{ border-color: {ring_green}; }}
             QComboBox:enabled:focus {{ border-color: {ring_green}; }}
             QComboBox:disabled {{

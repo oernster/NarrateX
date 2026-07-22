@@ -83,6 +83,7 @@ def test_an_unexpected_prepare_failure_is_contained(qapp) -> None:
     # which raises: the slot boundary must contain it.
     narration = _ExplodingNarration(listeners=[], state=_idle_state())
     c = _controller(qapp, narration)
+    c.window.voice_combo.setCurrentIndex(0)
 
     c.toggle_play_pause()
 
@@ -111,6 +112,7 @@ def test_the_real_service_flow_still_reaches_prepare(qapp, tmp_path: Path) -> No
 
     narration = _LoadedNarration(listeners=[], state=_idle_state())
     c = _controller(qapp, narration)
+    c.window.voice_combo.setCurrentIndex(0)
 
     c.toggle_play_pause()
 

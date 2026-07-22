@@ -115,7 +115,8 @@ def apply_state(controller, state: object) -> None:
         pass
 
     # Lock voice + speed only (volume must remain editable). The picker
-    # toggles change the effective voice, so they lock with the dropdown.
+    # toggles change the effective voice, so they lock with the dropdown;
+    # the picker additionally needs a loaded book before it enables at all.
     editable_statuses = {
         NarrationStatus.IDLE,
         NarrationStatus.PAUSED,
@@ -123,16 +124,23 @@ def apply_state(controller, state: object) -> None:
         NarrationStatus.ERROR,
     }
     locked = state.status not in editable_statuses
-    for combo in (
-        getattr(controller.window, "voice_combo", None),
-        getattr(controller.window, "speed_combo", None),
-        getattr(controller.window, "btn_voice_sex", None),
-        getattr(controller.window, "btn_voice_region", None),
+    try:
+        from voice_reader.ui._ui_controller_voices import book_is_loaded
+
+        picker_available = book_is_loaded(controller)
+    except Exception:
+        picker_available = True
+    for combo, needs_book in (
+        (getattr(controller.window, "voice_combo", None), True),
+        (getattr(controller.window, "speed_combo", None), False),
+        (getattr(controller.window, "btn_voice_sex", None), True),
+        (getattr(controller.window, "btn_voice_region", None), True),
     ):
         if combo is None:
             continue
+        enabled = (not locked) and (picker_available or not needs_book)
         try:
-            combo.setEnabled(not locked)
+            combo.setEnabled(enabled)
             combo.setProperty("locked", bool(locked))
             combo.style().unpolish(combo)
             combo.style().polish(combo)

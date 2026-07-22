@@ -141,6 +141,7 @@ def test_play_when_idle_and_no_resume_prefers_first_section(monkeypatch, qapp) -
         lambda _controller: _Comp(),
     )
 
+    c.window.voice_combo.setCurrentIndex(0)
     c.toggle_play_pause()
 
     assert len(calls) == 1
@@ -195,6 +196,7 @@ def test_play_when_idle_and_resume_exists_keeps_resume_path(monkeypatch, qapp) -
         _boom,
     )
 
+    c.window.voice_combo.setCurrentIndex(0)
     c.toggle_play_pause()
 
     assert len(prepare_calls) == 1

@@ -50,7 +50,9 @@ from voice_reader.ui._ui_controller_book_loading import (
     prepare_for_book_switch,
 )
 from voice_reader.ui._ui_controller_voices import (
+    PickerAttention,
     cycle_voice_region,
+    on_voice_selected,
     refresh_voices,
     toggle_voice_sex,
     voice_label,
@@ -161,6 +163,11 @@ class UiController(QObject):
         self.narration_service.add_listener(self.on_state)
 
         self.refresh_voices()
+        # The amber choose-a-voice prompt; started when a book lands.
+        try:
+            self._picker_attention = PickerAttention(self)
+        except Exception:
+            self._picker_attention = None
 
         # Initialize playback controls (session-only).
         try:
@@ -322,6 +329,9 @@ class UiController(QObject):
     def cycle_voice_region(self) -> None:
         return cycle_voice_region(self)
 
+    def _on_voice_selected(self) -> None:
+        return on_voice_selected(self)
+
     def select_book(self) -> None:
         prepare_for_book_switch(self)
 
@@ -337,16 +347,17 @@ class UiController(QObject):
         load_selected_book(self, path=Path(path_str))
 
     def _selected_voice(self) -> VoiceProfile | None:
+        # No voice is defaulted: an unselected combo means None, never a
+        # silent fallback to the first entry.
         if not self._voices:
             return None
-        name = (
-            self.window.voice_combo.currentData()
-            or self.window.voice_combo.currentText()
-        )
+        name = self.window.voice_combo.currentData()
+        if not name:
+            return None
         for v in self._voices:
             if v.name == name:
                 return v
-        return self._voices[0]
+        return None
 
     @staticmethod
     def _voice_label(voice: VoiceProfile) -> str:

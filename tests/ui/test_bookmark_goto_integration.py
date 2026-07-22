@@ -113,6 +113,7 @@ def test_go_to_bookmark_calls_prepare_with_chunk_index_and_starts(qapp) -> None:
     dlg = c._bookmarks_dialog  # noqa: SLF001
     assert dlg is not None
     assert dlg.isVisible() is True
+    c.window.voice_combo.setCurrentIndex(0)
     dlg._actions.go_to_bookmark(bm)  # noqa: SLF001
 
     # Requirement: Go To closes the dialog.

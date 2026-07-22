@@ -144,6 +144,7 @@ def test_click_to_seek_restarts_from_resolved_chunk_and_persists_resume(qapp) ->
     )
 
     # Click somewhere in chunk 2.
+    c.window.voice_combo.setCurrentIndex(0)
     w.reader_seek_requested.emit(60)
 
     assert narration.stop_calls == [False]
@@ -191,6 +192,7 @@ def test_click_to_seek_before_reading_start_is_clamped(qapp) -> None:
     )
 
     # Click before first narratable offset.
+    c.window.voice_combo.setCurrentIndex(0)
     w.reader_seek_requested.emit(0)
 
     assert narration.prepare_calls

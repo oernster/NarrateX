@@ -147,6 +147,7 @@ def test_prev_next_chapter_jump_uses_prepare_with_target_chunk_index(
     narration.current_pos = (5, 150)
 
     # Next chapter should jump to chapter 3 chunk_index=9.
+    c.window.voice_combo.setCurrentIndex(0)
     c.next_chapter()
     assert narration.stop_calls == 1
     assert narration.start_calls == 1
@@ -155,6 +156,7 @@ def test_prev_next_chapter_jump_uses_prepare_with_target_chunk_index(
 
     # Previous chapter from the same position should jump to chapter 2 chunk_index=5.
     narration.current_pos = (9, 150)
+    c.window.voice_combo.setCurrentIndex(0)
     c.previous_chapter()
     _voice, idx = narration.prepare_calls[-1]
     # When inside Chapter 2, "previous" goes to Chapter 1.
@@ -187,10 +189,12 @@ def test_prev_next_chapter_boundaries_noop(qapp) -> None:
 
     # At first chapter -> previous is noop.
     narration.current_pos = (0, 0)
+    c.window.voice_combo.setCurrentIndex(0)
     c.previous_chapter()
     assert narration.prepare_calls == []
 
     # At last chapter -> next is noop.
     narration.current_pos = (5, 200)
+    c.window.voice_combo.setCurrentIndex(0)
     c.next_chapter()
     assert narration.prepare_calls == []
