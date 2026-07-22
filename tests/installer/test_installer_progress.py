@@ -156,6 +156,41 @@ class TestExtractionMovesWithinOneLargeMember:
         assert reports.percentages == sorted(reports.percentages)
 
 
+class TestReplacingReportsCleanup:
+    # Replacing an existing install deletes the whole previous version; a
+    # silent rmtree parked the bar at the end of extraction for its whole
+    # duration, which on a real install is tens of thousands of files.
+
+    _OLD_FILE_COUNT = 30
+
+    def test_deleting_the_previous_version_reports_its_band(
+        self, tmp_path: Path
+    ) -> None:
+        from installer.ops.progress import CLEANUP_END_PCT, CLEANUP_START_PCT
+        from installer.ops.staging import swap_in_bundle
+
+        staging = tmp_path / "staging"
+        staging.mkdir()
+        (staging / "NarrateX.exe").write_bytes(b"new")
+
+        target = tmp_path / "install"
+        (target / "_internal").mkdir(parents=True)
+        for index in range(self._OLD_FILE_COUNT):
+            (target / "_internal" / f"old_{index}.pyd").write_bytes(b"old")
+
+        reports = _Reports()
+        swap_in_bundle(staging, target, progress=reports)
+
+        percentages = reports.percentages
+        assert percentages[0] == CLEANUP_START_PCT
+        assert percentages[-1] == CLEANUP_END_PCT
+        assert percentages == sorted(percentages)
+        assert (target / "NarrateX.exe").read_bytes() == b"new"
+        assert not (target / "_internal").exists()
+        leftovers = [p for p in tmp_path.iterdir() if ".old." in p.name]
+        assert leftovers == []
+
+
 class TestUninstallerCopyReportsProgress:
     # The setup exe embeds the whole payload, so copying it into the install
     # dir is the other long phase. A single copy2 read as a stall at the end

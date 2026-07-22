@@ -17,6 +17,9 @@ from pathlib import Path
 from installer.ops.errors import InstallerOperationError
 from installer.ops.payload import payload_zip_path
 from installer.ops.progress import (
+    CLEANUP_END_PCT,
+    CLEANUP_MESSAGE,
+    CLEANUP_START_PCT,
     EXTRACT_END_PCT,
     EXTRACT_MESSAGE,
     EXTRACT_START_PCT,
@@ -114,7 +117,40 @@ def _member_target(staging_dir: Path, member: zipfile.ZipInfo) -> Path:
     return target
 
 
-def swap_in_bundle(staging_dir: Path, target_dir: Path) -> None:
+def remove_tree_reporting(root: Path, *, progress=None) -> None:  # noqa: ANN001
+    """Delete a tree file by file, reporting through the cleanup band.
+
+    A previous install is tens of thousands of files and one silent rmtree
+    parks the bar for its whole duration. Deletion cost is per file, so the
+    report counts files rather than bytes. Failures are ignored exactly as
+    the rmtree they replace ignored them; the closing rmtree sweeps up the
+    directories and any stragglers.
+    """
+
+    if not root.exists():
+        return
+
+    files = [p for p in root.rglob("*") if p.is_file()]
+    total = len(files)
+    span = CLEANUP_END_PCT - CLEANUP_START_PCT
+    report(progress, pct=CLEANUP_START_PCT, message=CLEANUP_MESSAGE)
+    last_pct = CLEANUP_START_PCT
+    for index, path in enumerate(files, start=1):
+        try:
+            path.unlink()
+        except Exception:
+            pass
+        if total > 0:
+            pct = CLEANUP_START_PCT + int(span * index / total)
+            if pct != last_pct:
+                report(progress, pct=pct, message=CLEANUP_MESSAGE)
+                last_pct = pct
+    shutil.rmtree(root, ignore_errors=True)
+
+
+def swap_in_bundle(
+    staging_dir: Path, target_dir: Path, *, progress=None
+) -> None:  # noqa: ANN001
     """Replace target_dir with staging_dir.
 
     Uses a same-volume rename when possible; falls back to copytree when
@@ -154,4 +190,4 @@ def swap_in_bundle(staging_dir: Path, target_dir: Path) -> None:
         raise
     finally:
         if backup_dir and backup_dir.exists():
-            shutil.rmtree(backup_dir, ignore_errors=True)
+            remove_tree_reporting(backup_dir, progress=progress)

@@ -28,6 +28,7 @@ from installer.ops.progress import (
 from installer.ops.staging import (
     check_cancel as _check_cancel,
     extract_payload_to as _extract_payload_to,
+    remove_tree_reporting as _remove_tree_reporting,
     swap_in_bundle as _swap_in_bundle,
 )
 from installer.ops.running_app import is_app_running
@@ -220,7 +221,7 @@ def install_new(
         _progress(progress, pct=EXTRACT_END_PCT, message="Installing...")
 
         _check_cancel(cancel_event)
-        _swap_in_bundle(staging_dir, target_dir)
+        _swap_in_bundle(staging_dir, target_dir, progress=progress)
 
         # Make sure icon assets are available next to the installed exe.
         _deploy_runtime_icon_assets(install_dir=target_dir)
@@ -291,13 +292,13 @@ def upgrade_or_reinstall(
         _check_cancel(cancel_event)
 
         if target_dir == current_install_dir:
-            _swap_in_bundle(staging_dir, target_dir)
+            _swap_in_bundle(staging_dir, target_dir, progress=progress)
         else:
             # Install to new location, then delete old.
-            _swap_in_bundle(staging_dir, target_dir)
+            _swap_in_bundle(staging_dir, target_dir, progress=progress)
 
             try:
-                shutil.rmtree(current_install_dir, ignore_errors=True)
+                _remove_tree_reporting(current_install_dir, progress=progress)
             except Exception:
                 pass
 

@@ -8,13 +8,16 @@ one place.
 
 from __future__ import annotations
 
-# Two phases dominate an install and each owns a band reported continuously:
-# extraction writes the application bundle to disk and the uninstaller copy
+# Three phases dominate an install and each owns a band reported
+# continuously: extraction writes the application bundle to disk, cleanup
+# deletes the previous version file by file, and the uninstaller copy
 # duplicates the whole setup executable (which embeds that same bundle) into
 # the install directory. The steps between and after are quick and each
 # reports a single point.
 EXTRACT_START_PCT = 10
-EXTRACT_END_PCT = 45
+EXTRACT_END_PCT = 40
+CLEANUP_START_PCT = 40
+CLEANUP_END_PCT = 50
 COPY_UNINSTALLER_START_PCT = 50
 COPY_UNINSTALLER_END_PCT = 70
 REGISTER_PCT = 75
@@ -22,6 +25,7 @@ SHORTCUTS_PCT = 90
 COMPLETE_PCT = 100
 
 EXTRACT_MESSAGE = "Extracting payload..."
+CLEANUP_MESSAGE = "Removing the previous version..."
 COPY_UNINSTALLER_MESSAGE = "Copying uninstaller..."
 
 
