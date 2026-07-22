@@ -47,20 +47,64 @@ _STOP_CUE_PX = 20
 _EMOJI_CUE_TEXT_COLOR = "#e5e7eb"
 
 
+def _painted_bounds(image) -> tuple[int, int, int, int] | None:
+    """Tight (left, top, right, bottom) of the non-transparent pixels."""
+
+    left, top = image.width(), image.height()
+    right, bottom = -1, -1
+    for y in range(image.height()):
+        for x in range(image.width()):
+            if image.pixelColor(x, y).alpha() > 0:
+                left = min(left, x)
+                top = min(top, y)
+                right = max(right, x)
+                bottom = max(bottom, y)
+    if right < 0:
+        return None
+    return left, top, right, bottom
+
+
 def emoji_cue_pixmap(emoji: str) -> QPixmap:
-    """Render one emoji at the reference cue size on a transparent square."""
+    """Render one emoji at the reference cue size, optically centred.
+
+    AlignCenter centres the font's line box, not the glyph: Segoe UI Emoji
+    reserves tall emoji headroom, so a small glyph (the GB/US letter tiles)
+    sits visibly low in it. The glyph's actual painted pixels are found and
+    re-centred in the final square instead.
+    """
 
     font = QFont(_EMOJI_CUE_FONT_FAMILY, _EMOJI_CUE_POINT_SIZE)
     metrics = QFontMetrics(font)
     side = max(metrics.height(), metrics.horizontalAdvance(emoji))
-    pm = QPixmap(side, side)
-    pm.fill(Qt.transparent)
-    p = QPainter(pm)
+
+    # A double-size canvas so odd metrics can never clip the glyph.
+    canvas = QPixmap(side * 2, side * 2)
+    canvas.fill(Qt.transparent)
+    p = QPainter(canvas)
     p.setFont(font)
     p.setPen(QColor(_EMOJI_CUE_TEXT_COLOR))
-    p.drawText(pm.rect(), Qt.AlignCenter, emoji)
+    p.drawText(canvas.rect(), Qt.AlignCenter, emoji)
     p.end()
-    return pm
+
+    bounds = _painted_bounds(canvas.toImage())
+    if bounds is None:
+        return canvas.copy(0, 0, side, side)
+
+    left, top, right, bottom = bounds
+    glyph_w = right - left + 1
+    glyph_h = bottom - top + 1
+    out_side = max(side, glyph_w, glyph_h)
+
+    out = QPixmap(out_side, out_side)
+    out.fill(Qt.transparent)
+    p = QPainter(out)
+    p.drawPixmap(
+        (out_side - glyph_w) // 2,
+        (out_side - glyph_h) // 2,
+        canvas.copy(left, top, glyph_w, glyph_h),
+    )
+    p.end()
+    return out
 
 
 def _split_leading_emoji(text: str) -> tuple[str | None, str]:
