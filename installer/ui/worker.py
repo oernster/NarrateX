@@ -149,6 +149,7 @@ class OperationController:
         self._worker: Optional[OperationWorker] = None
         self._relay: Optional[_GuiRelay] = None
         self._cancel_event = threading.Event()
+        self._suppress_notify = False
 
     @property
     def is_running(self) -> bool:
@@ -166,6 +167,12 @@ class OperationController:
         (e.g. large file copy), we fall back to terminating the thread to avoid
         hanging the UI during shutdown.
         """
+
+        # The caller is shutting the window down. A terminated thread never
+        # emits its result, so the relay would fabricate a failure and the
+        # finished callback would raise a modal over a window that is already
+        # closing. Suppress the notification outright; cleanup still runs.
+        self._suppress_notify = True
 
         self.cancel()
         if self._thread is None:
@@ -195,6 +202,7 @@ class OperationController:
             return
 
         self._cancel_event = threading.Event()
+        self._suppress_notify = False
 
         thread = QThread()
         worker = OperationWorker(fn, kwargs=kwargs, cancel_event=self._cancel_event)
@@ -229,7 +237,10 @@ class OperationController:
             # This avoids closeEvent() thinking an operation is still running and
             # prevents behind-the-window modal dialogs when launched from Settings.
             try:
-                relay.notify_finished()
+                if self._suppress_notify:
+                    relay.deleteLater()
+                else:
+                    relay.notify_finished()
             finally:
                 self._thread = None
                 self._worker = None

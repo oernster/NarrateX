@@ -151,11 +151,20 @@ def build_installer_main_window_ui(window: Any) -> None:
     window._progress_bar.setRange(0, 100)
     window._progress_bar.setValue(0)
     window._progress_bar.setVisible(False)
+    # The hidden bar must keep its slot: if the layout reclaims it, the bar
+    # appearing mid-operation reflows the pinned-height buttons into each
+    # other. Reserving the space means nothing moves when work starts.
+    bar_policy = window._progress_bar.sizePolicy()
+    bar_policy.setRetainSizeWhenHidden(True)
+    window._progress_bar.setSizePolicy(bar_policy)
     outer.addWidget(window._progress_bar)
 
     window._progress = SafeLabel("", extra_width_px=6, extra_height_px=6)
     window._progress.setObjectName("StatusLine")
     window._progress.setAlignment(Qt.AlignHCenter)
+    # The empty label measures a shade taller than one carrying text; pin the
+    # taller of the two so the rows above it hold still when work starts.
+    window._progress.setMinimumHeight(window._progress.sizeHint().height())
     outer.addWidget(window._progress)
 
     # Return the browse button so the caller can connect signals.

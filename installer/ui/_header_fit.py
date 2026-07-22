@@ -92,6 +92,10 @@ class HeaderFitController:
         try:
             QApplication.processEvents()
 
+            # The vertical floor is unconditional: a fitting title says
+            # nothing about the rows below it colliding.
+            self._ensure_window_minimum_height_for_layout()
+
             missing_w, missing_h = self._ensure_label_has_bbox_room(title)
             if self._fits(title):
                 return
@@ -105,6 +109,38 @@ class HeaderFitController:
             self._ensure_window_minimum_for_layout()
         finally:
             self._in_progress = False
+
+    def _ensure_window_minimum_height_for_layout(self) -> None:
+        """Keep the window at least as tall as the layout's minimum.
+
+        The layout minimum includes the slot reserved for the hidden progress
+        bar; below it the fixed-height button rows collide. Height only: the
+        width floor stays with the title-fitting path so the design width is
+        not silently widened to the layout's preferred size.
+        """
+
+        w = self.window
+        cw = w.centralWidget()
+        if cw is None:
+            return
+
+        min_layout_h = cw.minimumSizeHint().height()
+        if min_layout_h <= 0:
+            return
+
+        screen = w.screen() or QApplication.primaryScreen()
+        max_h = (
+            int(screen.availableGeometry().height() * 0.98)
+            if screen is not None
+            else w.height()
+        )
+
+        min_h = min(max_h, max(w.minimumHeight(), min_layout_h))
+        if min_h > w.minimumHeight():
+            w.setMinimumHeight(min_h)
+        if w.height() < min_h:
+            w.resize(w.width(), min_h)
+            QApplication.processEvents()
 
     def _ensure_window_minimum_for_layout(self) -> None:
         """Ensure the whole installer UI has enough room for all labels.
