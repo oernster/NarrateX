@@ -6,8 +6,10 @@
 # installed inside the flatpak sandbox from local wheels.
 #
 # Usage:
-#   ./build_flatpak.sh            - build + install locally
-#   ./build_flatpak.sh --bundle   - also produce narratex.flatpak
+#   ./build_flatpak.sh            - build, install locally, and write
+#                                   narratex.flatpak to the repo base dir
+#   ./build_flatpak.sh --bundle   - accepted for backwards compatibility;
+#                                   the bundle is now always produced
 
 set -euo pipefail
 
@@ -16,7 +18,8 @@ source "${SCRIPT_DIR}/venv/bin/activate"
 
 APP_ID="com.oliverernster.narratex"
 APP_VERSION=$(python3 -c "exec(open('voice_reader/version.py').read()); print(__version__)")
-BUNDLE="narratex.flatpak"
+# Absolute so the bundle always lands in the repo base dir, whatever the cwd.
+BUNDLE="${SCRIPT_DIR}/narratex.flatpak"
 BUILD_DIR=".flatpak-build"
 REPO_DIR=".flatpak-repo"
 MANIFEST="${APP_ID}.yml"
@@ -36,8 +39,9 @@ SPACY_MODEL_VERSION="3.8.0"
 SPACY_MODEL_WHEEL="${SPACY_MODEL}-${SPACY_MODEL_VERSION}-py3-none-any.whl"
 SPACY_MODEL_WHEEL_URL="https://github.com/explosion/spacy-models/releases/download/${SPACY_MODEL}-${SPACY_MODEL_VERSION}/${SPACY_MODEL_WHEEL}"
 
-MAKE_BUNDLE=0
-for arg in "$@"; do [[ "$arg" == "--bundle" ]] && MAKE_BUNDLE=1; done
+# A distributable single-file bundle is always written to the repo base dir.
+# The historical --bundle flag is accepted but no longer required.
+MAKE_BUNDLE=1
 
 # ── Colour helpers ────────────────────────────────────────────────────────────
 bold=$(tput bold 2>/dev/null || true)
@@ -389,7 +393,5 @@ echo
 echo "  Run:        flatpak run ${APP_ID}"
 echo "  Uninstall:  flatpak uninstall --user ${APP_ID}"
 echo
-if [[ $MAKE_BUNDLE -ne 1 ]]; then
-    echo "To build a distributable bundle:  ./build_flatpak.sh --bundle"
-    echo
-fi
+echo "Distributable bundle written to:  ${BUNDLE}"
+echo
