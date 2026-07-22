@@ -27,13 +27,13 @@ def _run(cmd: list[str]) -> None:
 
     phases = [
         ("analysis", ("checking Analysis", "Running Analysis", "Building Analysis")),
-        ("pyz",      ("checking PYZ",      "Building PYZ")),
-        ("pkg",      ("checking PKG",      "Building PKG")),
-        ("exe",      ("checking EXE",      "Building EXE")),
-        ("collect",  ("checking COLLECT",  "Building COLLECT")),
+        ("pyz", ("checking PYZ", "Building PYZ")),
+        ("pkg", ("checking PKG", "Building PKG")),
+        ("exe", ("checking EXE", "Building EXE")),
+        ("collect", ("checking COLLECT", "Building COLLECT")),
     ]
     phase_index = 0
-    phase_name  = phases[0][0]
+    phase_name = phases[0][0]
     heartbeat_s = float(os.getenv("NARRATEX_BUILD_HEARTBEAT_S", "5") or "5")
 
     proc = subprocess.Popen(
@@ -67,8 +67,14 @@ def _run(cmd: list[str]) -> None:
                 if now - last_output_at >= heartbeat_s:
                     elapsed = int(now - start)
                     pct = int(((phase_index + 1) / len(phases)) * 100)
-                    tail = (last_line[:140] + "…") if len(last_line) > 140 else last_line
-                    info = f"[build] {phase_name} ({phase_index+1}/{len(phases)} ~{pct}%) elapsed={elapsed}s"
+                    tail = (
+                        (last_line[:140] + "…") if len(last_line) > 140 else last_line
+                    )
+                    info = (
+                        f"[build] {phase_name} "
+                        f"({phase_index + 1}/{len(phases)} ~{pct}%) "
+                        f"elapsed={elapsed}s"
+                    )
                     if tail:
                         print(f"{info} | {tail}")
                     else:
@@ -98,7 +104,9 @@ def _ensure_spacy_model() -> None:
 
 def main() -> int:
     if os.name == "nt":
-        raise SystemExit("buildlinux.py is Linux/macOS only - use buildexe.py on Windows")
+        raise SystemExit(
+            "buildlinux.py is Linux/macOS only - use buildexe.py on Windows"
+        )
 
     if not ENTRYPOINT.exists():
         raise SystemExit(f"Entrypoint not found: {ENTRYPOINT}")
@@ -131,16 +139,23 @@ def main() -> int:
     ]
 
     cmd = [
-        sys.executable, "-m", "PyInstaller",
+        sys.executable,
+        "-m",
+        "PyInstaller",
         "--noconfirm",
         "--clean",
         f"--log-level={log_level}",
-        "--name", "NarrateX",
-        "--distpath", str(dist_root),
-        "--workpath", str(work_root),
-        "--specpath", str(PROJECT_ROOT),
+        "--name",
+        "NarrateX",
+        "--distpath",
+        str(dist_root),
+        "--workpath",
+        str(work_root),
+        "--specpath",
+        str(PROJECT_ROOT),
         "--windowed",
-        "--icon", str(ICON_PNG),
+        "--icon",
+        str(ICON_PNG),
         "--collect-all=kokoro",
         "--hidden-import=misaki",
         "--collect-data=misaki",
@@ -206,7 +221,9 @@ def main() -> int:
 
     exe = dist_root / "NarrateX" / "NarrateX"
     if not exe.exists():
-        print("\nBuild finished but expected binary not found. Inspect dist-pyinstaller/.")
+        print(
+            "\nBuild finished but expected binary not found. Inspect dist-pyinstaller/."
+        )
         return 1
 
     internal = dist_root / "NarrateX" / "_internal"
@@ -226,6 +243,7 @@ def main() -> int:
     # versions.  PySide6 manylinux wheels are compiled against glibc 2.17+ so
     # they work with whatever the runtime supplies.
     import glob as _glob
+
     glib_patterns = [
         "libglib-2.0.so*",
         "libgthread-2.0.so*",
@@ -236,7 +254,10 @@ def main() -> int:
     for pattern in glib_patterns:
         for match in _glob.glob(str(internal / pattern)):
             Path(match).unlink()
-            print(f"  Stripped {Path(match).name} (host glib - runtime provides compatible version)")
+            print(
+                f"  Stripped {Path(match).name} "
+                "(host glib - runtime provides compatible version)"
+            )
 
     print(f"\nBuilt: {exe}  ({_dir_size(dist_root / 'NarrateX')})")
     return 0
@@ -244,6 +265,7 @@ def main() -> int:
 
 def _dir_size(path: Path) -> str:
     import subprocess as _sp
+
     result = _sp.run(["du", "-sh", str(path)], capture_output=True, text=True)
     return result.stdout.split()[0] if result.returncode == 0 else "?"
 
