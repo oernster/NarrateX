@@ -6,6 +6,7 @@ import pytest
 
 from voice_reader.shared.startup_diagnostics import (
     enforce_supported_python,
+    running_frozen,
     running_in_flatpak,
     unsupported_python_message,
 )
@@ -93,3 +94,20 @@ class TestRunningInFlatpak:
 
     def test_it_is_false_without_the_marker(self) -> None:
         assert not running_in_flatpak(path_exists=lambda _p: False)
+
+
+class TestRunningFrozen:
+    def test_it_is_true_in_a_frozen_bundle(self) -> None:
+        assert running_frozen(frozen=True)
+
+    def test_it_is_false_in_a_source_checkout(self) -> None:
+        assert not running_frozen(frozen=False)
+
+    def test_a_frozen_bundle_skips_the_version_guard(self) -> None:
+        written: list[str] = []
+        enforce_supported_python(
+            (3, 13, 0),
+            write=written.append,
+            in_managed_runtime=running_frozen(frozen=True),
+        )
+        assert written == []

@@ -64,6 +64,20 @@ def running_in_flatpak(*, path_exists: Callable[[str], bool]) -> bool:
     return path_exists("/.flatpak-info")
 
 
+def running_frozen(*, frozen: object) -> bool:
+    """True when executing inside a PyInstaller-frozen bundle.
+
+    A frozen bundle ships its dependency wheels inside the executable, so the
+    interpreter-window guard (which exists only to explain a failed
+    `requirements.txt` resolve in a source venv) has no premise here. The macOS
+    bundle in particular runs on Python 3.13, which the source-install window
+    excludes; without this the packaged app would exit before the UI appears,
+    exactly as the Flatpak did. Injectable so the guard stays testable.
+    """
+
+    return bool(frozen)
+
+
 def enforce_supported_python(
     version: tuple[int, ...],
     *,
