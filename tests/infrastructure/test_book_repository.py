@@ -127,6 +127,28 @@ def test_poorly_covered_extraction_falls_back_rather_than_shipping_gaps(
     assert book.document.blocks[0].text == STRUCTURED_TEXT
 
 
+def test_a_partly_covered_extraction_falls_back_rather_than_narrating_gaps(
+    tmp_path: Path,
+) -> None:
+    # The two paragraphs anchor but the two headings do not, so the model
+    # accounts for the prose yet leaves a real share of the text uncovered.
+    # Under the spoken-text guardrail that is not good enough: a kept model
+    # would silently skip whatever it did not cover, so the book falls back to
+    # complete flat prose instead.
+    paragraphs_only = (
+        BlockDraft(kind=BlockKind.PARAGRAPH, text="The opening paragraph of the book."),
+        BlockDraft(kind=BlockKind.PARAGRAPH, text="The closing paragraph of the book."),
+    )
+    book = _load(
+        tmp_path,
+        FakeParser(normalized_text=STRUCTURED_TEXT, drafts=paragraphs_only),
+    )
+
+    assert book.document is not None
+    assert len(book.document.blocks) == 1
+    assert book.document.blocks[0].text == STRUCTURED_TEXT
+
+
 def test_the_book_id_is_unaffected_by_the_document_model(tmp_path: Path) -> None:
     # Existing bookmarks and resume positions are keyed by book id, so adding
     # structure must not change it.

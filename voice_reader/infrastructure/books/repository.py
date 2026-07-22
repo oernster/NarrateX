@@ -18,11 +18,17 @@ from voice_reader.infrastructure.books.parser import BookParser, ParsedBook
 #
 # This is the guardrail: extraction that could not account for at least this
 # much of the text is treated as too poor to structure, and the book falls back
-# to being one unbroken run of prose, which reads and narrates exactly as it
-# always has. Half is a deliberately forgiving bar. A well-formed book scores
-# far above it, and a walk that has genuinely failed scores near zero, so the
-# threshold separates those two cases without sitting near either.
-_MIN_COVERED_RATIO = 0.5
+# to being one unbroken run of prose, which reads and narrates the whole text.
+#
+# The bar is high on purpose, because the model now decides what is *spoken*,
+# not just what is displayed. Any block the structured model does not cover is
+# text the narrator would silently skip, so a model that covers, say, 0.6 would
+# read aloud only six-tenths of the book with no sign of the rest. The complete
+# flat fallback is the lesser evil there. Real books cluster at 0.96 and above,
+# and a genuinely failed walk scores near zero, so 0.90 sits in the wide gap
+# between them: it keeps every well-formed book with margin, and rejects
+# anything that would drop more than a tenth of the text from narration.
+_MIN_COVERED_RATIO = 0.90
 
 # A model that recognised plenty of furniture but found no body text has not
 # understood the book, whatever its coverage. Any real body content clears this.
