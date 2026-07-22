@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import io
 import subprocess
 import zipfile
 from pathlib import Path
@@ -17,7 +16,6 @@ def test_cover_extractor_txt_returns_none(tmp_path: Path) -> None:
 
 def test_cover_extractor_epub_finds_image_from_cover_doc(tmp_path: Path) -> None:
     epub = tmp_path / "b.epub"
-    img_bytes = b"\x89PNG\r\n\x1a\n..."
     with zipfile.ZipFile(epub, "w") as z:
         z.writestr(
             "OEBPS/cover.xhtml",

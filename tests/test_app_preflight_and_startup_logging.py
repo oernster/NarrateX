@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import builtins
-import io
 import types
 from pathlib import Path
 

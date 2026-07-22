@@ -6,14 +6,12 @@ opens something, these cover what happens while it plays.
 
 from __future__ import annotations
 
-from pathlib import Path
 from types import SimpleNamespace
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.application.services.bookmark_service import BookmarkService
 from voice_reader.application.services.idea_map_service import IdeaMapService
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
-from voice_reader.domain.entities.voice_profile import VoiceProfile
 from voice_reader.ui.main_window import MainWindow
 from voice_reader.ui.ui_controller import UiController
 

@@ -9,7 +9,6 @@ from voice_reader.application.services.structural_bookmark_service import (
     scan_structural_headings,
 )
 
-from voice_reader.domain.services.chunking_service import ChunkingService
 from voice_reader.application.services.navigation_chunk_service import (
     NavigationChunkService,
 )

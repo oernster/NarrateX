@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import types
 
 from voice_reader.infrastructure.tts.tts_engine_factory import TTSEngineFactory
 

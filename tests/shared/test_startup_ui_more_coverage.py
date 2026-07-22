@@ -209,8 +209,6 @@ def test_maybe_show_splash_happy_path_shows_and_finishes(
         def isNull(self) -> bool:  # noqa: N802
             return self._null
 
-    events = {"n": 0}
-
     class _Splash:
         def __init__(self, pm) -> None:  # noqa: ANN001
             self.pm = pm

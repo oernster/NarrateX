@@ -4,7 +4,6 @@ from datetime import datetime
 import json
 from pathlib import Path
 
-import pytest
 
 from voice_reader.infrastructure.bookmarks.json_bookmark_repository import (
     JSONBookmarkRepository,

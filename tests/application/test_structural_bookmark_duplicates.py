@@ -10,11 +10,7 @@ from __future__ import annotations
 
 
 from voice_reader.application.services.structural_bookmark_service import (
-    RawHeadingCandidate,
     StructuralBookmarkService,
-    classify_heading,
-    dedupe_candidates,
-    scan_structural_headings,
 )
 
 from voice_reader.domain.services.chunking_service import ChunkingService
