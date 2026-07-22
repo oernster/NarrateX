@@ -347,7 +347,7 @@
     <section class="pitch" aria-label="What NarrateX is for">
         <p>
             NarrateX is for listening to what you would otherwise have to sit and read.
-            Use it at your computer on <strong>any operating system</strong>, or send it to a
+            Use it at your computer on <strong>any desktop operating system</strong>, or send it to a
             <strong>wireless headset</strong> and keep listening, <em>hands-free</em>, while you
             move around the house and get on with everything else.
         </p>
@@ -567,7 +567,6 @@
             "releaseNotes": "https://github.com/oernster/NarrateX/releases",
             "softwareHelp": "https://github.com/oernster/NarrateX#readme",
             "softwareVersion": "4.0.0",
-            "dateModified": "2026-07-22",
             "inLanguage": "en-GB",
             "image": "https://narratex.co.uk/site-images/NarrateX4.png",
             "isAccessibleForFree": true,
@@ -656,12 +655,7 @@
         }).then(function (rel) {
             var version = (rel.tag_name || '').replace(/^v/, '');
             if (version) {
-                var when = '';
-                if (rel.published_at) {
-                    when = ' · ' + new Date(rel.published_at).toLocaleDateString(undefined,
-                        {day: 'numeric', month: 'long', year: 'numeric'});
-                }
-                document.getElementById('dl-version').textContent = 'Version ' + version + when;
+                document.getElementById('dl-version').textContent = 'Version ' + version;
             }
             if (rel.html_url) {
                 document.getElementById('dl-whats-new').href = rel.html_url;
