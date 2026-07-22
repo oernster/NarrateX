@@ -132,6 +132,7 @@ requests==2.32.5
 rfc3986==1.5.0
 rich==14.3.3
 rpds-py==0.30.0
+ruff==0.15.22
 safetensors==0.7.0
 segments==2.4.0
 shellingham==1.5.4
