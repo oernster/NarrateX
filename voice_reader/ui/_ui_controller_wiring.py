@@ -9,6 +9,22 @@ from __future__ import annotations
 def connect_signals(controller) -> None:
     controller.window.select_book_clicked.connect(controller.select_book)
 
+    # Voice picker toggles (gender + region filter the voice dropdown).
+    if hasattr(controller.window, "voice_gender_toggle_clicked"):
+        try:
+            controller.window.voice_gender_toggle_clicked.connect(
+                controller.toggle_voice_gender
+            )
+        except Exception:
+            pass
+    if hasattr(controller.window, "voice_region_toggle_clicked"):
+        try:
+            controller.window.voice_region_toggle_clicked.connect(
+                controller.cycle_voice_region
+            )
+        except Exception:
+            pass
+
     # Reader click-to-seek.
     if hasattr(controller.window, "reader_seek_requested"):
         try:

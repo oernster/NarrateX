@@ -24,22 +24,41 @@ class KokoroVoiceProfileRepository(VoiceProfileRepository):
 
     @staticmethod
     def _voice_ids() -> Sequence[str]:
-        # Keep in sync with documentation/examples. Kokoro voice IDs are stable
-        # and do not require reference audio.
+        # The complete Kokoro English inventory. Kokoro voice IDs are stable
+        # and do not require reference audio. Kokoro ships no other English
+        # regions (no Australian, New Zealand or Canadian voices exist), so
+        # the picker's region list is exactly these two.
         return (
-            # British
+            # British female
+            "bf_alice",
             "bf_emma",
             "bf_isabella",
             "bf_lily",
+            # British male
             "bm_daniel",
             "bm_fable",
             "bm_george",
             "bm_lewis",
-            # American
-            "af_heart",
+            # American female
+            "af_alloy",
+            "af_aoede",
             "af_bella",
+            "af_heart",
+            "af_jessica",
+            "af_kore",
             "af_nicole",
+            "af_nova",
+            "af_river",
             "af_sarah",
+            "af_sky",
+            # American male
             "am_adam",
+            "am_echo",
+            "am_eric",
+            "am_fenrir",
+            "am_liam",
             "am_michael",
+            "am_onyx",
+            "am_puck",
+            "am_santa",
         )

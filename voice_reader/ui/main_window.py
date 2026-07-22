@@ -55,6 +55,8 @@ class _NeutralStart(QWidget):
 
 class MainWindow(QMainWindow):
     select_book_clicked = Signal()
+    voice_gender_toggle_clicked = Signal()
+    voice_region_toggle_clicked = Signal()
     play_pause_clicked = Signal()
     stop_clicked = Signal()
     bookmarks_clicked = Signal()
@@ -97,6 +99,8 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self) -> None:
         self.btn_select_book.clicked.connect(self.select_book_clicked.emit)
+        self.btn_voice_gender.clicked.connect(self.voice_gender_toggle_clicked.emit)
+        self.btn_voice_region.clicked.connect(self.voice_region_toggle_clicked.emit)
         self.btn_stop.clicked.connect(self.stop_clicked.emit)
         self.btn_bookmarks.clicked.connect(self.bookmarks_clicked.emit)
         self.btn_ideas.clicked.connect(self.ideas_clicked.emit)

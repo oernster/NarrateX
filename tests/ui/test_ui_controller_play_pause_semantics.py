@@ -78,10 +78,14 @@ class FakeBookmarks:
 @dataclass(frozen=True, slots=True)
 class FakeVoiceRepo:
     def list_profiles(self):
-        # Intentionally unsorted.
+        # Intentionally unsorted. Two British female voices so the picker's
+        # default filter leaves a real choice (the voice-change test needs
+        # a second entry to switch to).
         return [
             VoiceProfile(name="bm_george", reference_audio_paths=[]),
+            VoiceProfile(name="bf_isabella", reference_audio_paths=[]),
             VoiceProfile(name="system", reference_audio_paths=[]),
+            VoiceProfile(name="bf_emma", reference_audio_paths=[]),
             VoiceProfile(name="af_heart", reference_audio_paths=[]),
         ]
 

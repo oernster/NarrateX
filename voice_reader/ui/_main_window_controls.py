@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QEvent, QObject, QSize, Qt
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -67,6 +67,29 @@ def _split_leading_emoji(text: str) -> tuple[str | None, str]:
     if rest and not head.isascii():
         return head, rest
     return None, str(text)
+
+
+class PickerKeys(QObject):
+    """Keeb key handling for the voice picker controls.
+
+    - Return/Enter clicks a focused toggle button (Qt only honours Space in
+      a main window).
+    - Down on a CLOSED combo opens its popup instead of silently changing
+      the value; the open popup then owns its own keys natively.
+    """
+
+    def eventFilter(self, obj, event) -> bool:  # noqa: N802 (Qt naming)
+        if event.type() != QEvent.KeyPress:
+            return False
+        key = event.key()
+        if isinstance(obj, QToolButton) and key in (Qt.Key_Return, Qt.Key_Enter):
+            obj.click()
+            return True
+        if isinstance(obj, QComboBox) and key == Qt.Key_Down:
+            if not obj.view().isVisible():
+                obj.showPopup()
+                return True
+        return False
 
 
 def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayout]:
@@ -180,6 +203,29 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     window.btn_ideas.setFont(QFont(_EMOJI_CUE_FONT_FAMILY, _EMOJI_CUE_POINT_SIZE))
     window.btn_ideas.setProperty("topIconButton", True)
 
+    # Voice picker toggles: gender and region, filtering the dropdown.
+    # Same family as the top icon buttons; glyphs and tooltips are kept
+    # current by the controller's refresh.
+    window.btn_voice_gender = QToolButton()
+    window.btn_voice_region = QToolButton()
+    for b in (window.btn_voice_gender, window.btn_voice_region):
+        b.setCursor(Qt.PointingHandCursor)
+        b.setAutoRaise(True)
+        b.setFixedSize(38, 38)
+        b.setFont(QFont(_EMOJI_CUE_FONT_FAMILY, _EMOJI_CUE_POINT_SIZE))
+        b.setProperty("topIconButton", True)
+
+    # Keeb key handling for the picker (Enter clicks toggles; Down opens a
+    # closed dropdown rather than changing its value).
+    window._picker_keys = PickerKeys(window)  # noqa: SLF001
+    for w in (
+        window.btn_voice_gender,
+        window.btn_voice_region,
+        window.voice_combo,
+        window.speed_combo,
+    ):
+        w.installEventFilter(window._picker_keys)  # noqa: SLF001
+
     # Zone A: setup/content selection (left)
     zone_a = QHBoxLayout()
     zone_a.setSpacing(8)
@@ -195,6 +241,8 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
         window.lbl_voice_icon.setToolTip(voice_label)
         zone_a.addWidget(window.lbl_voice_icon)
     zone_a.addWidget(QLabel(voice_label))
+    zone_a.addWidget(window.btn_voice_gender)
+    zone_a.addWidget(window.btn_voice_region)
     zone_a.addWidget(window.voice_combo)
     zone_a.addWidget(QLabel("Speed"))
     zone_a.addWidget(window.speed_combo)

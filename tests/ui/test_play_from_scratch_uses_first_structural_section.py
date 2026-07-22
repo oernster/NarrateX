@@ -90,9 +90,10 @@ class _Resume:
 @dataclass(frozen=True, slots=True)
 class FakeVoiceRepo:
     def list_profiles(self):
+        # bf_emma survives the picker's default filter (British female).
         return [
             VoiceProfile(name="system", reference_audio_paths=[]),
-            VoiceProfile(name="af_heart", reference_audio_paths=[]),
+            VoiceProfile(name="bf_emma", reference_audio_paths=[]),
         ]
 
 

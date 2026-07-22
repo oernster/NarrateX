@@ -114,7 +114,8 @@ def apply_state(controller, state: object) -> None:
     except Exception:
         pass
 
-    # Lock voice + speed only (volume must remain editable).
+    # Lock voice + speed only (volume must remain editable). The picker
+    # toggles change the effective voice, so they lock with the dropdown.
     editable_statuses = {
         NarrationStatus.IDLE,
         NarrationStatus.PAUSED,
@@ -125,6 +126,8 @@ def apply_state(controller, state: object) -> None:
     for combo in (
         getattr(controller.window, "voice_combo", None),
         getattr(controller.window, "speed_combo", None),
+        getattr(controller.window, "btn_voice_gender", None),
+        getattr(controller.window, "btn_voice_region", None),
     ):
         if combo is None:
             continue

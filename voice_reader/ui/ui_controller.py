@@ -49,6 +49,12 @@ from voice_reader.ui._ui_controller_book_loading import (
     load_selected_book,
     prepare_for_book_switch,
 )
+from voice_reader.ui._ui_controller_voices import (
+    cycle_voice_region,
+    refresh_voices,
+    toggle_voice_gender,
+    voice_label,
+)
 from voice_reader.ui._ui_controller_wiring import connect_signals
 from voice_reader.ui._ui_controller_idea_indexing import (
     can_show_idea_progress,
@@ -93,6 +99,8 @@ class UiController(QObject):
         self.engine_name = engine_name
 
         self._voices: Sequence[VoiceProfile] = []
+        self._voice_region_index: int = 0
+        self._voice_gender_index: int = 0
         self._last_prepared_voice_id: str | None = None
         self._cover_extractor: CoverExtractor = cover_extractor or _NullCoverExtractor()
         self._bookmarks_dialog = None
@@ -306,15 +314,13 @@ class UiController(QObject):
         return next_chapter(self)
 
     def refresh_voices(self) -> None:
-        voices = [v for v in self.voice_service.list_profiles() if v.name != "system"]
-        voices.sort(key=self._voice_sort_key)
-        self._voices = voices
+        return refresh_voices(self)
 
-        self.window.voice_combo.clear()
-        for v in self._voices:
-            self.window.voice_combo.addItem(self._voice_label(v), v.name)
-        if not self._voices:
-            self.window.voice_combo.addItem("(no voices found)")
+    def toggle_voice_gender(self) -> None:
+        return toggle_voice_gender(self)
+
+    def cycle_voice_region(self) -> None:
+        return cycle_voice_region(self)
 
     def select_book(self) -> None:
         prepare_for_book_switch(self)
@@ -342,31 +348,9 @@ class UiController(QObject):
                 return v
         return self._voices[0]
 
-    # Regions in display order; anything unrecognised sorts after them.
-    _VOICE_REGION_ORDER = ("(British ", "(American ")
-
-    def _voice_sort_key(self, voice: VoiceProfile) -> tuple[int, str]:
-        """British voices first, then American, alphabetical within each."""
-
-        label = self._voice_label(voice)
-        rank = len(self._VOICE_REGION_ORDER)
-        for i, marker in enumerate(self._VOICE_REGION_ORDER):
-            if marker in label:
-                rank = i
-                break
-        return (rank, label.casefold())
-
     @staticmethod
     def _voice_label(voice: VoiceProfile) -> str:
-        parts = voice.name.split("_", 1)
-        if len(parts) == 2 and len(parts[0]) == 2:
-            prefix, raw_name = parts
-            region_label = {"b": "British", "a": "American"}.get(prefix[0])
-            gender_label = {"f": "Female", "m": "Male"}.get(prefix[1])
-            name_label = raw_name.replace("-", " ").replace("_", " ").title()
-            if region_label and gender_label:
-                return f"{name_label} ({region_label} {gender_label})"
-        return voice.name.replace("_", " ").strip().title()
+        return voice_label(voice)
 
 
 class _NullCoverExtractor:
