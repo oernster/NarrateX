@@ -41,6 +41,11 @@ _TRANSPORT_GLYPH_POINT_SIZE = 18
 # The stop button's painted red square, sized to sit with the larger cues.
 _STOP_CUE_PX = 20
 
+# Monochrome cue glyphs (the GB/US letter tiles, the sex symbols) take the
+# painter's pen, so it must be the theme's light text colour; the default
+# pen is black, invisible on the dark surface. Colour emoji ignore it.
+_EMOJI_CUE_TEXT_COLOR = "#e5e7eb"
+
 
 def emoji_cue_pixmap(emoji: str) -> QPixmap:
     """Render one emoji at the reference cue size on a transparent square."""
@@ -52,6 +57,7 @@ def emoji_cue_pixmap(emoji: str) -> QPixmap:
     pm.fill(Qt.transparent)
     p = QPainter(pm)
     p.setFont(font)
+    p.setPen(QColor(_EMOJI_CUE_TEXT_COLOR))
     p.drawText(pm.rect(), Qt.AlignCenter, emoji)
     p.end()
     return pm
