@@ -70,6 +70,19 @@ class TestEnterActivates:
         assert KeebKeys().eventFilter(slider, _key_press(Qt.Key_Return)) is False
         host.close()
 
+    def test_enter_on_a_plain_list_is_left_alone(self, qapp) -> None:
+        # A bare list view is not a dropdown popup; its keys stay native.
+        from PySide6.QtWidgets import QListWidget
+
+        host = QWidget()
+        lst = QListWidget(host)
+        lst.addItems(["a", "b"])
+        host.show()
+        _focus(qapp, lst)
+
+        assert KeebKeys().eventFilter(lst, _key_press(Qt.Key_Return)) is False
+        host.close()
+
     def test_events_not_addressed_to_the_focus_widget_pass(self, qapp) -> None:
         host = QWidget()
         button = QPushButton("A", host)
@@ -135,6 +148,108 @@ class TestDropdowns:
         combo.hidePopup()
         host.close()
 
+    def test_space_on_a_closed_combo_stays_native(self, qapp) -> None:
+        host = QWidget()
+        combo = QComboBox(host)
+        combo.addItems(["one", "two"])
+        host.show()
+        _focus(qapp, combo)
+
+        assert KeebKeys().eventFilter(combo, _key_press(Qt.Key_Space)) is False
+        host.close()
+
+    def test_space_on_a_combo_with_open_popup_commits_the_highlight(self, qapp) -> None:
+        host = QWidget()
+        combo = QComboBox(host)
+        combo.addItems(["one", "two", "three"])
+        host.show()
+        _focus(qapp, combo)
+        combo.showPopup()
+        _focus(qapp, combo)
+        combo.view().setCurrentIndex(combo.model().index(2, 0))
+
+        handled = KeebKeys().eventFilter(combo, _key_press(Qt.Key_Space))
+
+        assert handled is True
+        assert combo.currentIndex() == 2
+        assert not combo.view().isVisible()
+        host.close()
+
+
+class TestOpenPopup:
+    def _open(self, qapp, host) -> QComboBox:
+        combo = QComboBox(host)
+        combo.addItems(["one", "two", "three"])
+        host.show()
+        _focus(qapp, combo)
+        combo.showPopup()
+        view = combo.view()
+        view.setFocus(Qt.FocusReason.TabFocusReason)
+        qapp.processEvents()
+        assert qapp.focusWidget() is view
+        return combo
+
+    def test_space_in_the_popup_commits_the_highlighted_item(self, qapp) -> None:
+        host = QWidget()
+        combo = self._open(qapp, host)
+        combo.view().setCurrentIndex(combo.model().index(1, 0))
+
+        handled = KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Space))
+
+        assert handled is True
+        assert combo.currentIndex() == 1
+        assert not combo.view().isVisible()
+        host.close()
+
+    def test_tab_in_the_popup_commits_and_steps_on(self, qapp) -> None:
+        host = QWidget()
+        combo = self._open(qapp, host)
+        combo.view().setCurrentIndex(combo.model().index(2, 0))
+
+        handled = KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Tab))
+        qapp.processEvents()
+
+        assert handled is True
+        assert combo.currentIndex() == 2
+        assert not combo.view().isVisible()
+        host.close()
+
+    def test_backtab_in_the_popup_commits_and_steps_back(self, qapp) -> None:
+        host = QWidget()
+        combo = self._open(qapp, host)
+        combo.view().setCurrentIndex(combo.model().index(1, 0))
+
+        handled = KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Backtab))
+        qapp.processEvents()
+
+        assert handled is True
+        assert combo.currentIndex() == 1
+        assert not combo.view().isVisible()
+        host.close()
+
+    def test_other_popup_keys_stay_native(self, qapp) -> None:
+        host = QWidget()
+        combo = self._open(qapp, host)
+
+        assert KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Down)) is False
+        combo.hidePopup()
+        host.close()
+
+    def test_a_popup_with_no_highlight_commits_nothing_but_closes(self, qapp) -> None:
+        from PySide6.QtCore import QModelIndex
+
+        host = QWidget()
+        combo = self._open(qapp, host)
+        combo.setCurrentIndex(0)
+        combo.view().setCurrentIndex(QModelIndex())
+
+        handled = KeebKeys().eventFilter(combo.view(), _key_press(Qt.Key_Space))
+
+        assert handled is True
+        assert combo.currentIndex() == 0
+        assert not combo.view().isVisible()
+        host.close()
+
 
 class TestVolumeStop:
     def _volume_pair(self, host) -> tuple[QToolButton, QSlider]:
@@ -145,7 +260,7 @@ class TestVolumeStop:
         button.keeb_volume_slider = slider
         return button, slider
 
-    def test_up_and_down_adjust_the_linked_slider(self, qapp) -> None:
+    def test_all_four_arrows_adjust_the_linked_slider(self, qapp) -> None:
         host = QWidget()
         button, slider = self._volume_pair(host)
         host.show()
@@ -154,7 +269,11 @@ class TestVolumeStop:
         keys = KeebKeys()
         assert keys.eventFilter(button, _key_press(Qt.Key_Up)) is True
         assert slider.value() == 30
+        assert keys.eventFilter(button, _key_press(Qt.Key_Right)) is True
+        assert slider.value() == 35
         assert keys.eventFilter(button, _key_press(Qt.Key_Down)) is True
+        assert slider.value() == 30
+        assert keys.eventFilter(button, _key_press(Qt.Key_Left)) is True
         assert slider.value() == 25
 
     def test_the_slider_clamps_at_its_ends(self, qapp) -> None:
