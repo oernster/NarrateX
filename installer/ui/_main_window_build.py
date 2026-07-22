@@ -76,9 +76,12 @@ def build_installer_main_window_ui(window: Any) -> None:
     # allocation (prevents font-metric rounding causing clipping). Do not add an
     # extra stretch item, otherwise the free space is split and the title can be
     # under-allocated on some DPI/font configurations.
+    # The buttons are height-capped below the title's row height; without an
+    # explicit alignment a box layout pins a constrained widget to the top of
+    # its cell, floating the pills above the title's centre line.
     header_row.addLayout(header_left, 1)
-    header_row.addWidget(window._licence_btn)
-    header_row.addWidget(window._theme_toggle_btn)
+    header_row.addWidget(window._licence_btn, 0, Qt.AlignVCenter)
+    header_row.addWidget(window._theme_toggle_btn, 0, Qt.AlignVCenter)
 
     outer.addLayout(header_row)
 

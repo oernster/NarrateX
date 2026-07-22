@@ -68,6 +68,7 @@ def set_ui_busy(
         window._licence_btn,
         window._theme_toggle_btn,
         window._install_dir_edit,
+        window._browse_btn,
         window._desktop_cb,
         window._startmenu_cb,
     ]:

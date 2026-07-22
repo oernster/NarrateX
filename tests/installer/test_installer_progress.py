@@ -155,9 +155,22 @@ def _window(qapp) -> SimpleNamespace:
         _licence_btn=QPushButton(),
         _theme_toggle_btn=QPushButton(),
         _install_dir_edit=QLineEdit(),
+        _browse_btn=QPushButton(),
         _desktop_cb=QCheckBox(),
         _startmenu_cb=QCheckBox(),
     )
+
+
+def test_busy_locks_the_browse_button_with_everything_else(qapp) -> None:
+    # Browse used to stay enabled mid-install, inviting a directory change
+    # while files were being replaced.
+    window = _window(qapp)
+
+    set_ui_busy(window, True)
+    assert window._browse_btn.isEnabled() is False
+
+    set_ui_busy(window, False)
+    assert window._browse_btn.isEnabled() is True
 
 
 class TestCompletionIsVisible:
