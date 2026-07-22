@@ -62,15 +62,15 @@ Additionally, narration failure handling persists a best-effort resume position 
     - [`ChunkingService`](voice_reader/domain/services/chunking_service.py:32) via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py:37)
     - [`SpokenTextSanitizer`](voice_reader/domain/services/spoken_text_sanitizer.py:27) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28)
   - Document model: [`voice_reader/domain/document`](voice_reader/domain/document:1), pure and format independent
-    - [`Document`](voice_reader/domain/document/model.py:123) → [`Section`](voice_reader/domain/document/model.py:90) → [`Block`](voice_reader/domain/document/model.py:34), plus [`TocEntry`](voice_reader/domain/document/model.py:69). `Section` is named so rather than `Chapter` because [`Chapter`](voice_reader/domain/entities/chapter.py:1) already owns navigation metadata, and not every division of a book is a chapter.
+    - [`Document`](voice_reader/domain/document/model.py:123) → [`Section`](voice_reader/domain/document/model.py:90) → [`Block`](voice_reader/domain/document/model.py:34), plus [`TocEntry`](voice_reader/domain/document/model.py:69). `Section` is named so rather than `Chapter` because [`Chapter`](voice_reader/domain/entities/chapter.py:1) already owns navigation metadata and not every division of a book is a chapter.
     - [`BlockKind`](voice_reader/domain/document/block_kind.py:21): the single policy for `is_displayed` and `is_spoken`, kept together so the pane and the narrator cannot drift apart
     - Format readers, each emitting drafts rather than offsets: [`markdown.py`](voice_reader/domain/document/markdown.py:1), [`pdf_lines.py`](voice_reader/domain/document/pdf_lines.py:1) (with [`pdf_line_assembly.py`](voice_reader/domain/document/pdf_line_assembly.py:1) joining wrapped lines back into blocks), [`plain_text.py`](voice_reader/domain/document/plain_text.py:1)
-    - For PDFs the classifier's furniture verdicts also feed the text extraction: [`furniture_texts_by_page()`](voice_reader/domain/document/pdf_lines.py:253) names the running heads and margin folios the parser strips from each page's text, and those lines emit no drafts, so the canonical text and the drafts anchored onto it always describe the same book
+    - For PDFs the classifier's furniture verdicts also feed the text extraction: [`furniture_texts_by_page()`](voice_reader/domain/document/pdf_lines.py:253) names the running heads and margin folios the parser strips from each page's text and those lines emit no drafts, so the canonical text and the drafts anchored onto it always describe the same book
     - [`text_index.py`](voice_reader/domain/document/text_index.py:1): how extracted text is matched against the canonical text, shared by anchoring and narration planning
     - [`anchoring.py`](voice_reader/domain/document/anchoring.py:1): locates each draft in `normalized_text`
     - [`sectioning.py`](voice_reader/domain/document/sectioning.py:1), [`assembly.py`](voice_reader/domain/document/assembly.py:1): group anchored blocks into the finished document
     - [`reading_start.py`](voice_reader/domain/document/reading_start.py:1): where the body begins, the single answer for the pane, the narrator, the 🧠 Sections bookmarks and the ideas-index scope
-    - [`render_plan.py`](voice_reader/domain/document/render_plan.py:1): what the pane shows, and the source-to-render coordinate mapping
+    - [`render_plan.py`](voice_reader/domain/document/render_plan.py:1): what the pane shows and the source-to-render coordinate mapping
     - [`narration_plan.py`](voice_reader/domain/document/narration_plan.py:1): what the narrator speaks, as chunks in book coordinates
 
 - Infrastructure layer: [`voice_reader/infrastructure`](voice_reader/infrastructure:1)
@@ -97,13 +97,13 @@ Additionally, narration failure handling persists a best-effort resume position 
 
 ## Document model invariants
 
-The document model is the single answer to "what is in this book, and where".
+The document model is the single answer to "what is in this book and where".
 Each invariant below is enforced by a test rather than by convention.
 
 | Invariant | Why it holds | Enforced by |
 | --- | --- | --- |
 | **`normalized_text` is never rewritten.** Every block records a span into it; the model carries spans *into* the text rather than replacing it. | That string is the coordinate system for chunk spans, the chapter index, structural bookmarks, the ideas index, click-to-seek, persisted bookmarks, the resume position, the audio cache key and the derived `book_id`. Rewriting it silently orphans every bookmark a reader already has. | [`tests/domain/test_document_anchoring.py`](tests/domain/test_document_anchoring.py:1) |
-| **A draft that cannot be located is dropped, never guessed at.** | Uncertainty degrades the confidence signal instead of corrupting offsets. Dropped drafts lower `covered_ratio`, and a low enough ratio is what tips the repository over to the unstructured fallback. | [`tests/domain/test_document_anchoring.py`](tests/domain/test_document_anchoring.py:1) |
+| **A draft that cannot be located is dropped, never guessed at.** | Uncertainty degrades the confidence signal instead of corrupting offsets. Dropped drafts lower `covered_ratio` and a low enough ratio is what tips the repository over to the unstructured fallback. | [`tests/domain/test_document_anchoring.py`](tests/domain/test_document_anchoring.py:1) |
 | **Matching folds exactly what the extraction rewrote**, one character wide or dropped outright. | A draft is a whole paragraph of joined lines, so one unfolded character loses the paragraph around it, not just the word. Folding must widen what matches without making the offsets approximate. | [`tests/domain/test_document_anchoring.py`](tests/domain/test_document_anchoring.py:1), [`tests/domain/test_document_pdf_lines.py`](tests/domain/test_document_pdf_lines.py:1) |
 | **Displayed and spoken are one policy**, held in [`BlockKind`](voice_reader/domain/document/block_kind.py:21). | The pane and the narrator answer the same questions. Deciding separately is how a folio the reader never sees becomes a folio the narrator reads aloud. | [`tests/domain/test_document_block_kind.py`](tests/domain/test_document_block_kind.py:1) |
 | **A chunk says exactly what its span claims.** Chunks are cut from the source slice and then *located* back in it, never given calculated offsets. | `ChunkingService` normalises its input before measuring, so its own offsets drift wherever it collapses whitespace. Highlighting and click-to-seek read those offsets literally. | [`tests/domain/test_document_narration_plan.py`](tests/domain/test_document_narration_plan.py:1) |
@@ -295,7 +295,7 @@ At a high level, the service:
 Key behaviors this pipeline is designed to preserve:
 
 - “Prologue” is included when present and is the first section for first-time playback.
-- TOC duplicates (dotted-leader/page-number styles, wrapped entries, and “glued” page tokens) are excluded from bookmark anchors.
+- TOC duplicates (dotted-leader/page-number styles, wrapped entries and “glued” page tokens) are excluded from bookmark anchors.
 - Omnibus PDFs/EPUBs can contain multiple `Book N` segments, each with its own `Prologue`; these must appear as separate entries.
 
 Regression tests for these cases live in:
@@ -323,14 +323,14 @@ Additional hardening:
 
 - On narration failure, we attempt to persist resume (best-effort) before emitting ERROR so retrying Play does not restart from the beginning (see [`run()`](voice_reader/application/services/narration/run.py:24)).
 
-### 4) Synthesis, caching, and playback
+### 4) Synthesis, caching and playback
 
 Starting narration spawns a background thread via [`NarrationService.start()`](voice_reader/application/services/narration_service.py:172), which runs the narration runner [`run()`](voice_reader/application/services/narration/run.py:24).
 
 Core responsibilities of the narration runner (see [`run()`](voice_reader/application/services/narration/run.py:24)):
 
 - Build a list of playback candidates (skipping chunks whose sanitized `speak_text` is empty)
-- Sanitize spoken text (remove outline numbering, normalize punctuation, expand initialisms, and drop separator-only lines) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28)
+- Sanitize spoken text (remove outline numbering, normalize punctuation, expand initialisms and drop separator-only lines) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py:28)
 - For each chunk:
   - compute a deterministic cache location via [`FilesystemCacheRepository.audio_path()`](voice_reader/infrastructure/cache/filesystem_cache.py:15)
   - on cache miss: call [`TTSEngine.synthesize_to_file()`](voice_reader/domain/interfaces/tts_engine.py:16)
@@ -360,7 +360,7 @@ Notable performance and UX choices:
 The app is **Kokoro-only**.
 
 - The runtime always uses [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py:30), created by [`TTSEngineFactory.create()`](voice_reader/infrastructure/tts/tts_engine_factory.py:27).
-- Voice choices come from [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19), which lists Kokoro's complete English inventory (28 voices: 8 British, 20 American; Kokoro ships no other English regions), and are shown with friendly labels by [`voice_label()`](voice_reader/ui/_ui_controller_voices.py:1).
+- Voice choices come from [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py:19), which lists Kokoro's complete English inventory (28 voices: 8 British, 20 American; Kokoro ships no other English regions) and are shown with friendly labels by [`voice_label()`](voice_reader/ui/_ui_controller_voices.py:1).
 - The picker filters that list by the voice ID's own prefix taxonomy (`bf_emma` is British female): a sex toggle and a region toggle in the controls row, with regions and sexes held as data tuples so a new region is a one-line change.
 - No voice is defaulted. The dropdown rests on a mic placeholder, the picker enables when a book loads, an amber attention ring asks for a choice (flashing until first touched, steady until chosen) and pre-synthesis starts at selection time.
 - Voice profiles are Kokoro voice IDs (e.g. `bf_emma`, `am_michael`) and do not require reference audio.
@@ -368,7 +368,7 @@ The app is **Kokoro-only**.
 ## Concurrency model
 
 - UI runs on Qt main thread.
-- Book loading runs in a separate process (see [`book_load_worker.py`](voice_reader/book_load_worker.py:1), a second composition root for the child process, and [`load_selected_book()`](voice_reader/ui/_ui_controller_book_loading.py:1)). A thread is not enough here: the parse is CPU-bound pure Python, so a worker thread holds the GIL and starves the Qt loop anyway. The child parses the file and builds the render plan, the chapter index and the cover; a `book-load` thread in the parent only blocks on the result queue (which releases the GIL) and then hands the book to [`NarrationService.adopt_book()`](voice_reader/application/services/narration_service.py:1). Widget updates return to the UI thread through the `ui_call_requested` signal; an in-flight flag blocks re-entry and a loading indicator (status text plus indeterminate progress bar) runs for the duration. Without an injected loader (tests) the compute falls back to running on the thread in-process.
+- Book loading runs in a separate process (see [`book_load_worker.py`](voice_reader/book_load_worker.py:1), a second composition root for the child process and [`load_selected_book()`](voice_reader/ui/_ui_controller_book_loading.py:1)). A thread is not enough here: the parse is CPU-bound pure Python, so a worker thread holds the GIL and starves the Qt loop anyway. The child parses the file and builds the render plan, the chapter index and the cover; a `book-load` thread in the parent only blocks on the result queue (which releases the GIL) and then hands the book to [`NarrationService.adopt_book()`](voice_reader/application/services/narration_service.py:1). Widget updates return to the UI thread through the `ui_call_requested` signal; an in-flight flag blocks re-entry and a loading indicator (status text plus indeterminate progress bar) runs for the duration. Without an injected loader (tests) the compute falls back to running on the thread in-process.
 - Narration runs on a background thread started by [`NarrationService.start()`](voice_reader/application/services/narration_service.py:156).
 - Audio playback (`sounddevice` + `soundfile`) uses internal producer/player threads inside [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py:72).
 - In Kokoro-native mode, TTS synthesis can be parallelized by multiple worker threads and a publisher thread (see [`run()`](voice_reader/application/services/narration/run.py:24)).

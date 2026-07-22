@@ -34,13 +34,13 @@ Without it, playback silently hangs: `sounddevice` imports but raises `OSError: 
 
 ## Audio backend
 
-NarrateX works with PulseAudio, PipeWire, and ALSA.
-No extra configuration is needed for PipeWire (the default on modern Ubuntu, Fedora, and Arch installs).
+NarrateX works with PulseAudio, PipeWire and ALSA.
+No extra configuration is needed for PipeWire (the default on modern Ubuntu, Fedora and Arch installs).
 If you are on a headless or minimal system without an audio daemon, install PulseAudio or PipeWire first.
 
 ## Python version
 
-Kokoro TTS requires **Python 3.10, 3.11, or 3.12**. Python 3.13+ is not compatible.
+Kokoro TTS requires **Python 3.10, 3.11 or 3.12**. Python 3.13+ is not compatible.
 
 Check your version:
 
@@ -72,7 +72,7 @@ Build and install it with [`build_flatpak.sh`](build_flatpak.sh); the generated 
 [`com.oliverernster.narratex.yml`](com.oliverernster.narratex.yml).
 
 The Flatpak is self-contained: it bundles the PortAudio audio backend, the spaCy
-`en_core_web_sm` model, and an espeak-ng phonemizer, so none of the system
+`en_core_web_sm` model and an espeak-ng phonemizer, so none of the system
 prerequisites above are needed when running it.
 
 ## Native bundle (PyInstaller)
@@ -85,7 +85,7 @@ python buildlinux.py
 ```
 
 The output is a onedir bundle in `dist-pyinstaller/NarrateX/` that includes Python,
-Qt, and all dependencies.
+Qt and all dependencies.
 
 ## First-run model download
 
