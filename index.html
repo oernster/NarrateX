@@ -385,6 +385,16 @@
                 Deterministic position
                 <span>Consistent across sessions</span>
             </div>
+
+            <div class="card">
+                Fully keyboard driven
+                <span>One focus ring, arrows and Tab</span>
+            </div>
+
+            <div class="card">
+                28 English voices
+                <span>British and American, on-device</span>
+            </div>
         </div>
     </div>
 
@@ -427,8 +437,8 @@
     <div class="section" id="download">
         <h2>Download NarrateX</h2>
         <p>One codebase, native packages on Windows, macOS and Linux. Pick your platform and you
-            have the newest release. Free and LGPL-3.0 with no account; everything runs locally,
-            the same way on each.</p>
+            have the newest release. Free and open source (GPL-3.0, with the UI layer under
+            LGPL-3.0) with no account; everything runs locally, the same way on each.</p>
         <span class="dl-version" id="dl-version">Latest release</span>
 
         <div class="downloads">
@@ -485,7 +495,7 @@
         <div class="faq">
             <div class="faq-item">
                 <h3>Is NarrateX free?</h3>
-                <p>Yes. NarrateX is free and open source, released under the GNU LGPL-3.0 licence.</p>
+                <p>Yes. NarrateX is free and open source, released under the GNU GPL-3.0 licence with the reusable UI layer under LGPL-3.0.</p>
             </div>
             <div class="faq-item">
                 <h3>Does NarrateX work offline?</h3>
@@ -494,6 +504,10 @@
             <div class="faq-item">
                 <h3>What does the narration sound like?</h3>
                 <p>NarrateX uses the Kokoro neural text-to-speech voice running locally on your machine, so it sounds natural rather than robotic, with no internet connection required.</p>
+            </div>
+            <div class="faq-item">
+                <h3>Can I choose the voice?</h3>
+                <p>Yes. NarrateX ships Kokoro's complete English inventory of 28 voices (8 British and 20 American), filtered by sex and region toggles, all running on-device.</p>
             </div>
             <div class="faq-item">
                 <h3>Which file formats can NarrateX read?</h3>
@@ -557,7 +571,7 @@
             "inLanguage": "en-GB",
             "image": "https://narratex.co.uk/site-images/NarrateX2.png",
             "isAccessibleForFree": true,
-            "license": "https://www.gnu.org/licenses/lgpl-3.0.html",
+            "license": "https://www.gnu.org/licenses/gpl-3.0.html",
             "author": { "@id": "https://narratex.co.uk/#oliver" },
             "creator": { "@id": "https://narratex.co.uk/#oliver" },
             "publisher": { "@id": "https://narratex.co.uk/#oliver" },
@@ -578,6 +592,8 @@
                 "Derived navigation from headings and bookmarks",
                 "Continuous audio playback",
                 "Kokoro neural voice, on-device",
+                "28 English voices, British and American",
+                "Full keyboard navigation",
                 "Local execution",
                 "Offline operation",
                 "EPUB support",
@@ -593,7 +609,7 @@
                 {
                     "@type": "Question",
                     "name": "Is NarrateX free?",
-                    "acceptedAnswer": { "@type": "Answer", "text": "Yes. NarrateX is free and open source, released under the GNU LGPL-3.0 licence." }
+                    "acceptedAnswer": { "@type": "Answer", "text": "Yes. NarrateX is free and open source, released under the GNU GPL-3.0 licence with the reusable UI layer under LGPL-3.0." }
                 },
                 {
                     "@type": "Question",
@@ -604,6 +620,11 @@
                     "@type": "Question",
                     "name": "What does the narration sound like?",
                     "acceptedAnswer": { "@type": "Answer", "text": "NarrateX uses the Kokoro neural text-to-speech voice running locally on your machine, so it sounds natural rather than robotic, with no internet connection required." }
+                },
+                {
+                    "@type": "Question",
+                    "name": "Can I choose the voice?",
+                    "acceptedAnswer": { "@type": "Answer", "text": "Yes. NarrateX ships Kokoro's complete English inventory of 28 voices (8 British and 20 American), filtered by sex and region toggles, all running on-device." }
                 },
                 {
                     "@type": "Question",

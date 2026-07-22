@@ -2,7 +2,7 @@
 
 This repo is intentionally test-first and gate-driven:
 
-- `black` + `flake8` keep formatting/lint consistent.
+- `black` + `flake8` + `ruff` keep formatting/lint consistent.
 - `pytest` runs with a strict **100% coverage** gate by default (see pytest `addopts` in [`pyproject.toml`](pyproject.toml:1)).
 - Structural constraints are enforced by `tests/structural/*` (see [`ARCHITECTURE_CONSTRAINTS.md`](ARCHITECTURE_CONSTRAINTS.md:1)).
 

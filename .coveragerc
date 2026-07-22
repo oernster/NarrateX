@@ -79,6 +79,10 @@ omit =
     voice_reader/ui/_ui_controller_playback.py
     voice_reader/ui/_ui_controller_state.py
     voice_reader/ui/window_helpers.py
+    # The Help menu's About and licence dialogs, extracted from
+    # window_helpers.py; the same Qt-dialog concern keeps the same scope.
+    voice_reader/ui/_help_dialogs.py
+    voice_reader\ui\_help_dialogs.py
     voice_reader/ui/bookmarks_dialog.py
     voice_reader/ui/structural_bookmarks_dialog.py
     voice_reader/ui/_ui_controller_sections.py

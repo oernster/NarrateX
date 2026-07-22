@@ -11,6 +11,29 @@ def test_build_about_dialog_uses_main_window_as_parent(qapp) -> None:
     assert "About" in dlg.windowTitle()
 
 
+def test_about_credits_name_the_major_dependencies_with_licences(qapp) -> None:
+    # Credit where credit is due: every load-bearing shipped dependency is
+    # named with its licence, not a short thank-you list.
+    del qapp
+    w = MainWindow()
+    text = build_about_dialog(parent=w).text()
+    for expected in [
+        "PySide6",
+        "LGPL-3.0",
+        "Kokoro TTS",
+        "Apache-2.0",
+        "PyTorch",
+        "spaCy",
+        "EbookLib",
+        "PyMuPDF",
+        "AGPL-3.0",
+        "eSpeak NG",
+        "sounddevice",
+        "soundfile",
+    ]:
+        assert expected in text, f"About credits missing {expected!r}"
+
+
 def test_open_licence_dialog_sets_attribute_and_can_open(qapp) -> None:
     del qapp
     w = MainWindow()
