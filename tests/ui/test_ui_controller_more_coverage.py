@@ -66,6 +66,49 @@ def test_refresh_voices_filters_system_and_sorts(qapp) -> None:
     assert w.voice_combo.count() == 2
 
 
+def test_refresh_voices_puts_british_first_then_alphabetical(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    narration = FakeNarration(
+        listeners=[],
+        state=NarrationState(
+            status=NarrationStatus.IDLE,
+            current_chunk_id=None,
+            total_chunks=None,
+            progress=0.0,
+        ),
+    )
+    repo = FakeVoiceRepo(
+        profiles=[
+            VoiceProfile(name="am_michael", reference_audio_paths=[]),
+            VoiceProfile(name="bm_george", reference_audio_paths=[]),
+            VoiceProfile(name="af_bella", reference_audio_paths=[]),
+            VoiceProfile(name="bf_emma", reference_audio_paths=[]),
+            VoiceProfile(name="af_alloy", reference_audio_paths=[]),
+        ]
+    )
+    c = UiController(
+        window=w,
+        narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo(doc=None)),  # type: ignore[arg-type]
+        voice_service=VoiceProfileService(repo=repo),
+        device="cpu",
+        engine_name="engine",
+        cover_extractor=None,
+    )
+    c.refresh_voices()
+
+    labels = [w.voice_combo.itemText(i) for i in range(w.voice_combo.count())]
+    assert labels == [
+        "Emma (British Female)",
+        "George (British Male)",
+        "Alloy (American Female)",
+        "Bella (American Female)",
+        "Michael (American Male)",
+    ]
+
+
 def test_ui_controller_has_no_search_button(qapp) -> None:
     """Search was removed with the Sections-only brain button design."""
 

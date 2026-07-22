@@ -307,7 +307,7 @@ class UiController(QObject):
 
     def refresh_voices(self) -> None:
         voices = [v for v in self.voice_service.list_profiles() if v.name != "system"]
-        voices.sort(key=lambda v: self._voice_label(v).casefold())
+        voices.sort(key=self._voice_sort_key)
         self._voices = voices
 
         self.window.voice_combo.clear()
@@ -341,6 +341,20 @@ class UiController(QObject):
             if v.name == name:
                 return v
         return self._voices[0]
+
+    # Regions in display order; anything unrecognised sorts after them.
+    _VOICE_REGION_ORDER = ("(British ", "(American ")
+
+    def _voice_sort_key(self, voice: VoiceProfile) -> tuple[int, str]:
+        """British voices first, then American, alphabetical within each."""
+
+        label = self._voice_label(voice)
+        rank = len(self._VOICE_REGION_ORDER)
+        for i, marker in enumerate(self._VOICE_REGION_ORDER):
+            if marker in label:
+                rank = i
+                break
+        return (rank, label.casefold())
 
     @staticmethod
     def _voice_label(voice: VoiceProfile) -> str:
