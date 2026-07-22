@@ -64,11 +64,15 @@ def test_a_cover_document_with_no_links_falls_through(tmp_path: Path) -> None:
     assert extract_epub_cover(book) == b"HEURISTIC"
 
 
-def test_a_non_image_link_is_tried_before_the_heuristic(tmp_path: Path) -> None:
+def test_a_stylesheet_link_does_not_pre_empt_the_real_cover(tmp_path: Path) -> None:
+    # The cover page links its stylesheet, which is present in the archive. That
+    # link must not be returned as cover bytes: the scan has to fall through to
+    # the actual image.
     book = _epub(
         tmp_path / "styled.epub",
         {
             "cover.xhtml": '<html><link href="style.css"/></html>',
+            "style.css": b"body { margin: 0 }",
             "images/plate.png": b"HEURISTIC",
         },
     )

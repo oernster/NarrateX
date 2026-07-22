@@ -37,7 +37,10 @@ def set_windows_app_identity() -> None:
 
 
 def build_runtime_icon() -> QIcon:
-    """Build multi-resolution QIcon from shipped PNGs (avoids ICO decode failures in frozen builds)."""
+    """Build a multi-resolution QIcon from the shipped PNGs.
+
+    Using the PNGs avoids ICO decode failures seen in frozen builds.
+    """
     base = exe_dir()
     icon = QIcon()
     for size in _ICON_PNG_SIZES:

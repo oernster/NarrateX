@@ -238,7 +238,9 @@ def maybe_download_model(app) -> bool:  # noqa: ANN001
         dlg.setValue(pct)
         if label:
             dlg.setLabelText(
-                f"NarrateX: Downloading voice model\n\n{label}\n\nThis only happens once. Everything is cached afterwards."
+                "NarrateX: Downloading voice model\n\n"
+                f"{label}\n\n"
+                "This only happens once. Everything is cached afterwards."
             )
 
     def _on_failed(msg: str) -> None:

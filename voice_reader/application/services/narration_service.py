@@ -9,7 +9,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
+
+if TYPE_CHECKING:
+    import threading
 
 from voice_reader.application.dto.narration_state import NarrationState
 from voice_reader.application.services.bookmark_service import BookmarkService
@@ -199,7 +202,7 @@ class NarrationService:
         self,
         voice: VoiceProfile,
         *,
-        cancel_event: "threading.Event",
+        cancel_event: threading.Event,
         n_chunks: int = 2,
     ) -> None:
         """Cache first n_chunks at the playback start position; call in a background thread."""

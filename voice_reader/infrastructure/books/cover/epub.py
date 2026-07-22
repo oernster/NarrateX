@@ -89,11 +89,17 @@ def extract_epub_cover(path: Path) -> bytes | None:
                     if _is_image_target(cand):
                         href = cand
                         break
+                # No image-looking link in this cover document. Do not fall back
+                # to whatever the first link happens to be: a cover page often
+                # links its stylesheet first, and returning that as cover bytes
+                # both yields an unreadable image and pre-empts the heuristic
+                # scan below that would have found the real cover.
                 if href is None:
-                    href = flat[0]
-                href = href.split("#", 1)[0]
-                if not href:
                     continue
+                # An image target never reduces to nothing here: a fragment-only
+                # link ("#foo") is not an image target and was already rejected,
+                # so stripping a trailing fragment cannot empty the href.
+                href = href.split("#", 1)[0]
 
                 base_dir = "/".join(doc_name.split("/")[:-1])
                 combined = f"{base_dir}/{href}" if base_dir else href

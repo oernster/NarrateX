@@ -157,7 +157,11 @@ def apply_main_window_theme(window) -> None:
             QMessageBox QLabel {{ color: {text}; }}
             QDialog {{ background: {bg}; color: {text}; }}
             QDialog QLabel {{ color: {text}; }}
-            QDialog QPlainTextEdit {{ background: {panel}; color: {text}; border: 1px solid #1f2937; }}
+            QDialog QPlainTextEdit {{
+                background: {panel};
+                color: {text};
+                border: 1px solid #1f2937;
+            }}
 
             QScrollBar:vertical {{
                 background: {panel};
@@ -211,8 +215,6 @@ def apply_main_window_theme(window) -> None:
 
 
 def build_about_dialog(*, parent: QWidget) -> QMessageBox:
-    from PySide6.QtCore import Qt
-
     box = QMessageBox(parent)
     box.setWindowTitle(f"About {APP_NAME}")
     box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)

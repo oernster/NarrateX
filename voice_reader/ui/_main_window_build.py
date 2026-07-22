@@ -329,6 +329,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     reader_row.addWidget(window.reader, stretch=1)
 
     cover_panel = QVBoxLayout()
+    cover_panel.setContentsMargins(0, 0, 0, 0)
     cover_panel.setSpacing(6)
     cover_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
     window.cover = QLabel("No cover")
@@ -338,7 +339,13 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     window.cover.setObjectName("cover")
     cover_panel.addWidget(window.cover)
     cover_panel.addStretch(1)
-    reader_row.addLayout(cover_panel)
+
+    # The whole column is hidden when a book has no cover, so the reader text
+    # takes the full width rather than sitting beside an empty placeholder. The
+    # panel is a widget, not a bare layout, so its visibility can be toggled.
+    window.cover_panel = QWidget()
+    window.cover_panel.setLayout(cover_panel)
+    reader_row.addWidget(window.cover_panel, stretch=0)
 
     root.addLayout(reader_row, stretch=3)
 

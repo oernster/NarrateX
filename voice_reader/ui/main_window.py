@@ -8,7 +8,6 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QImage, QPixmap, QTextCursor
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QTextEdit
 
-from voice_reader.version import APP_NAME
 from voice_reader.ui.window_helpers import (
     build_about_dialog,
     open_licence_dialog,
@@ -258,11 +257,11 @@ class MainWindow(QMainWindow):
         self.cover.setPixmap(QPixmap())
         self.cover.setText("No cover")
 
-        if not image_bytes:
-            return
-
-        img = QImage.fromData(image_bytes)
+        img = QImage.fromData(image_bytes) if image_bytes else QImage()
         if img.isNull():
+            # No usable cover: hide the whole column so the reader takes the full
+            # width rather than sitting beside an empty placeholder.
+            self._set_cover_panel_visible(False)
             return
 
         pm = QPixmap.fromImage(img)
@@ -274,7 +273,13 @@ class MainWindow(QMainWindow):
         )
         self.cover.setText("")
         self.cover.setPixmap(pm)
+        self._set_cover_panel_visible(True)
 
         # Force repaint so users don't see a stale pixmap due to event-loop timing.
         # (Observed in some environments when rapidly switching books.)
         self.cover.repaint()
+
+    def _set_cover_panel_visible(self, visible: bool) -> None:
+        panel = getattr(self, "cover_panel", None)
+        if panel is not None:
+            panel.setVisible(visible)
