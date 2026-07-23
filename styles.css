@@ -317,5 +317,5 @@ nav.site .links a:hover { color: #e6edf3; }
     margin: 0 0 18px;
 }
 
-.prose a { color: #2f81f7; text-decoration: none; }
-.prose a:hover { text-decoration: underline; }
+.prose p a { color: #2f81f7; text-decoration: none; }
+.prose p a:hover { text-decoration: underline; }
