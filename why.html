@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="16x16" href="narratex_16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="narratex_32.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="narratex_64.png">
+    <link rel="apple-touch-icon" href="narratex_256.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#0b0f14">
+    <meta name="color-scheme" content="dark">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Oliver Ernster">
+    <meta name="robots" content="index, follow">
+
+    <title>Why NarrateX exists: books as structured systems, not text streams</title>
+
+    <meta name="description" content="Why NarrateX was built: reading tools treat documents as flat text streams, so navigation breaks and playback drifts. NarrateX treats books as structured systems, with the architecture to keep that promise.">
+    <link rel="canonical" href="https://narratex.co.uk/why.html">
+
+    <meta property="og:title" content="Why NarrateX exists">
+    <meta property="og:description" content="Reading tools treat documents as flat text streams, so navigation breaks and playback drifts. NarrateX treats books as structured systems.">
+    <meta property="og:image" content="https://narratex.co.uk/site-images/NarrateX4.png">
+    <meta property="og:image:alt" content="NarrateX reader showing structured ebook and PDF audio playback">
+    <meta property="og:url" content="https://narratex.co.uk/why.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="NarrateX">
+    <meta property="og:locale" content="en_GB">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Why NarrateX exists">
+    <meta name="twitter:description" content="Reading tools treat documents as flat text streams, so navigation breaks and playback drifts. NarrateX treats books as structured systems.">
+    <meta name="twitter:image" content="https://narratex.co.uk/site-images/NarrateX4.png">
+
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<nav class="site">
+    <a class="brand" href="index.html">
+        <img src="narratex_64.png" alt="NarrateX icon">
+        NarrateX
+    </a>
+    <div class="links">
+        <a href="why.html">Why</a>
+        <a href="download.html">Download</a>
+        <a href="https://github.com/oernster/NarrateX">GitHub</a>
+    </div>
+</nav>
+
+<div class="container">
+
+    <h1>Why this exists</h1>
+
+    <div class="section prose" id="exists" style="margin-top:34px;">
+        <p>Most ebook libraries are large but underused; time to sit and read is the limiting
+            factor. Audiobook catalogues cover only a fraction of what people own and rent access
+            rather than granting it. Meanwhile the tools that will read a document aloud mostly
+            treat it as a flat text stream, so frontmatter gets narrated, chapters blur together,
+            navigation breaks and the resume position drifts between sessions.</p>
+        <p>NarrateX starts from a different premise: a book is a structured system, not a stream.
+            Structure is preserved on load, navigation is derived from headings and bookmarks,
+            non-content sections such as frontmatter and indexes are excluded from playback and the
+            playback position is deterministic across sessions. It has been validated against real
+            Kindle EPUBs, paperback PDFs and multi-book compilation documents.</p>
+        <p>The engineering exists to keep that promise over hours of unattended listening. The
+            playback core is a pure domain with no I/O and no framework, inside a four-layer
+            architecture whose boundaries, 100% coverage gate and 400-line file limit are enforced
+            by automated structural tests on every run. Synthesis and playback run concurrently, so
+            narration begins immediately and continues without interruption even in large books.</p>
+        <p>What works now: EPUB, PDF and plain text natively with Kindle formats via optional
+            Calibre conversion, the Kokoro neural voice running on-device with 28 English voices,
+            full keyboard control and native packages for Windows, macOS and Linux. Everything runs
+            locally; nothing you read is uploaded anywhere. Your books remain yours and the system
+            makes them usable.</p>
+        <p>Full reasoning at <a href="https://www.crankthecode.com/posts/narratex">crankthecode.com</a>.</p>
+    </div>
+
+    <div class="section" id="architecture">
+        <h2>Architecture you can leave running</h2>
+        <p>A reader you leave running for hours cannot stutter because a UI event reached into the playback core. So that core is a pure domain with no I/O and no framework, inside a four-layer architecture with every dependency pointing inward. Layer boundaries, 100% coverage and a 400-line file limit are enforced by automated architecture tests on every run.</p>
+        <img src="site-images/architecture.svg" width="920" height="396" loading="lazy" decoding="async"
+             alt="NarrateX clean architecture diagram: UI, Application, Domain and Infrastructure layers with dependencies pointing inward to a pure Domain, plus Composition root and Shared cross-cutting bands."
+             style="width:100%; max-width:920px; height:auto; margin-top:8px;">
+    </div>
+
+    <div class="section">
+        <h2>Execution model</h2>
+        <p>
+            Text is processed into structured chunks. Audio is generated and streamed continuously.
+        </p>
+        <p>
+            Playback begins immediately and continues without interruption. Everything runs locally which keeps the system fast, predictable and private.
+        </p>
+    </div>
+
+    <div class="section">
+        <div class="actions">
+            <a class="primary" href="download.html">Download NarrateX</a>
+            <a class="secondary" href="index.html">Back to overview</a>
+        </div>
+    </div>
+
+    <div class="minor-detail" style="margin-top:60px;">
+        Created by Oliver Ernster
+    </div>
+
+</div>
+
+</body>
+</html>
