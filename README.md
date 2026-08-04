@@ -55,6 +55,9 @@ Kindle formats (via optional Calibre conversion to EPUB):
 
 For a codebase overview (layers, runtime flow and test mapping), see [`ARCHITECTURE.md`](ARCHITECTURE.md:1).
 
+For the standing reference to what is still open, what is deliberately left and what only looks
+like debt, see [TECH_DEBT.md](TECH_DEBT.md).
+
 ## Building & development
 
 Developer setup, running from source, tests and packaging/build instructions
