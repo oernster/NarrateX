@@ -77,7 +77,6 @@ class HeadingOccurrenceIndex:
                 nxt = int(i)
 
         outline_only_re = re.compile(r"\d+(?:\.\d+)*$")
-        page_only_re = re.compile(r"^(\d+|[ivxlcdm]+)$", flags=re.I)
 
         def _looks_like_outline_number_only(s: str) -> bool:
             return bool(outline_only_re.fullmatch(str(s or "").strip()))
@@ -103,11 +102,11 @@ class HeadingOccurrenceIndex:
                         if v:
                             look.append(v)
                         j += 1
+                    # A page-only token alone is too ambiguous, so leader
+                    # evidence is what decides. A second test for a page token
+                    # alongside a leader would add nothing: the leader has
+                    # already returned by then.
                     if any(
-                        _is_leader_only(v) or contains_dotted_leader(v) for v in look
-                    ):
-                        return True
-                    if any(page_only_re.fullmatch(v) for v in look) and any(
                         _is_leader_only(v) or contains_dotted_leader(v) for v in look
                     ):
                         return True

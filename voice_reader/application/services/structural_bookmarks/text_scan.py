@@ -47,9 +47,9 @@ def scan_structural_headings(*, normalized_text: str) -> list[RawHeadingCandidat
         followed by a paragraph, so they are not blank-line bounded.
         """
 
+        # Both call sites have already rejected blank lines, so the length
+        # test below is the only gate a blank string would need anyway.
         t = str(s or "").strip()
-        if not t:
-            return False
         if len(t) < 6 or len(t) > 90:
             return False
         if t.endswith((".", "!", "?", ";")):
@@ -134,9 +134,8 @@ def scan_structural_headings(*, normalized_text: str) -> list[RawHeadingCandidat
         return bool(re.fullmatch(r"[.\s]+", s2) and s2.count(".") >= 3)
 
     def _looks_like_heading_continuation(s: str) -> bool:
+        # The caller stops at the first blank line, so `t` is never empty here.
         t = str(s or "").strip()
-        if not t:
-            return False
         if len(t) > 120:
             return False
         if _is_page_only(t) or _is_leader_only(t):

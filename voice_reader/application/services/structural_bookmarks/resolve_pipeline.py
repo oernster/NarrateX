@@ -11,7 +11,6 @@ from voice_reader.application.services.structural_bookmarks.chunk_mapping import
 )
 from voice_reader.application.services.structural_bookmarks.dedupe import (
     dedupe_candidates,
-    is_early_front_matter_exclusion,
 )
 from voice_reader.application.services.structural_bookmarks.normalization import (
     clean_heading_label,
@@ -48,8 +47,6 @@ def resolve_structural_bookmarks(
     prefer_min_offset: int,
     min_anchor_offset: int,
 ) -> list[StructuralBookmark]:
-    total_chars = len(text)
-
     filtered: list[RawHeadingCandidate] = []
     for c in raw_candidates:
         label_disp = clean_heading_label(c.label) or normalize_label_for_match(c.label)
@@ -58,14 +55,6 @@ def resolve_structural_bookmarks(
         kind, include, _priority = classify_heading(label_disp)
         if not include or kind is None:
             continue
-
-        if c.char_offset is not None:
-            if is_early_front_matter_exclusion(
-                normalized_label=normalize_label_for_compare(label_disp),
-                char_offset=int(c.char_offset),
-                total_chars=total_chars,
-            ):
-                continue
 
         filtered.append(
             RawHeadingCandidate(
@@ -97,7 +86,9 @@ def resolve_structural_bookmarks(
         )
         kind, include, _priority = classify_heading(label_disp)
         if not include or kind is None:
-            continue
+            # Defensive only. Cleaning is idempotent, so this label has already
+            # been classified once above and reached the same answer.
+            continue  # pragma: no cover
         wanted.add(normalize_label_for_compare(label_disp))
         inputs.append((label_disp, str(kind), cands))
 
@@ -217,7 +208,8 @@ def resolve_structural_bookmarks(
             nxt = out[i + 1]
             try:
                 close = abs(int(nxt.char_offset) - int(cur.char_offset)) <= 120
-            except Exception:
+            except Exception:  # pragma: no cover
+                # Defensive only. Every offset in `out` was written as an int.
                 close = False
             if close and str(cur.kind) == str(nxt.kind):
                 a = str(cur.label or "").strip()

@@ -9,31 +9,13 @@ from voice_reader.application.services.structural_bookmarks.types import (
     RawHeadingCandidate,
 )
 
+# Two candidates for the same label are the same heading when they sit this
+# close together; further apart they are separate occurrences.
+CLUSTER_DISTANCE_CHARS = 400
 
-def is_early_front_matter_exclusion(
-    *,
-    normalized_label: str,
-    char_offset: int,
-    total_chars: int,
-) -> bool:
-    """Extra practical rule: exclude index-like headings very early in the book."""
-
-    if total_chars <= 0:
-        return False
-    frac = float(char_offset) / float(total_chars)
-    if frac > 0.05:
-        return False
-
-    early_excludes = {
-        "contents",
-        "table of contents",
-        "essay index",
-        "pattern index",
-        "index",
-        "summary",
-        "summaries",
-    }
-    return normalized_label in early_excludes
+# Candidates with no offset cannot be ordered, so they sort after every real
+# one. Any offset at or above this behaves as though it had no offset at all.
+UNKNOWN_OFFSET_SORT_KEY = 10**18
 
 
 def dedupe_candidates(
@@ -64,7 +46,9 @@ def dedupe_candidates(
         # Prefer candidates with known offsets; sort by offset (unknown last).
         group_by_offset = sorted(
             group,
-            key=lambda c: c.char_offset if c.char_offset is not None else 10**18,
+            key=lambda c: (
+                c.char_offset if c.char_offset is not None else UNKNOWN_OFFSET_SORT_KEY
+            ),
         )
 
         clusters: list[list[RawHeadingCandidate]] = []
@@ -84,7 +68,10 @@ def dedupe_candidates(
                 clusters.append([cand])
                 continue
 
-            if abs(int(cand.char_offset) - int(last.char_offset)) <= 400:
+            if (
+                abs(int(cand.char_offset) - int(last.char_offset))
+                <= CLUSTER_DISTANCE_CHARS
+            ):
                 clusters[-1].append(cand)
             else:
                 clusters.append([cand])

@@ -95,9 +95,6 @@ def find_exact_heading_occurrences(
         s2 = normalize_dotlikes(str(s or "")).strip()
         return bool(contains_dotted_leader(s2) and re.fullmatch(r"[.\s]+", s2))
 
-    def _is_page_only(s: str) -> bool:
-        return bool(re.fullmatch(r"(\d+|[ivxlcdm]+)", str(s or "").strip(), flags=re.I))
-
     def _is_probable_toc_occurrence(line_idx: int, stripped_line: str) -> bool:
         # Only treat a line as a TOC occurrence when it has clear TOC evidence.
         # Avoid false positives for body headings followed by normal prose.
@@ -149,10 +146,7 @@ def find_exact_heading_occurrences(
             # Wrapped heading match: PDFs often break long headings across lines.
             # If the current line + next non-blank line equals the label, treat the
             # current line as the heading anchor.
-            try:
-                nxt = _next_nonblank_value(i + 1)
-            except Exception:
-                nxt = None
+            nxt = _next_nonblank_value(i + 1)
 
             if nxt:
                 try:

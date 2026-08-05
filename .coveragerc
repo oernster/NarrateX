@@ -52,14 +52,10 @@ omit =
     # These are exercised in UI/integration tests, but are not practical to
     # exhaustively unit test (hardware/threads/Qt event loop).
     voice_reader/application/services/narration_service.py
-    voice_reader/application/services/structural_bookmark_service.py
 
     # Narration orchestration submodules (threading, audio, external engines).
     voice_reader/application/services/narration/*
 
-    # Structural bookmark internals: heavily heuristic/regex-driven and covered
-    # via higher-level service tests.
-    voice_reader/application/services/structural_bookmarks/*
     voice_reader/infrastructure/tts/kokoro_engine.py
     voice_reader/infrastructure/tts/tts_engine_factory.py
     voice_reader/infrastructure/bookmarks/json_bookmark_repository.py
@@ -110,7 +106,6 @@ omit =
 
     # Windows path variants (coverage on win32 reports backslashes).
     voice_reader\application\services\narration\*
-    voice_reader\application\services\structural_bookmarks\*
 
 [report]
 show_missing = True

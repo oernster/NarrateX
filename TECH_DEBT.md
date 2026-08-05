@@ -6,23 +6,23 @@ This project has the strongest structural enforcement in the portfolio: `tests/s
 
 ---
 
-## 1. The 100% gate omits both core service packages
+## 1. The 100% gate omits the narration package
 
-`.coveragerc` still omits two entire application service packages:
+`.coveragerc` still omits `voice_reader/application/services/narration_service.py` and `services/narration/*`, sixteen modules and about 1600 lines. The stated reason, threading, audio devices and external engines, is real for the playback and TTS modules and they belong in the section below. It is not obviously right for all sixteen: `cache_key.py`, `position.py`, `candidates.py`, `alignment.py` and `persistence.py` are ordinary logic and would go into the gate on plain unit tests.
 
-- `voice_reader/application/services/narration_service.py` and `services/narration/*`
-- `voice_reader/application/services/structural_bookmark_service.py` and `services/structural_bookmarks/*` (ten modules)
+The result is that the headline claim (a 100% gate) stays silent about how playback is orchestrated. That is the inverse of what a gate is for.
 
-The stated reason is "not practical to exhaustively unit test (hardware/threads/Qt event loop)" and "heavily heuristic/regex-driven and covered via higher-level service tests". For the audio and TTS modules that is exactly right and they belong in the section below. It does not hold for the structural-bookmark package, which is demonstrably testable: `tests/application/test_structural_bookmark_service.py`, `test_structural_bookmark_service_axioms.py` and `test_structural_bookmark_duplicates.py` already test it. It is tested and then excluded from the gate, which means the gate cannot tell anyone whether that testing is still complete.
+The proportionate fix is to take the package module by module rather than as a block: bring in what is plain logic, and keep an explicit, individually justified omission for each module that genuinely needs a device or a thread, rather than one glob covering the lot.
 
-The result is that the headline claim (a 100% gate) stays silent about the modules that decide how a book is chunked into sections and how playback is orchestrated across them. That is the inverse of what a gate is for.
+Two halves of this item are closed and out of scope for it: the pure-domain modules (`chunking_service.py`, `estimated_aligner.py`, `sanitized_text_mapper.py`) and the whole structural-bookmark package with its facade.
 
-The proportionate fix, in order:
+## 1a. A leaked narration worker thread crashes the suite about one run in ten
 
-1. Remove `structural_bookmarks/*` and `structural_bookmark_service.py` from `omit` and let the existing tests carry as much as they carry, then close the remainder.
-2. Leave `narration/*` omitted and say so explicitly with the thread and audio-device justification, rather than leaving it inside a general-purpose list.
+Running the full suite repeatedly produces an intermittent native crash at roughly 87% through, sometimes an access violation and sometimes heap corruption (`0xc0000374`). The faulthandler output names the same two frames each time: a live `voice_reader/application/services/narration/synthesis_sequential.py` `_worker` thread blocked in `queue.put`, while the main thread is building a `MainWindow` in a later UI test.
 
-The pure-domain half of this item is closed: `chunking_service.py`, `estimated_aligner.py` and `sanitized_text_mapper.py` are now inside the gate.
+Measured over ten runs of the same suite on the same machine: one crash. Different exception codes at the same point are the signature of a thread outliving the test that started it and touching Qt objects that have since been freed, rather than of any single test being wrong. No individual test file reproduces it; only the whole suite does.
+
+This makes the 100% gate unreliable rather than wrong: a green run is trustworthy, a crashed run says nothing. The fix belongs with the narration workers, which need a deterministic shutdown a test can wait on, not with the UI test that happens to be running when the process dies.
 
 ## 2. The `omit` list has accreted duplicates and a contradiction
 
@@ -65,7 +65,7 @@ Startup and installation are the two paths where a swallowed exception produces 
 
 - `builddmg.py` at around 580 lines. Delivery script, exempt from the cap by design and correctly listed in `_BUILD_SCRIPTS` in the LOC test.
 - The eleven files between 355 and 380 lines. All under the cap, all clear of the danger band, none needs anything.
-- The `_ui_controller_*.py` and `_main_window_*.py` families and the ten-module `structural_bookmarks/` package. These are the 400-line cap doing its job; the parts are cohesive and merging any of them would breach it immediately.
+- The `_ui_controller_*.py` and `_main_window_*.py` families and the thirteen-module `structural_bookmarks/` package. These are the 400-line cap doing its job; the parts are cohesive and merging any of them would breach it immediately.
 - `voice_reader/ui/_ui_controller_ideas.py` and `ideas_dialog.py`, marked in `.coveragerc` as "Legacy Ideas UI (brain button now uses Sections instead of Ideas)". Superseded UI that still loads. Worth deleting when someone is next in that area, not worth a dedicated pass.
 - Four `requirements-*.txt` variants (base, linux, mac, flatpak). Native audio dependencies genuinely differ per platform; this is the documented split.
 - `site-images/NarrateX2.png`, a screenshot no page references any more. One stale binary, harmless where it sits; delete it next time the site images are touched.
