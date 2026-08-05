@@ -54,6 +54,8 @@ Trimming one or two lines to sit just under 400 buys nothing: the next edit brea
 
 This applies to the file being edited and to any file the change pushes into that band and it applies to test files exactly as it does to source.
 
+Enforced by [`test_no_in_scope_python_file_sits_in_the_danger_band()`](tests/structural/test_loc_limits.py), beside the cap assertion. The band is derived from the cap in the test rather than written as a second literal, so the two cannot drift apart. This is the constrain-the-bad-state form of the rule: the band cannot be entered rather than being noticed once a file is already sitting in it.
+
 ## 4) Narration is always built from a document model
 
 Narration chunks come from the document model and from nowhere else. No caller may assemble chunks

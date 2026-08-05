@@ -94,25 +94,69 @@ def _count_physical_lines(path: Path) -> int:
 # Skimming 1-2 lines at a time to stay just under 400 buys nothing: the next edit
 # breaks it again and the same file gets refactored over and over. Extract a
 # cohesive module instead. See ARCHITECTURE_CONSTRAINTS.md section 3.
+#
+# Both halves of that rule are asserted below, one test each, so a red run names
+# which one was broken. The band assertion is the constrain-the-bad-state form:
+# it stops a file entering the band rather than reporting it afterwards.
+_CAP_LINES = 400
+
+# 5% of the cap. Named rather than written as 380, so the two numbers cannot
+# drift apart if the cap ever moves.
+_DANGER_BAND_PERCENT = 5
+_DANGER_BAND_START = _CAP_LINES - (_CAP_LINES * _DANGER_BAND_PERCENT) // 100
+
+# Where a file in the band has to land. Not just under the cap: see above.
+_LANDING_LINES = 350
+
+
+def _in_scope_line_counts(root: Path) -> list[LocOffender]:
+    return [
+        LocOffender(path=p.relative_to(root).as_posix(), lines=_count_physical_lines(p))
+        for p in root.rglob("*.py")
+        if _is_in_scope_python_file(p, repo_root=root)
+    ]
+
+
+def _report(offenders: list[LocOffender]) -> str:
+    ordered = sorted(offenders, key=lambda o: (o.lines, o.path), reverse=True)
+    return "\n".join(f"- {o.lines:4d}  {o.path}" for o in ordered)
+
+
 def test_all_in_scope_python_files_are_at_most_400_lines() -> None:
     root = _repo_root()
-    offenders: list[LocOffender] = []
 
-    for p in root.rglob("*.py"):
-        if not _is_in_scope_python_file(p, repo_root=root):
-            continue
-        lines = _count_physical_lines(p)
-        if lines > 400:
-            offenders.append(
-                LocOffender(path=p.relative_to(root).as_posix(), lines=lines)
-            )
+    offenders = [f for f in _in_scope_line_counts(root) if f.lines > _CAP_LINES]
 
     if offenders:
-        offenders_sorted = sorted(
-            offenders, key=lambda o: (o.lines, o.path), reverse=True
-        )
-        details = "\n".join(f"- {o.lines:4d}  {o.path}" for o in offenders_sorted)
         raise AssertionError(
-            "File size constraint violated: every in-scope *.py must be <= 400 lines.\n"
-            + details
+            "File size constraint violated: every in-scope *.py must be "
+            f"<= {_CAP_LINES} lines. Extract a cohesive module and land the "
+            f"result at <= {_LANDING_LINES}, not just under the cap.\n"
+            + _report(offenders)
+        )
+
+
+def test_no_in_scope_python_file_sits_in_the_danger_band() -> None:
+    """The 5% rule, enforced rather than only documented.
+
+    A file at 399 passes the cap and fails the next edit made to it, for a
+    reason unrelated to that edit. Catching it here means it is dealt with while
+    it is cheap, which is the whole point of the band.
+    """
+
+    root = _repo_root()
+
+    offenders = [
+        f
+        for f in _in_scope_line_counts(root)
+        if _DANGER_BAND_START < f.lines < _CAP_LINES
+    ]
+
+    if offenders:
+        raise AssertionError(
+            f"The 5% danger band ({_DANGER_BAND_START + 1} to {_CAP_LINES - 1} "
+            "lines) is occupied. Take each file to "
+            f"<= {_LANDING_LINES} by extracting a cohesive concern; do not shave "
+            "lines to sit just under the cap, because the next edit undoes it.\n"
+            + _report(offenders)
         )

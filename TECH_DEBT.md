@@ -39,13 +39,7 @@ Nothing is broken by this and GitHub Pages supports it. The cost is that root ha
 
 Moving the site into `docs/` and pointing Pages at it is mechanical. `stamp_version.py` would then take a directory rather than a list.
 
-## 4. The 5% danger band is documented and not enforced
-
-`tests/structural/test_loc_limits.py` carries the rule in full as a comment block: 400 is the cap, 381 to 399 is the danger band, a file in the band goes to 350 or below rather than being shaved. The assertion then fails only above 400.
-
-So the rule is written where a developer will read it and not where the build will apply it. No file is currently in the band (`voice_reader/ui/ui_controller.py` at 380 is the closest, one line away), which is the best possible moment to add the second assertion: fail over 400 and fail over 380 as well, so the band cannot be entered rather than being noticed after the fact. That is the constrain-the-bad-state form of the same rule.
-
-## 5. Broad exception handlers on the startup path and in the installer
+## 4. Broad exception handlers on the startup path and in the installer
 
 `app.py` has ten `except Exception` blocks with no `# noqa` and no comment, on the application's startup path. `installer/ops/` has around fifteen more across `install_ops.py`, `shortcuts.py`, `repair_ops.py` and `staging.py`, of which only two carry a `# noqa: BLE001`.
 
@@ -75,4 +69,4 @@ These look like candidates but are correct as they stand; changing them would re
 - **The two unreachable lines in `estimated_aligner.py` and `chunking_service.py`.** Both are guards that cannot fire by construction (the aligner cannot fail to tokenise a stripped non-empty string; the sentence splitter cannot emit an empty part) and both say so in a comment. Deleting the guard to gain a covered line would remove the thing that makes the assumption explicit.
 - **`tests/structural/test_loc_limits.py`'s `_BUILD_SCRIPTS` exemption set.** The clearest expression of the build-script rule anywhere in the portfolio and the reference other projects should copy.
 - **`tests/structural/test_composition_roots.py` and `test_narration_contracts.py`.** A composition-root whitelist and a contract test for the narration seam. Both are the enforcement the rest of this file wishes existed elsewhere.
-- **The separate `installer/ops` and `installer/ui` packages with their own test package.** Correct decomposition; item 5 is about the handlers inside it, not the shape.
+- **The separate `installer/ops` and `installer/ui` packages with their own test package.** Correct decomposition; item 4 is about the handlers inside it, not the shape.
