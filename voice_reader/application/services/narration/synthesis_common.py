@@ -210,7 +210,13 @@ def presynthesize_start_chunks(
 
     synthesized = 0
     for chunk in list(chunks)[start_idx:]:
-        if cancel_event.is_set() or service._stop_event.is_set():  # noqa: SLF001
+        # Cancellation only, deliberately. The stop event is set by the very
+        # load that starts this work (loading a book calls stop()) and nothing
+        # clears it until the Play this exists to make fast, so honouring it
+        # here abandoned the first chunk on every book and the feature never
+        # ran. The caller owns cancelling: both the Play path and the next book
+        # load set cancel_event.
+        if cancel_event.is_set():
             return
         if synthesized >= n_chunks:
             break

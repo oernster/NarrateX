@@ -225,16 +225,19 @@ class TestWarmupAndPresynthesis:
         assert [call["text"] for call in engine.synthesized] == ["."]
 
     def _loaded(self, engine: FakeEngine) -> NarrationService:
+        """A service in the state a finished book load leaves it in.
+
+        `adopt_book` calls `stop()`, so the stop event is set here and stays
+        set until the first Play. Pre-synthesis has to run anyway: that is the
+        whole point of it.
+        """
+
         navigation = FakeNavigationChunkService(
             chunks=make_chunks("One. ", "Two. ", "Three.")
         )
         service = _service(tts_engine=engine, navigation_chunk_service=navigation)
         service.adopt_book(_book(), _SOURCE)
-        # Loading a book stops playback, which leaves the stop event set, and
-        # pre-synthesis abandons its first chunk while that event is set. See
-        # TECH_DEBT.md: pre-synthesis after a load does nothing until it is
-        # cleared, so these tests clear it to reach the work itself.
-        service._stop_event.clear()
+        assert service._stop_event.is_set()
         return service
 
     def test_presynthesis_caches_the_first_chunks_only(self) -> None:
@@ -245,6 +248,19 @@ class TestWarmupAndPresynthesis:
 
         assert len(engine.synthesized) == 2
         assert all(call["text"] for call in engine.synthesized)
+
+    def test_presynthesis_runs_after_a_load_despite_the_stop_event(self) -> None:
+        # The defect this covers: loading a book calls stop(), which sets the
+        # stop event; nothing clears it until the Play pre-synthesis exists
+        # to make fast. Honouring that event here meant the feature never ran
+        # on any book. Cancellation is the caller's job and it already does it.
+        engine = FakeEngine()
+        service = self._loaded(engine)
+
+        service.presynthesize_start(_VOICE, cancel_event=threading.Event(), n_chunks=1)
+
+        assert service._stop_event.is_set()
+        assert len(engine.synthesized) == 1
 
     def test_presynthesis_stops_when_it_is_cancelled(self) -> None:
         engine = FakeEngine()
