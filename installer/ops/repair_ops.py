@@ -67,7 +67,10 @@ def repair(
                         needs = _sha256_file(dst).lower() != str(e.sha256).lower()
                     else:
                         needs = True
-                except Exception:
+                except Exception:  # noqa: BLE001
+                    # Degrades to restoring the file. A file whose size or
+                    # hash cannot be read is exactly the file a repair exists
+                    # to replace, so the safe answer is always to rewrite it.
                     needs = True
             if needs:
                 if progress:

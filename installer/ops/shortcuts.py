@@ -22,7 +22,10 @@ def _default_icon_location_for(target_exe: Path) -> str:
         ico = target_exe.resolve().parent / "narratex.ico"
         if ico.exists() and ico.is_file():
             return str(ico)
-    except Exception:
+    except Exception:  # noqa: BLE001
+        # Degrades to the exe's embedded icon, returned below. A path that
+        # will not resolve is a reason to fall back, never a reason to fail
+        # shortcut creation.
         pass
 
     return str(target_exe)
@@ -115,21 +118,28 @@ def create_shortcut(
         try:
             if pythoncom is not None and com_initialized:
                 pythoncom.CoUninitialize()
-        except Exception:
-            # Nothing sensible to do here; shortcut creation already failed/succeeded.
+        except Exception:  # noqa: BLE001
+            # Degrades to COM staying initialised on this thread until the
+            # process exits, which is moments away. The shortcut has already
+            # been created or reported as failed, so raising from a finally
+            # would only replace a useful error with a meaningless one.
             pass
 
 
 def remove_shortcut(shortcut_path: Path) -> None:
     try:
         shortcut_path.unlink(missing_ok=True)
-    except Exception:
-        # Best effort.
+    except Exception:  # noqa: BLE001
+        # Degrades to the shortcut being left behind, usually because Explorer
+        # holds it. Uninstall continues with the files and the registry, since
+        # a stranded shortcut is a far smaller problem than a stranded install.
         return
 
     # Remove parent folder if empty (Start Menu subfolder).
     try:
         if shortcut_path.parent.exists() and not any(shortcut_path.parent.iterdir()):
             shortcut_path.parent.rmdir()
-    except Exception:
+    except Exception:  # noqa: BLE001
+        # Degrades to an empty Start Menu folder being left behind. Harmless,
+        # and not worth reporting to someone uninstalling.
         return

@@ -138,7 +138,10 @@ def remove_tree_reporting(root: Path, *, progress=None) -> None:  # noqa: ANN001
     for index, path in enumerate(files, start=1):
         try:
             path.unlink()
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to one file left behind, typically because it is locked
+            # by a still-running process. The removal continues so a single
+            # stubborn file cannot strand the rest of the directory.
             pass
         if total > 0:
             pct = CLEANUP_START_PCT + int(span * index / total)
@@ -168,7 +171,10 @@ def swap_in_bundle(
         )
         try:
             target_dir.rename(backup_dir)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001
+            # Not a swallow: converted to the installer's own error so the UI
+            # can say which directory it could not move. Nothing is installed
+            # yet at this point, so failing here leaves the machine untouched.
             raise InstallerOperationError(
                 f"Unable to replace existing install at {target_dir}"
             ) from exc
@@ -180,12 +186,18 @@ def swap_in_bundle(
             # Likely cross-volume move. Copy instead.
             shutil.copytree(staging_dir, target_dir, dirs_exist_ok=False)
             shutil.rmtree(staging_dir, ignore_errors=True)
-    except Exception:
-        # Rollback.
+    except Exception:  # noqa: BLE001
+        # Not a swallow: this restores the previous install and re-raises, so
+        # a failed upgrade leaves the machine as it was rather than with no
+        # application at all. Broad on purpose, because every failure here has
+        # the same right answer whatever its type.
         if backup_dir and backup_dir.exists() and not target_dir.exists():
             try:
                 backup_dir.rename(target_dir)
-            except Exception:
+            except Exception:  # noqa: BLE001
+                # Degrades to the previous install being left under its backup
+                # name. The original error is the one worth reporting, so it
+                # is re-raised below rather than replaced by this one.
                 pass
         raise
     finally:

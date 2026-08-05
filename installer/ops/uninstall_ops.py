@@ -55,10 +55,12 @@ def uninstall(identity, opts: UninstallOptions) -> None:  # noqa: ANN001 (identi
     if entry is None or entry.shortcut_start_menu is not False:
         remove_shortcut(sp.start_menu_lnk)
 
-    # Remove registry first (best effort).
     try:
         delete_uninstall_entry(identity.uninstall_key)
-    except Exception:
+    except Exception:  # noqa: BLE001
+        # Degrades to a stale Apps and Features entry pointing at files that
+        # are about to go. Stopping the uninstall here would leave the user
+        # with both the entry and the files, which is strictly worse.
         pass
 
     # Remove user data.

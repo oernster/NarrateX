@@ -93,10 +93,23 @@ class FakeUiController:
 
 
 class FakeLogger:
+    """Stands in for a `logging.Logger`, so it carries the whole level set.
+
+    A fake that implements only the levels used on the day it was written
+    fails the next time a caller logs at a different one, which reads as a
+    defect in the caller rather than in the fake.
+    """
+
     def __init__(self) -> None:
         self.exception_calls = 0
 
+    def info(self, *a, **k):  # noqa: ANN001
+        return
+
     def warning(self, *a, **k):  # noqa: ANN001
+        return
+
+    def error(self, *a, **k):  # noqa: ANN001
         return
 
     def debug(self, *a, **k):  # noqa: ANN001

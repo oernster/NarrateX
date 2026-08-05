@@ -112,7 +112,10 @@ def _register_uninstall(
     if icon_path is not None:
         try:
             shutil.copy2(icon_path, install_dir / "narratex.ico")
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to the exe's embedded icon, which the display_icon
+            # fallback just below already handles. An icon is not worth
+            # failing an install over.
             pass
 
     display_icon = str(exe)
@@ -150,7 +153,9 @@ def _deploy_runtime_icon_assets(*, install_dir: Path) -> None:
     if ico is not None:
         try:
             shutil.copy2(ico, install_dir / "narratex.ico")
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to the exe's embedded icon. The PNG fallbacks below are
+            # attempted regardless, so one missing asset does not cost the set.
             pass
 
     # Also deploy PNG fallbacks (best-effort). The app's runtime icon selection
@@ -169,7 +174,10 @@ def _deploy_runtime_icon_assets(*, install_dir: Path) -> None:
             continue
         try:
             shutil.copy2(src, install_dir / name)
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to that one size being unavailable at runtime. The icon
+            # resolver walks the sizes it finds, so the loop continues rather
+            # than abandoning the remaining ones.
             pass
 
 
@@ -196,8 +204,11 @@ def _seed_user_preferences_defaults(*, volume_multiplier: float) -> None:
         tmp.replace(prefs_path)
 
         logger.info("Seeded user preferences at %s", prefs_path)
-    except Exception:
-        # Best-effort: the app can still run with built-in defaults.
+    except Exception:  # noqa: BLE001
+        # Degrades to the application starting on its built-in defaults and
+        # writing its own preferences file on first change. Seeding is a
+        # convenience; a failure is logged rather than shown, because there is
+        # nothing the person installing can do about it.
         logger.exception("Failed seeding user preferences")
 
 
@@ -299,7 +310,11 @@ def upgrade_or_reinstall(
 
             try:
                 _remove_tree_reporting(current_install_dir, progress=progress)
-            except Exception:
+            except Exception:  # noqa: BLE001
+                # Degrades to the previous install directory being left on
+                # disk. The new location is already in place and working at
+                # this point, so failing here would report a broken install
+                # that is not broken.
                 pass
 
         # Ensure icon assets are present for the active install location.
@@ -343,7 +358,10 @@ def _apply_shortcuts(
         # If user unchecks during reinstall/upgrade, remove it.
         try:
             sp.desktop_lnk.unlink(missing_ok=True)
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to the desktop shortcut surviving a choice to drop it.
+            # A shortcut that will not delete (locked by Explorer, redirected
+            # desktop) is not a reason to fail the whole install.
             pass
 
     if opts.create_start_menu_shortcut:
@@ -351,5 +369,7 @@ def _apply_shortcuts(
     else:
         try:
             sp.start_menu_lnk.unlink(missing_ok=True)
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to the Start Menu entry surviving a choice to drop it,
+            # for the same reasons as the desktop shortcut above.
             pass

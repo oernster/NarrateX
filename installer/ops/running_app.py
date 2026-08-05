@@ -18,7 +18,10 @@ def is_app_running(exe_path: Path) -> bool:
                 return True
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-        except Exception:
-            # Best-effort; treat as not running if we cannot inspect.
+        except Exception:  # noqa: BLE001
+            # Degrades to this one process being treated as not ours. Process
+            # inspection fails in many shapes on Windows (a process exiting
+            # mid-scan, a path that will not resolve); none of them is a
+            # reason to abandon the scan of every other process.
             continue
     return False

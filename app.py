@@ -63,7 +63,10 @@ def _run_model_preflight(app) -> bool:  # noqa: ANN001
 def _env_truthy(name: str) -> bool:
     try:
         v = os.getenv(name, "")
-    except Exception:
+    except Exception:  # noqa: BLE001
+        # Degrades to "flag not set". Tests replace os.getenv with stubs that
+        # can raise; an unreadable environment must not stop startup for a
+        # flag that is off by default anyway.
         return False
     return v.strip().lower() in {"1", "true", "yes", "y", "on"}
 
@@ -82,7 +85,6 @@ def main() -> int:
         # Must be set before any Qt object exists
         set_windows_app_identity()
 
-        print("NarrateX: starting")
         append_startup_log(
             "NarrateX.startup.log.txt",
             f"start pid={os.getpid()} exe={sys.executable}",
@@ -90,6 +92,10 @@ def main() -> int:
 
         configure_logging(logging.INFO)
         log = logging.getLogger("app")
+        # This is a windowed application, so a line on stdout goes somewhere no
+        # user will ever look. The startup log above is the durable record and
+        # the logger is where a running-session message belongs.
+        log.info("%s starting", APP_NAME)
 
         configure_packaged_runtime()
 
@@ -151,10 +157,12 @@ def main() -> int:
             try:
                 activate_window(window)
             finally:
-                # Best-effort: help the WM/Qt process the activation.
                 try:
                     app.processEvents()
-                except Exception:
+                except Exception:  # noqa: BLE001
+                    # Degrades to the window raising on the next event-loop
+                    # turn instead of immediately. Nudging Qt is a courtesy;
+                    # failing to nudge it must not break activation.
                     pass
 
         instance_guard = None
@@ -170,15 +178,23 @@ def main() -> int:
                 lock_dir=lock_dir,
                 on_activate=_on_activate,
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to running without the guard. The single-instance lock
+            # is a convenience (a second launch raises the first window); a
+            # lock directory that cannot be created must not stop the
+            # application opening at all, so this run continues as primary.
+            log.exception("Single-instance guard unavailable; running unguarded")
             instance_guard = None
             is_primary = True
 
         if not is_primary and instance_guard is not None:
             try:
                 instance_guard.notify_primary()
-            except Exception:
-                pass
+            except Exception:  # noqa: BLE001
+                # Degrades to the first window not being raised. This process
+                # is the second instance either way and must still exit 0
+                # rather than report a failure the user cannot act on.
+                log.exception("Could not notify the running instance")
             return 0
 
         # ----- Splash (show before heavy imports) -----
@@ -213,7 +229,12 @@ def main() -> int:
             try:
                 shutil.rmtree(config.paths.cache_dir, ignore_errors=True)
                 config.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            except Exception:
+            except Exception:  # noqa: BLE001
+                # Deliberately broad; deliberately not narrowed to OSError.
+                # Degrades to starting with whatever cache is already there,
+                # which the repositories treat as a miss and re-synthesise. A
+                # stale cache is a slow first chunk; an exception escaping here
+                # is an application that never appears at all.
                 log.exception("Failed clearing cache")
 
         device = "cpu"
@@ -241,8 +262,10 @@ def main() -> int:
         # with older test stubs that don't provide `preferences_path`.
         try:
             preferences_path = config.paths.preferences_path
-        except Exception:
-            # Default beside bookmarks_dir (same data_root).
+        except AttributeError:
+            # Narrowed: the only way this attribute is absent is an older test
+            # stub for the paths object. Degrades to the same location the real
+            # config uses, beside bookmarks_dir under the same data root.
             preferences_path = config.paths.bookmarks_dir.parent / "preferences.json"
 
         preferences_repo = _g("JSONPreferencesRepository")(path=preferences_path)
@@ -289,7 +312,11 @@ def main() -> int:
             app.aboutToQuit.connect(
                 lambda: shutdown(controller, narration_service, log=log)
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to no orderly shutdown on quit: the resume position is
+            # not saved and the audio device is released by process exit
+            # instead. Worth logging loudly and not worth refusing to start
+            # over, since the fake QApplication some tests use has no signals.
             log.exception("Failed connecting aboutToQuit")
 
         window.show()
@@ -299,7 +326,9 @@ def main() -> int:
         # Ensure the first paint happens before we hide the splash.
         try:
             app.processEvents()
-        except Exception:
+        except Exception:  # noqa: BLE001
+            # Degrades to the splash being replaced a frame later. The fake
+            # QApplication some tests use has no processEvents at all.
             pass
 
         if splash is not None:
@@ -307,8 +336,11 @@ def main() -> int:
                 fin = getattr(splash, "finish", None)
                 if callable(fin):
                     fin(window)
-            except Exception:
-                pass
+            except Exception:  # noqa: BLE001
+                # Degrades to the splash closing on its own timer rather than
+                # handing off to the window. Never worth failing a launch that
+                # has already produced a usable window.
+                log.exception("Splash handover failed")
 
         if pending_activate:
             from voice_reader.shared.startup_ui import activate_window
@@ -322,8 +354,10 @@ def main() -> int:
         return app.exec()
     except SystemExit:
         raise
-    except Exception:
-        # Startup failures should be visible even in windowed builds.
+    except Exception:  # noqa: BLE001
+        # Not a swallow: this records and re-raises. A windowed build has no
+        # console, so an unhandled startup failure would otherwise leave the
+        # user with a process that exits silently and no trace of why.
         append_startup_log("NarrateX.startup.err.txt", traceback.format_exc())
         raise
 

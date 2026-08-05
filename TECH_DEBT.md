@@ -8,19 +8,11 @@ This project has the strongest structural enforcement in the portfolio: `tests/s
 
 ## 1. The icon set is hand-maintained and now exists in two places
 
-`narratex.png` at repository root is the master, and the eight derived sizes (`narratex_16.png` through `narratex_512.png`) plus `narratex.ico` sit beside it. Nothing derives them: this is the only application in the portfolio with no `generate_icons.py`, so the set is maintained by hand and can drift from its own master without anything noticing.
+`narratex.png` at repository root is the master, with the eight derived sizes (`narratex_16.png` through `narratex_512.png`) plus `narratex.ico` sit beside it. Nothing derives them: this is the only application in the portfolio with no `generate_icons.py`, so the set is maintained by hand and can drift from its own master without anything noticing.
 
 Moving the site into `docs/` made that concrete rather than theoretical. GitHub Pages publishes `docs/` and nothing above it, so the five sizes the pages use as favicons and touch icons (16, 32, 64, 256 and 512) now exist twice: once at root for the application build and once under `docs/` for the site. They were copied rather than regenerated, deliberately, because regenerating the set inside a site move would have changed shipped icon bytes as a side effect of a directory change.
 
 The fix is the portfolio's standard one: a `generate_icons.py` reading `narratex.png` and emitting every consumer's copy, root and `docs/` alike, so the duplication is generated rather than maintained. Until then the two copies are byte-identical and can silently stop being so.
-
-## 2. Broad exception handlers on the startup path and in the installer
-
-`app.py` has ten `except Exception` blocks with no `# noqa` and no comment, on the application's startup path. `installer/ops/` has around fifteen more across `install_ops.py`, `shortcuts.py`, `repair_ops.py` and `staging.py`, of which only two carry a `# noqa: BLE001`.
-
-Startup and installation are the two paths where a swallowed exception produces the worst user experience available: an application that does not appear or a half-installed one with no error. Each handler should name what it degrades and why in one line and then narrow to the exception that actually occurs. `installer/ops/` is already Qt-free and already has a test package, so it can be done with tests rather than by inspection.
-
-`app.py` also prints `"NarrateX: starting"` to stdout. It is a windowed application; the line goes nowhere a user will see and belongs behind the logger.
 
 ---
 
@@ -44,4 +36,4 @@ These look like candidates but are correct as they stand; changing them would re
 - **The two unreachable lines in `estimated_aligner.py` and `chunking_service.py`.** Both are guards that cannot fire by construction (the aligner cannot fail to tokenise a stripped non-empty string; the sentence splitter cannot emit an empty part) and both say so in a comment. Deleting the guard to gain a covered line would remove the thing that makes the assumption explicit.
 - **`tests/structural/test_loc_limits.py`'s `_BUILD_SCRIPTS` exemption set.** The clearest expression of the build-script rule anywhere in the portfolio and the reference other projects should copy.
 - **`tests/structural/test_composition_roots.py` and `test_narration_contracts.py`.** A composition-root whitelist and a contract test for the narration seam. Both are the enforcement the rest of this file wishes existed elsewhere.
-- **The separate `installer/ops` and `installer/ui` packages with their own test package.** Correct decomposition; item 2 is about the handlers inside it, not the shape.
+- **The separate `installer/ops` and `installer/ui` packages with their own test package.** Correct decomposition, and the reason the handlers inside it could be given stated reasons file by file.
