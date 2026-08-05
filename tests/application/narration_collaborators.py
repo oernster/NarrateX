@@ -220,20 +220,28 @@ class FakePreferencesRepo:
         *,
         volume=None,
         fail_volume: bool = False,
+        fail_save_volume: bool = False,
         fail_save_path: bool = False,
         fail_clear_path: bool = False,
     ) -> None:
         self.volume = volume
         self.fail_volume = fail_volume
+        self.fail_save_volume = fail_save_volume
         self.fail_save_path = fail_save_path
         self.fail_clear_path = fail_clear_path
         self.saved_paths: list[Path] = []
+        self.saved_volumes: list[object] = []
         self.cleared = 0
 
     def load_playback_volume(self):
         if self.fail_volume:
             raise Boom("load_playback_volume")
         return self.volume
+
+    def save_playback_volume(self, volume) -> None:
+        if self.fail_save_volume:
+            raise Boom("save_playback_volume")
+        self.saved_volumes.append(volume)
 
     def save_last_book_path(self, path: Path) -> None:
         if self.fail_save_path:

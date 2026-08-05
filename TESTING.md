@@ -64,12 +64,12 @@ Some modules are excluded from the 100% coverage gate because they depend on har
 
 - `voice_reader/infrastructure/tts/kokoro_engine.py` - Kokoro TTS runtime (requires soundfile + torch)
 - `voice_reader/infrastructure/tts/tts_engine_factory.py` - engine factory (same dependency)
-- Narration orchestration (`application/services/narration/*` and `narration_service.py`): background threads, an audio device and an external engine
-- Structural bookmarks (`application/services/structural_bookmarks/*` and `structural_bookmark_service.py`): heuristic and regex driven, exercised through higher-level service tests
 - Audio, bookmark and preference adapters (threading plus hardware or filesystem I/O)
-- Qt-threaded UI dialogs (e.g. the first-run model download dialog) that drive a background worker and an event loop
+- The Qt layer: windows, dialogs and the controllers that drive them, which need an event loop and a live widget tree
 
-The pure-domain layer carries no exclusions. `chunking_service.py`, `estimated_aligner.py` and `sanitized_text_mapper.py` were previously omitted and are now inside the gate: there is no hardware, thread or event loop in the domain, so the fragility argument that justifies the list above never applied to them. Two lines in that set remain unreachable by construction and say so in a comment rather than being covered by a contrived test.
+`app.py` is not named in the source list at all. The entrypoint wires the composition root to a real Qt application and a real audio device, so measuring it would measure the wiring and nothing else.
+
+The whole application layer is now inside the gate; so is the pure-domain layer. Narration orchestration (`application/services/narration/*` and `narration_service.py`) and structural bookmarks (`application/services/structural_bookmarks/*` and `structural_bookmark_service.py`) were both omitted for a time and both now sit at 100%. The three modules that own a thread's lifetime are covered by driving their own events rather than by sleeping: see [`tests/application/test_narration_synthesis_threads.py`](tests/application/test_narration_synthesis_threads.py), which scripts the stop and pause events so a worker halts at an exact line; and [`tests/application/test_narration_run.py`](tests/application/test_narration_run.py), which substitutes the run loop's collaborators at the module boundary. Two lines in the domain remain unreachable by construction and say so in a comment rather than being covered by a contrived test.
 
 Matching test files that must be excluded from the pytest run (they will raise `collection errors` without the soundfile runtime):
 

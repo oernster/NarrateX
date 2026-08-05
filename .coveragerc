@@ -1,28 +1,20 @@
 [run]
 # Coverage scope
 #
-# We enforce 100% coverage for shipped runtime application code only:
-# - `voice_reader/`
-# - `app.py`
+# The 100% gate covers the shipped runtime package, `voice_reader/`. The thin
+# `app.py` entrypoint is deliberately outside it: it wires the composition root
+# to a real Qt application and a real audio device, so measuring it would only
+# measure the wiring. It is therefore not named here at all, rather than being
+# sourced and then omitted.
 #
 # IMPORTANT: Running `pytest --cov` with no target can cause pytest-cov to
 # measure essentially all Python files under the repo root (including installer
 # and build tooling), which is not the intended gate.
 source =
     voice_reader
-    app
 
-# `source=` includes `app.py` via module name `app`, but coverage sometimes
-# reports the file as `app.py`. Keep this explicit omit to ensure the 100%
-# gate stays scoped to the package, not the thin application entrypoint.
 omit =
-    # `source=` includes `app.py` via module name `app`, but coverage sometimes
-    # reports the file as `app.py`. Keep this explicit omit to ensure the 100%
-    # gate stays scoped to the package, not the thin application entrypoint.
-    app.py
-
-    # Keep the coverage scope focused on shipped runtime code and exclude non-runtime
-    # tooling / artifacts.
+    # Non-runtime tooling, artifacts and data.
     */venv/*
     */.venv/*
     */__pycache__/*
@@ -48,79 +40,50 @@ omit =
     pyscript/*
     signature_bootstrap.py
 
-    # Integration-heavy runtime modules.
-    # These are exercised in UI/integration tests, but are not practical to
-    # exhaustively unit test (hardware/threads/Qt event loop).
-    voice_reader/application/services/narration_service.py
-
-    # The three narration modules that own a thread's lifetime. Each is listed
-    # on its own with its own reason, rather than under one glob, so removing
-    # any one of them is a decision about that module.
-    #
-    # run.py: the playback run loop. It starts a synthesis stream, then blocks
-    # on a prefetch window with a wall-clock deadline before handing control to
-    # the audio streamer.
-    voice_reader/application/services/narration/run.py
-    voice_reader\application\services\narration\run.py
-    # synthesis_sequential.py: spawns the tts-synth worker thread.
-    voice_reader/application/services/narration/synthesis_sequential.py
-    voice_reader\application\services\narration\synthesis_sequential.py
-    # synthesis_parallel_kokoro.py: spawns a worker pool plus a publisher
-    # thread that reorders their results.
-    voice_reader/application/services/narration/synthesis_parallel_kokoro.py
-    voice_reader\application\services\narration\synthesis_parallel_kokoro.py
-
-
+    # Audio devices, TTS engines and the filesystem repositories that back
+    # them. Each one talks to hardware or an external model at import or call
+    # time, so it is exercised by integration rather than by the gate.
     voice_reader/infrastructure/tts/kokoro_engine.py
     voice_reader/infrastructure/tts/tts_engine_factory.py
     voice_reader/infrastructure/bookmarks/json_bookmark_repository.py
     voice_reader/infrastructure/audio/audio_streamer.py
     voice_reader/infrastructure/audio/sounddevice_streamer.py
     voice_reader/infrastructure/audio/_sounddevice_workers.py
-    voice_reader/infrastructure/preferences/json_preferences_repository.py
     voice_reader/infrastructure/audio/_sounddevice_helpers.py
     voice_reader/infrastructure/audio/_silence_trimmer.py
+    voice_reader/infrastructure/preferences/json_preferences_repository.py
     voice_reader/shared/resources.py
-    voice_reader/ui/licence_dialog.py
+
+    # The Qt layer: windows, dialogs and the controllers that drive them.
+    # These need an event loop and a live widget tree.
     voice_reader/ui/main_window.py
+    voice_reader/ui/_main_window_build.py
+    voice_reader/ui/_main_window_controls.py
+    voice_reader/ui/window_helpers.py
+    voice_reader/ui/_help_dialogs.py
+    voice_reader/ui/licence_dialog.py
     voice_reader/ui/model_download_dialog.py
+    voice_reader/ui/bookmarks_dialog.py
+    voice_reader/ui/structural_bookmarks_dialog.py
+    voice_reader/ui/_message_box_utils.py
     voice_reader/ui/ui_controller.py
     voice_reader/ui/_ui_controller_bookmarks.py
     voice_reader/ui/_ui_controller_chapters.py
     voice_reader/ui/_ui_controller_playback.py
-    voice_reader/ui/_ui_controller_state.py
-    voice_reader/ui/window_helpers.py
-    # The Help menu's About and licence dialogs, extracted from
-    # window_helpers.py; the same Qt-dialog concern keeps the same scope.
-    voice_reader/ui/_help_dialogs.py
-    voice_reader\ui\_help_dialogs.py
-    voice_reader/ui/bookmarks_dialog.py
-    voice_reader/ui/structural_bookmarks_dialog.py
     voice_reader/ui/_ui_controller_sections.py
-    # Legacy Ideas UI (brain button now uses Sections instead of Ideas).
-    voice_reader/ui/_ui_controller_ideas.py
-    voice_reader/ui/ideas_dialog.py
+    voice_reader/ui/_ui_controller_state.py
 
-    # Ideas indexing/navigation UI is integration-heavy (Qt event loop + threads).
+    # Ideas indexing and navigation: the Qt event loop plus background threads.
     voice_reader/ui/_ideas_navigation.py
     voice_reader/ui/_ui_controller_idea_indexing.py
     voice_reader/ui/_ui_controller_book_loading.py
     voice_reader/ui/_book_load_compute.py
-    voice_reader/ui/_message_box_utils.py
-    voice_reader/ui/_main_window_build.py
-    voice_reader/ui/_main_window_controls.py
 
-    # Windows path variants (coverage on win32 reports backslashes).
-    voice_reader\ui\_ideas_navigation.py
-    voice_reader\ui\_ui_controller_idea_indexing.py
-    voice_reader\ui\_ui_controller_book_loading.py
-    voice_reader\ui\_book_load_compute.py
-    voice_reader\ui\_message_box_utils.py
-    voice_reader\ui\_main_window_build.py
-    voice_reader\ui\_main_window_controls.py
+    # Legacy Ideas UI (the brain button now uses Sections instead of Ideas).
+    voice_reader/ui/_ui_controller_ideas.py
+    voice_reader/ui/ideas_dialog.py
 
 [report]
 show_missing = True
 skip_covered = False
 fail_under = 100
-

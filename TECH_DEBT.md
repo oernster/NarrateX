@@ -6,38 +6,30 @@ This project has the strongest structural enforcement in the portfolio: `tests/s
 
 ---
 
-## 1. Four narration modules are still outside the gate
+## 1. Pre-synthesis after a book load never synthesises anything
 
-`.coveragerc` omits `narration_service.py`, the 247-line facade, and three modules from `services/narration/`. Each of the three is now listed on its own with its own reason rather than under a glob, so removing any one of them is a decision about that module:
+`presynthesize_start_chunks` exists so that pressing Play on a freshly loaded book is near-instant: it caches the first couple of chunks in a background thread. It does nothing, on every load.
 
-- `run.py`, the playback run loop, which starts a synthesis stream then blocks on a prefetch window with a wall-clock deadline.
-- `synthesis_sequential.py`, which spawns the tts-synth worker thread.
-- `synthesis_parallel_kokoro.py`, which spawns a worker pool plus a publisher thread that reorders their results.
+The chain is short. Loading a book calls `_begin_load`, which calls `service.stop()`, which sets `_stop_event`. Nothing clears that event again until `start()` runs, which is the Play the pre-synthesis was meant to make fast. `_start_presynthesis` then spawns its thread, whose loop opens with:
 
-All three own a thread's lifetime, which is what makes them harder rather than impossible: each is already 80% to 91% covered incidentally by the UI and integration tests, so what remains is the last handful of lines in each, mostly the nested fallback where a queue refuses both `put_nowait` and `put`. Closing them needs the queue injected or substituted at the module boundary.
+```python
+if cancel_event.is_set() or service._stop_event.is_set():
+    return
+```
 
-The other twelve modules in `services/narration/` are inside the gate at 100%. So are the pure-domain modules (`chunking_service.py`, `estimated_aligner.py`, `sanitized_text_mapper.py`) and the whole structural-bookmark package with its facade.
+So it returns before synthesising its first chunk. The same holds for the second call site, `_ui_controller_voices.py`, which starts pre-synthesis after the voice is chosen: that also happens between the load and the first Play.
 
-## 1a. A leaked narration worker thread crashes the suite about one run in ten
+Nothing is broken by this in the sense a user would report, which is exactly why it survived: the feature is invisible when it works and equally invisible when it does not. The cost is the first Play on every book, every time.
+
+The fix is a decision about what `_stop_event` means rather than a line change. It currently carries two meanings ("playback is not running" and "abandon background work") where pre-synthesis needs only the second. Either give pre-synthesis its own cancellation (it already takes a `cancel_event`, so the caller could own the whole question) or clear the stop event once a load completes. The tests in `tests/application/test_narration_service_facade.py` clear the event by hand and say why, so they will read as wrong once this is resolved.
+
+## 2. A leaked narration worker thread crashes the suite about one run in ten
 
 Running the full suite repeatedly produces an intermittent native crash at roughly 87% through, sometimes an access violation and sometimes heap corruption (`0xc0000374`). The faulthandler output names the same two frames each time: a live `voice_reader/application/services/narration/synthesis_sequential.py` `_worker` thread blocked in `queue.put`, while the main thread is building a `MainWindow` in a later UI test.
 
 Measured over ten runs of the same suite on the same machine: one crash. Different exception codes at the same point are the signature of a thread outliving the test that started it and touching Qt objects that have since been freed, rather than of any single test being wrong. No individual test file reproduces it; only the whole suite does.
 
-This makes the 100% gate unreliable rather than wrong: a green run is trustworthy, a crashed run says nothing. The fix belongs with the narration workers, which need a deterministic shutdown a test can wait on, not with the UI test that happens to be running when the process dies.
-
-## 2. The `omit` list has accreted duplicates and a contradiction
-
-Reading the same file top to bottom:
-
-- `app.py` appears in `source =` and again in `omit =`, with a comment explaining the second. `--cov=app` in `addopts` is therefore inert. The intent (gate the package, not the entrypoint) is right; expressing it as source-plus-omit rather than just not sourcing it is confusing enough that the file needs a paragraph to defend it.
-- `voice_reader/ui/_help_dialogs.py` is listed twice, once with forward slashes and once with backslashes.
-- The comment "Windows path variants (coverage on win32 reports backslashes)" appears twice, heading two different blocks.
-- Seven UI modules are each listed twice for the same reason.
-
-None of this is wrong; all of it is the file telling you it has been edited under pressure. The backslash duplication in particular suggests the underlying problem was fought rather than solved: coverage path normalisation is configurable and one `[paths]` section would remove every backslash variant in the file.
-
-Fixing item 1 means editing this list anyway. Do the tidy in the same pass.
+This makes the 100% gate unreliable rather than wrong: a green run is trustworthy, a crashed run says nothing. The fix belongs with the narration workers, which need a deterministic shutdown a test can wait on, not with the UI test that happens to be running when the process dies. `tests/application/test_narration_synthesis_threads.py` shows the shape of what is missing: it waits on `synth_done` before returning, so no thread outlives a test there.
 
 ## 3. The published site shares a directory with the application source
 
@@ -68,7 +60,7 @@ Startup and installation are the two paths where a swallowed exception produces 
 - `builddmg.py` at around 580 lines. Delivery script, exempt from the cap by design and correctly listed in `_BUILD_SCRIPTS` in the LOC test.
 - The eleven files between 355 and 380 lines. All under the cap, all clear of the danger band, none needs anything.
 - The `_ui_controller_*.py` and `_main_window_*.py` families and the thirteen-module `structural_bookmarks/` package. These are the 400-line cap doing its job; the parts are cohesive and merging any of them would breach it immediately.
-- `voice_reader/ui/_ui_controller_ideas.py` and `ideas_dialog.py`, marked in `.coveragerc` as "Legacy Ideas UI (brain button now uses Sections instead of Ideas)". Superseded UI that still loads. Worth deleting when someone is next in that area, not worth a dedicated pass.
+- `voice_reader/ui/_ui_controller_ideas.py` and `ideas_dialog.py`, marked in `.coveragerc` as "Legacy Ideas UI (the brain button now uses Sections instead of Ideas)". Superseded UI that still loads. Worth deleting when someone is next in that area, not worth a dedicated pass.
 - Four `requirements-*.txt` variants (base, linux, mac, flatpak). Native audio dependencies genuinely differ per platform; this is the documented split.
 - `site-images/NarrateX2.png`, a screenshot no page references any more. One stale binary, harmless where it sits; delete it next time the site images are touched.
 
@@ -78,7 +70,8 @@ These look like candidates but are correct as they stand; changing them would re
 
 - **The em dashes in `navigation_chunk_service.py`, `structural_bookmarks/normalization.py`, `estimated_aligner.py`, `kokoro_engine.py` and `tests/domain/test_spoken_text_sanitizer.py`.** Every one is *data*: a character in a regex class, a replacement target or test input for a text sanitiser whose job is to turn punctuation into speech. `kokoro_engine.py` literally reads `text.replace("—", " - ")  # em dash`. These are load-bearing. Do not let a global prose purge touch them.
 - **The `books/*` omit entry with its comment warning against `*/books/*`.** The comment records a real trap: the glob form would also match `voice_reader/infrastructure/books/*` and silently drop the shipped parser from the gate. Precise as written; the comment is why.
-- **The audio, TTS and Qt omissions** (`sounddevice_streamer`, `_sounddevice_workers`, `_silence_trimmer`, `audio_streamer`, `kokoro_engine`, `tts_engine_factory` and the UI modules). Hardware devices, background threads and the Qt event loop. This is the documented, correct exclusion and item 1 does not ask for any of it back.
+- **The audio, TTS and Qt omissions** (`sounddevice_streamer`, `_sounddevice_workers`, `_silence_trimmer`, `audio_streamer`, `kokoro_engine`, `tts_engine_factory` and the UI modules). Hardware devices, background threads and the Qt event loop. This is the documented, correct exclusion and nothing above asks for any of it back.
+- **`app.py` sitting outside the coverage source.** The entrypoint wires the composition root to a real Qt application and a real audio device, so measuring it would measure the wiring and nothing else. It is left unnamed in `.coveragerc` rather than sourced and then omitted, so the file no longer needs a paragraph to defend itself.
 - **The two unreachable lines in `estimated_aligner.py` and `chunking_service.py`.** Both are guards that cannot fire by construction (the aligner cannot fail to tokenise a stripped non-empty string; the sentence splitter cannot emit an empty part) and both say so in a comment. Deleting the guard to gain a covered line would remove the thing that makes the assumption explicit.
 - **`tests/structural/test_loc_limits.py`'s `_BUILD_SCRIPTS` exemption set.** The clearest expression of the build-script rule anywhere in the portfolio and the reference other projects should copy.
 - **`tests/structural/test_composition_roots.py` and `test_narration_contracts.py`.** A composition-root whitelist and a contract test for the narration seam. Both are the enforcement the rest of this file wishes existed elsewhere.
