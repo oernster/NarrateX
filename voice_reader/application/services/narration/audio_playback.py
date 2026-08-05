@@ -48,7 +48,9 @@ def play(
         c = playback_chunks[int(play_index)]
         try:
             on_progress._last_emit_ms = -1  # type: ignore[attr-defined]
-        except Exception:
+        except Exception:  # pragma: no cover
+            # Defensive only. Setting an attribute on a local function object
+            # cannot fail.
             pass
         service._set_state(
             NarrationState(
@@ -99,7 +101,8 @@ def play(
             return
         try:
             on_progress._last_emit_ms = ms  # type: ignore[attr-defined]
-        except Exception:
+        except Exception:  # pragma: no cover
+            # Defensive only, as above.
             pass
 
         if (

@@ -53,8 +53,23 @@ omit =
     # exhaustively unit test (hardware/threads/Qt event loop).
     voice_reader/application/services/narration_service.py
 
-    # Narration orchestration submodules (threading, audio, external engines).
-    voice_reader/application/services/narration/*
+    # The three narration modules that own a thread's lifetime. Each is listed
+    # on its own with its own reason, rather than under one glob, so removing
+    # any one of them is a decision about that module.
+    #
+    # run.py: the playback run loop. It starts a synthesis stream, then blocks
+    # on a prefetch window with a wall-clock deadline before handing control to
+    # the audio streamer.
+    voice_reader/application/services/narration/run.py
+    voice_reader\application\services\narration\run.py
+    # synthesis_sequential.py: spawns the tts-synth worker thread.
+    voice_reader/application/services/narration/synthesis_sequential.py
+    voice_reader\application\services\narration\synthesis_sequential.py
+    # synthesis_parallel_kokoro.py: spawns a worker pool plus a publisher
+    # thread that reorders their results.
+    voice_reader/application/services/narration/synthesis_parallel_kokoro.py
+    voice_reader\application\services\narration\synthesis_parallel_kokoro.py
+
 
     voice_reader/infrastructure/tts/kokoro_engine.py
     voice_reader/infrastructure/tts/tts_engine_factory.py
@@ -103,9 +118,6 @@ omit =
     voice_reader\ui\_message_box_utils.py
     voice_reader\ui\_main_window_build.py
     voice_reader\ui\_main_window_controls.py
-
-    # Windows path variants (coverage on win32 reports backslashes).
-    voice_reader\application\services\narration\*
 
 [report]
 show_missing = True

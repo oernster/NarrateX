@@ -6,15 +6,17 @@ This project has the strongest structural enforcement in the portfolio: `tests/s
 
 ---
 
-## 1. The 100% gate omits the narration package
+## 1. Four narration modules are still outside the gate
 
-`.coveragerc` still omits `voice_reader/application/services/narration_service.py` and `services/narration/*`, sixteen modules and about 1600 lines. The stated reason, threading, audio devices and external engines, is real for the playback and TTS modules and they belong in the section below. It is not obviously right for all sixteen: `cache_key.py`, `position.py`, `candidates.py`, `alignment.py` and `persistence.py` are ordinary logic and would go into the gate on plain unit tests.
+`.coveragerc` omits `narration_service.py`, the 247-line facade, and three modules from `services/narration/`. Each of the three is now listed on its own with its own reason rather than under a glob, so removing any one of them is a decision about that module:
 
-The result is that the headline claim (a 100% gate) stays silent about how playback is orchestrated. That is the inverse of what a gate is for.
+- `run.py`, the playback run loop, which starts a synthesis stream then blocks on a prefetch window with a wall-clock deadline.
+- `synthesis_sequential.py`, which spawns the tts-synth worker thread.
+- `synthesis_parallel_kokoro.py`, which spawns a worker pool plus a publisher thread that reorders their results.
 
-The proportionate fix is to take the package module by module rather than as a block: bring in what is plain logic, and keep an explicit, individually justified omission for each module that genuinely needs a device or a thread, rather than one glob covering the lot.
+All three own a thread's lifetime, which is what makes them harder rather than impossible: each is already 80% to 91% covered incidentally by the UI and integration tests, so what remains is the last handful of lines in each, mostly the nested fallback where a queue refuses both `put_nowait` and `put`. Closing them needs the queue injected or substituted at the module boundary.
 
-Two halves of this item are closed and out of scope for it: the pure-domain modules (`chunking_service.py`, `estimated_aligner.py`, `sanitized_text_mapper.py`) and the whole structural-bookmark package with its facade.
+The other twelve modules in `services/narration/` are inside the gate at 100%. So are the pure-domain modules (`chunking_service.py`, `estimated_aligner.py`, `sanitized_text_mapper.py`) and the whole structural-bookmark package with its facade.
 
 ## 1a. A leaked narration worker thread crashes the suite about one run in ten
 
