@@ -6,13 +6,7 @@ This project has the strongest structural enforcement in the portfolio: `tests/s
 
 ---
 
-## 1. The icon set is hand-maintained and now exists in two places
-
-`narratex.png` at repository root is the master, with the eight derived sizes (`narratex_16.png` through `narratex_512.png`) plus `narratex.ico` sit beside it. Nothing derives them: this is the only application in the portfolio with no `generate_icons.py`, so the set is maintained by hand and can drift from its own master without anything noticing.
-
-Moving the site into `docs/` made that concrete rather than theoretical. GitHub Pages publishes `docs/` and nothing above it, so the five sizes the pages use as favicons and touch icons (16, 32, 64, 256 and 512) now exist twice: once at root for the application build and once under `docs/` for the site. They were copied rather than regenerated, deliberately, because regenerating the set inside a site move would have changed shipped icon bytes as a side effect of a directory change.
-
-The fix is the portfolio's standard one: a `generate_icons.py` reading `narratex.png` and emitting every consumer's copy, root and `docs/` alike, so the duplication is generated rather than maintained. Until then the two copies are byte-identical and can silently stop being so.
+**There is no open technical debt.** The two sections below are the standing record of what was weighed and deliberately left alone, so the same ground is not covered again.
 
 ---
 
@@ -24,6 +18,7 @@ The fix is the portfolio's standard one: a `generate_icons.py` reading `narratex
 - `voice_reader/ui/_ui_controller_ideas.py` and `ideas_dialog.py`, marked in `.coveragerc` as "Legacy Ideas UI (the brain button now uses Sections instead of Ideas)". Superseded UI that still loads. Worth deleting when someone is next in that area, not worth a dedicated pass.
 - Four `requirements-*.txt` variants (base, linux, mac, flatpak). Native audio dependencies genuinely differ per platform; this is the documented split.
 - `docs/site-images/NarrateX2.png`, a screenshot no page references any more. One stale binary, harmless where it sits; delete it next time the site images are touched.
+- The master `narratex.png` being 487x487, which makes `narratex_512.png` a slight upscale. That is how the whole existing set was produced and `generate_icons.py` reproduces it exactly. Replacing the master with a 1024 render is an improvement to make deliberately, with the change to every derived asset visible in its own commit, rather than as a side effect of some other work.
 
 ## Not debt (do not "fix" these)
 

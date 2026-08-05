@@ -85,6 +85,20 @@ No tracked markdown file carries a version at all. `stamp_version.py` is deliber
 `docs/*.html`, the published site, so no markdown can acquire one by accident. It globs the
 directory rather than naming pages, so adding a page does not mean remembering to list it.
 
+## Icons: one master, everything derived
+
+`narratex.png` is the only authored icon. The eight sizes the delivery scripts stage, the Windows
+`narratex.ico` and the five copies the site needs under `docs/` are all emitted by
+[`generate_icons.py`](generate_icons.py) and none is edited by hand. The site copies exist because
+GitHub Pages publishes `docs/` and nothing above it, so the pages cannot reference the root set.
+
+Every frame is a direct reduction of the master rather than a resize of a resize, which is what
+keeps the 16 and 24 pixel sizes legible.
+
+Enforced by [`tests/structural/test_icons_match_master.py`](tests/structural/test_icons_match_master.py),
+which compares the whole set against a fresh render. `python generate_icons.py --check` performs
+the same comparison without writing.
+
 Enforced by [`tests/test_version_source.py`](tests/test_version_source.py).
 
 ## Running the structural tests
