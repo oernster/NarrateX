@@ -82,7 +82,8 @@ version literal:
   remembered step.
 
 No tracked markdown file carries a version at all. `stamp_version.py` is deliberately scoped to
-the site pages so none can acquire one by accident.
+`docs/*.html`, the published site, so no markdown can acquire one by accident. It globs the
+directory rather than naming pages, so adding a page does not mean remembering to list it.
 
 Enforced by [`tests/test_version_source.py`](tests/test_version_source.py).
 

@@ -2,9 +2,9 @@
 
 `VERSION` at the repository root is the single source of truth. The runtime
 reads it (`voice_reader/version.py`) and so does `pyproject.toml`. The
-narratex.co.uk pages are static HTML served straight from the repository root,
-so they cannot read anything at render time. They carry stamped tokens instead
-and this script refreshes them.
+narratex.co.uk pages are static HTML served from `docs/`, so they cannot read
+anything at render time. They carry stamped tokens instead and this script
+refreshes them.
 
 Two token forms are recognised, because one shape cannot serve both places:
 
@@ -21,10 +21,14 @@ Two token forms are recognised, because one shape cannot serve both places:
    An HTML comment inside a JSON document would make it unparseable, so the
    key itself is the delimiter.
 
-Scope is the site tree ONLY, listed explicitly in `SITE_PAGES` below. This
-repository publishes its site from the root rather than from `docs/`, so a glob
-over `*.html` would be right today and a glob over `*.md` would be actively
-wrong: no tracked markdown file carries a version and none may acquire one.
+Scope is `docs/`, the published site, and nothing else. It is a directory glob
+rather than a hand-written page list because the site now has a directory of
+its own: adding a page should not mean remembering to name it here.
+
+Markdown is deliberately out of scope, in `docs/` as much as at the root. No
+tracked markdown file in this repository carries a version and none may acquire
+one; the single source of truth is `VERSION` and every document refers to it
+rather than restating it.
 
 The script is idempotent. Running it twice reports nothing the second time.
 
@@ -45,12 +49,9 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent
 VERSION_FILE = PROJECT_ROOT / "VERSION"
 
-# The published site. Root markdown is deliberately absent and must stay so.
-SITE_PAGES: tuple[str, ...] = (
-    "index.html",
-    "why.html",
-    "download.html",
-)
+# The published site. HTML only: markdown carries no version anywhere here.
+SITE_DIR = PROJECT_ROOT / "docs"
+SITE_PAGE_GLOB = "*.html"
 
 MARKUP_TOKEN = re.compile(r"(<!--VERSION-->)(.*?)(<!--/VERSION-->)", re.DOTALL)
 JSONLD_TOKEN = re.compile(r'("softwareVersion"\s*:\s*")([^"]*)(")')
@@ -95,18 +96,27 @@ def stamp_file(path: Path, version: str) -> int:
     return changed
 
 
+def site_pages() -> list[Path]:
+    """Every published page, in a stable order."""
+
+    if not SITE_DIR.is_dir():
+        return []
+    return sorted(SITE_DIR.rglob(SITE_PAGE_GLOB))
+
+
 def main() -> int:
     version = read_version()
     touched: list[tuple[str, int]] = []
 
-    for name in SITE_PAGES:
-        path = PROJECT_ROOT / name
-        if not path.is_file():
-            print(f"stamp_version: skipped (not found): {name}")
-            continue
+    pages = site_pages()
+    if not pages:
+        print(f"stamp_version: no pages found under {SITE_DIR.name}/; nothing to do.")
+        return 0
+
+    for path in pages:
         changed = stamp_file(path, version)
         if changed:
-            touched.append((name, changed))
+            touched.append((path.relative_to(PROJECT_ROOT).as_posix(), changed))
 
     if touched:
         print(f"stamp_version: stamped {version} into:")

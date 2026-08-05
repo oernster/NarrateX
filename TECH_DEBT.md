@@ -1,18 +1,18 @@
 # NarrateX: Technical Debt
 
-A standing reference to the project's outstanding technical debt. It records what is still open, weighs whether each item is worth doing and gives the rationale. Every item is a behaviour-preserving internal concern: nothing here proposes reverting a feature or changing any UI or UX behaviour. Scope is the whole repository (the `voice_reader` package, `app.py`, the bespoke installer, the delivery scripts and the narratex.co.uk site served from repository root) read against `ARCHITECTURE.md`, `ARCHITECTURE_CONSTRAINTS.md`, `TESTING.md` and the tests under `tests/structural/`.
+A standing reference to the project's outstanding technical debt. It records what is still open, weighs whether each item is worth doing and gives the rationale. Every item is a behaviour-preserving internal concern: nothing here proposes reverting a feature or changing any UI or UX behaviour. Scope is the whole repository (the `voice_reader` package, `app.py`, the bespoke installer, the delivery scripts and the narratex.co.uk site under `docs/`) read against `ARCHITECTURE.md`, `ARCHITECTURE_CONSTRAINTS.md`, `TESTING.md` and the tests under `tests/structural/`.
 
 This project has the strongest structural enforcement in the portfolio: `tests/structural/` holds composition-root, layering, LOC and narration-contract tests, `test_loc_limits.py` carries an explicit build-script exemption list and the installer has its own test package. The debt below is measured against that standard, not against a lower one.
 
 ---
 
-## 1. The published site shares a directory with the application source
+## 1. The icon set is hand-maintained and now exists in two places
 
-`index.html`, `why.html`, `download.html`, `styles.css`, `favicon.ico`, `robots.txt`, `sitemap.xml`, `site.webmanifest`, `CNAME` and `site-images/` all sit at repository root beside `app.py`, the build scripts and the package. Every other project in the portfolio publishes from `docs/`.
+`narratex.png` at repository root is the master, and the eight derived sizes (`narratex_16.png` through `narratex_512.png`) plus `narratex.ico` sit beside it. Nothing derives them: this is the only application in the portfolio with no `generate_icons.py`, so the set is maintained by hand and can drift from its own master without anything noticing.
 
-Nothing is broken by this and GitHub Pages supports it. The cost is that root has over forty tracked entries where the substance is one package and five build scripts. It also means no tool can distinguish "the site" from "the app" when reasoning about either. `stamp_version.py` currently works around it by naming the three site pages explicitly rather than globbing a directory, which is correct as written but is a workaround for the layout rather than a design.
+Moving the site into `docs/` made that concrete rather than theoretical. GitHub Pages publishes `docs/` and nothing above it, so the five sizes the pages use as favicons and touch icons (16, 32, 64, 256 and 512) now exist twice: once at root for the application build and once under `docs/` for the site. They were copied rather than regenerated, deliberately, because regenerating the set inside a site move would have changed shipped icon bytes as a side effect of a directory change.
 
-Moving the site into `docs/` and pointing Pages at it is mechanical. `stamp_version.py` would then take a directory rather than a list.
+The fix is the portfolio's standard one: a `generate_icons.py` reading `narratex.png` and emitting every consumer's copy, root and `docs/` alike, so the duplication is generated rather than maintained. Until then the two copies are byte-identical and can silently stop being so.
 
 ## 2. Broad exception handlers on the startup path and in the installer
 
@@ -31,7 +31,7 @@ Startup and installation are the two paths where a swallowed exception produces 
 - The `_ui_controller_*.py` and `_main_window_*.py` families and the thirteen-module `structural_bookmarks/` package. These are the 400-line cap doing its job; the parts are cohesive and merging any of them would breach it immediately.
 - `voice_reader/ui/_ui_controller_ideas.py` and `ideas_dialog.py`, marked in `.coveragerc` as "Legacy Ideas UI (the brain button now uses Sections instead of Ideas)". Superseded UI that still loads. Worth deleting when someone is next in that area, not worth a dedicated pass.
 - Four `requirements-*.txt` variants (base, linux, mac, flatpak). Native audio dependencies genuinely differ per platform; this is the documented split.
-- `site-images/NarrateX2.png`, a screenshot no page references any more. One stale binary, harmless where it sits; delete it next time the site images are touched.
+- `docs/site-images/NarrateX2.png`, a screenshot no page references any more. One stale binary, harmless where it sits; delete it next time the site images are touched.
 
 ## Not debt (do not "fix" these)
 

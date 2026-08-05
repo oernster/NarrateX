@@ -95,7 +95,7 @@ Kindle formats (via optional Calibre conversion to EPUB):
 ## Architecture
 
 <p align="center">
-  <img src="site-images/architecture.svg" alt="NarrateX clean architecture: UI, Application, Domain, Infrastructure, with dependencies pointing inward to a pure Domain" width="860">
+  <img src="docs/site-images/architecture.svg" alt="NarrateX clean architecture: UI, Application, Domain, Infrastructure, with dependencies pointing inward to a pure Domain" width="860">
 </p>
 
 NarrateX uses a clean, four-layer architecture with every dependency pointing inward to a pure
