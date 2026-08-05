@@ -81,7 +81,10 @@ class ChunkingService:
 
         for sent in sentences:
             sent = sent.strip()
-            if not sent:
+            # Defensive: `_split_sentences` strips every part and appends the
+            # tail only when non-empty, and every other candidate contains the
+            # terminator it was split on, so nothing empty can arrive here.
+            if not sent:  # pragma: no cover
                 continue
 
             if not current:

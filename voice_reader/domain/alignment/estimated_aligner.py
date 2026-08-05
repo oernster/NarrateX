@@ -46,7 +46,10 @@ class EstimatedAligner:
 
         # Tokenize as non-whitespace runs.
         matches = list(_TOKEN_RE.finditer(speak_text))
-        if not matches:
+        # Defensive: `speak_text` is stripped above and the empty case already
+        # returned, so a non-empty string always contains a non-whitespace run
+        # for `\S+` to match.
+        if not matches:  # pragma: no cover
             return ChunkAlignment(
                 chunk_id=int(chunk_id), duration_ms=duration_ms, spans=[]
             )
