@@ -100,12 +100,34 @@ This repo enforces **100% test coverage** for the configured runtime scope.
 - Canonical command: `pytest`
 - Coverage config: [`.coveragerc`](.coveragerc) and [`pyproject.toml`](pyproject.toml)
 
+On Windows, prefer the venv interpreter so a global one cannot be picked up by accident:
+
+```powershell
+.venv\Scripts\python.exe -m pytest
+```
+
 The gate prints the coverage table last and emits no "N passed" line, so read the exit code rather
 than the text: `0` means every test passed and the gate was met.
 
 Fast local iteration without coverage:
 
 - `pytest --no-cov`
+
+## Icons
+
+`narratex.png` at the repository root is the only authored icon. Every other image the build stages
+is derived from it by [`generate_icons.py`](generate_icons.py): the eight PNG sizes, the multi-size
+Windows `narratex.ico` and the five copies the published site needs under `docs/`. The site needs
+its own copies because GitHub Pages publishes `docs/` and nothing above it.
+
+```powershell
+python generate_icons.py
+python generate_icons.py --check
+```
+
+`--check` compares the tracked set against a fresh render and writes nothing, which is the same
+comparison [`tests/structural/test_icons_match_master.py`](tests/structural/test_icons_match_master.py)
+makes on every test run. Never hand-edit a derived frame: change the master and regenerate.
 
 ## Windows EXE builds
 
@@ -201,9 +223,3 @@ Two build paths are provided for Linux:
 
 Running from source on Linux is covered in
 [LINUX-INSTALLATION.md](LINUX-INSTALLATION.md).
-
-## Tests
-
-```powershell
-.venv\Scripts\python.exe -m pytest
-```

@@ -17,8 +17,10 @@ description; this section is the contract.
 | **Dependencies point inward.** UI depends on Application, Application on Domain, Infrastructure on Domain. UI never imports Infrastructure and Domain imports no other layer. | The playback core is the part that must not stutter, so nothing above it may reach into it. A pure Domain is also the only part that can be reasoned about without a Qt event loop or an audio device. | [`tests/structural/test_layering_rules.py`](tests/structural/test_layering_rules.py) |
 | **Only whitelisted composition roots wire Infrastructure into Application.** | Wiring scattered through the tree is how a layer boundary quietly becomes decorative. The whitelist makes each new root a deliberate decision. | [`tests/structural/test_composition_roots.py`](tests/structural/test_composition_roots.py) |
 | **Every in-scope module is at most 400 physical lines.** Delivery scripts are exempt by name. | A cap forces cohesive extraction rather than god modules. The exemption is listed rather than left to chance. | [`tests/structural/test_loc_limits.py`](tests/structural/test_loc_limits.py) |
+| **No in-scope module sits in the 5% danger band**, 381 to 399 lines. A file that enters it is taken to 350 rather than left just under the cap. | A file at 399 passes the cap and then fails on the next edit made to it, for a reason that has nothing to do with that edit. Catching the band stops the bad state being reachable instead of noticing it afterwards. The band is derived from the cap in the test, so the two numbers cannot drift apart. | [`tests/structural/test_loc_limits.py`](tests/structural/test_loc_limits.py) |
 | **Narration chunks are always built from a document model**, never assembled ad hoc. | The document model is the single answer to what a book contains and where. A second path for building chunks would be a second answer. | [`tests/structural/test_narration_contracts.py`](tests/structural/test_narration_contracts.py) |
 | **The version is written once.** `VERSION` at the repo root is the source; the package reads it, `pyproject.toml` reads it and the site pages carry tokens stamped from it. | A number copied into a second place is a number that will disagree with the first. | [`tests/test_version_source.py`](tests/test_version_source.py) |
+| **Every icon is derived from one master.** `narratex.png` is the only authored image; the eight staged sizes, the Windows `.ico` and the five copies the site needs are all emitted by [`generate_icons.py`](generate_icons.py) and none is hand-edited. | A hand-touched frame is a frame that stops matching the others, silently, in whichever size nobody looks at. Deriving each size straight from the master rather than resizing a resize is also what keeps the 16 and 24 pixel frames legible. | [`tests/structural/test_icons_match_master.py`](tests/structural/test_icons_match_master.py) |
 
 ### Document model invariants
 
@@ -398,7 +400,7 @@ The build bundles:
 
 - Python runtime + dependencies
 - PySide6 Qt plugins required for the UI
-- the application icon ([`narratex.ico`](narratex.ico))
+- the application icon ([`narratex.ico`](narratex.ico)), itself emitted by [`generate_icons.py`](generate_icons.py) from the master `narratex.png` along with every other size the packagers and the site stage
 - the licence texts and the [`VERSION`](VERSION) file, which [`voice_reader/version.py`](voice_reader/version.py) reads from beside the package
 
 Kokoro model weights are resolved at runtime by Kokoro/HuggingFace unless you pre-populate `hf-cache/`.

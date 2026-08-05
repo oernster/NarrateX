@@ -40,7 +40,10 @@ If you are on a headless or minimal system without an audio daemon, install Puls
 
 ## Python version
 
-Kokoro TTS requires **Python 3.10, 3.11 or 3.12**. Python 3.13+ is not compatible.
+The Linux dependency set (`requirements-linux.txt`) is pinned for **Python 3.12** and the wider
+Windows set supports 3.10, 3.11 or 3.12. Use 3.12 here; 3.13 and later are not supported by these
+pins. (macOS is the exception and is pinned to 3.13 alone, with its own requirements file; see
+[DEVELOPMENT-README.md](DEVELOPMENT-README.md).)
 
 Check your version:
 

@@ -99,8 +99,9 @@ Kindle formats (via optional Calibre conversion to EPUB):
 </p>
 
 NarrateX uses a clean, four-layer architecture with every dependency pointing inward to a pure
-Domain that has no I/O and no framework. Layer boundaries, the composition-root whitelist and the
-400-line module limit are enforced by AST structural tests at every test run. See
+Domain that has no I/O and no framework. Layer boundaries, the composition-root whitelist, the
+400-line module limit with its danger band and the derivation of every icon from one master are
+enforced by structural tests at every test run. See
 [ARCHITECTURE.md](ARCHITECTURE.md) for the invariants and the full design;
 [ARCHITECTURE_CONSTRAINTS.md](ARCHITECTURE_CONSTRAINTS.md) holds the constraints themselves.
 
@@ -145,9 +146,17 @@ python buildinstaller.py
 
 That produces `dist-pyinstaller/NarrateX/NarrateX.exe` and then
 `dist-installer/NarrateXSetup.exe`. Linux builds with `build_flatpak.sh` (Flatpak) or
-`buildlinux.py` (onedir bundle); macOS builds with `builddmg.py`. Every packager reads the version
-from the repo-root `VERSION` file and stamps the site pages from it, so no build can ship a
-mismatched number.
+`buildlinux.py` (onedir bundle); macOS builds with `builddmg.py`.
+
+Every packager reads the version from the repo-root `VERSION` file and ships that file beside the
+application, so a built copy reports the same number as the source tree. The two Windows packagers
+also run `stamp_version.py` before packaging, so a release cannot ship site pages that disagree with
+`VERSION`.
+
+Icons are generated rather than authored. `generate_icons.py` derives every size, the Windows
+`narratex.ico` and the site's copies under `docs/` from the single master `narratex.png`;
+`python generate_icons.py --check` compares the tracked set against a fresh render without writing
+anything, which is the same comparison the structural suite makes.
 
 ## Licence
 

@@ -74,12 +74,11 @@ The whole application layer is now inside the gate; so is the pure-domain layer.
 Matching test files that must be excluded from the pytest run (they will raise `collection errors` without the soundfile runtime):
 
 ```bash
-python -m pytest --ignore=tests/infrastructure/test_filesystem_cache.py \
-  --ignore=tests/infrastructure/test_kokoro_engine_more_coverage.py \
-  --ignore=tests/infrastructure/tts \
-  --ignore=tests/application/test_tts_engine_factory.py \
-  --ignore=tests/application/test_tts_engine_factory_more_coverage.py
+python -m pytest --ignore=tests/infrastructure/test_filesystem_cache.py --ignore=tests/infrastructure/test_kokoro_engine_more_coverage.py --ignore=tests/infrastructure/tts --ignore=tests/application/test_tts_engine_factory.py --ignore=tests/application/test_tts_engine_factory_more_coverage.py
 ```
+
+That is one line deliberately. A shell continuation is not portable between the shells this project
+is developed in and a half-pasted command reads as a test failure rather than as a paste error.
 
 ## Test suite architecture
 
@@ -111,8 +110,9 @@ intended to be fast and fail-first and are documented in full in
 
 - [`test_layering_rules.py`](tests/structural/test_layering_rules.py) - dependency direction between the layers (e.g. UI must not import Infrastructure; Domain imports nothing else).
 - [`test_composition_roots.py`](tests/structural/test_composition_roots.py) - only whitelisted composition roots may import both Application and Infrastructure.
-- [`test_loc_limits.py`](tests/structural/test_loc_limits.py) - the 400-line module-size guardrail (build/packaging scripts exempt).
+- [`test_loc_limits.py`](tests/structural/test_loc_limits.py) - the 400-line module-size guardrail (build/packaging scripts exempt), plus the 5% danger band: one assertion for the cap and a second for the 381 to 399 range, so a red run names which half was broken. The band is derived from the cap rather than written as a second literal.
 - [`test_narration_contracts.py`](tests/structural/test_narration_contracts.py) - narration is always built from a document model (no ad-hoc chunk construction).
+- [`test_icons_match_master.py`](tests/structural/test_icons_match_master.py) - every tracked icon matches a fresh render from the single master `narratex.png`, so no frame can be hand-edited out of step with the rest.
 
 The version single-source rule is checked outside `tests/structural/` because it is a file-contents
 assertion rather than an AST scan: see [`tests/test_version_source.py`](tests/test_version_source.py).

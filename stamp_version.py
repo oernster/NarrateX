@@ -10,18 +10,22 @@ Two token forms are recognised, because one shape cannot serve both places:
 
 1. Markup, anywhere in the page body or head::
 
-       <!--VERSION-->4.1.0<!--/VERSION-->
+       <!--VERSION-->9.9.9<!--/VERSION-->
 
    The comments are invisible, so the page reads as plain text to a visitor.
 
 2. JSON-LD, inside the `application/ld+json` block::
 
-       "softwareVersion": "4.1.0"
+       "softwareVersion": "9.9.9"
 
    An HTML comment inside a JSON document would make it unparseable, so the
    key itself is the delimiter.
 
-Scope is `docs/`, the published site, and nothing else. It is a directory glob
+Both examples above use an obviously unreal number. A docstring that quoted the
+project's current version would be one more place to remember on a bump, which
+is the exact failure this script exists to remove.
+
+Scope is `docs/` (the published site) and nothing else. It is a directory glob
 rather than a hand-written page list because the site now has a directory of
 its own: adding a page should not mean remembering to name it here.
 
