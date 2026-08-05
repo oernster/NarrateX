@@ -24,6 +24,61 @@ class SynthesisStream:
     synth_errors: list[BaseException]
 
 
+# Longest a worker waits for a queue slot before re-checking the stop event.
+# Short enough that a stopped run releases promptly, long enough not to spin.
+_QUEUE_PUT_TIMEOUT_SECONDS = 0.1
+
+
+def put_or_stop(
+    path_q: "queue.Queue[Path | None]",
+    item: "Path | None",
+    *,
+    stop_event: threading.Event,
+) -> bool:
+    """Hand an item to the playback queue, giving up if the run is stopped.
+
+    A plain blocking put on a bounded queue cannot be stopped. A worker whose
+    consumer has gone waits for a slot that never arrives, so it never reaches
+    the stop check it only performs between chunks: it outlives the run that
+    started it and is still alive when the process moves on. That is what turns
+    a leaked worker into a crash rather than a slow shutdown.
+
+    Returns True when the item was handed over, False when the run stopped or
+    the queue refused it.
+    """
+
+    while not stop_event.is_set():
+        try:
+            path_q.put(item, timeout=_QUEUE_PUT_TIMEOUT_SECONDS)
+            return True
+        except queue.Full:
+            continue
+        except Exception:
+            return False
+    return False
+
+
+def signal_end_of_stream(
+    path_q: "queue.Queue[Path | None]",
+    *,
+    stop_event: threading.Event,
+) -> None:
+    """Put the end marker without ever blocking forever to do it.
+
+    Playback reads until the marker arrives, so a slot is worth waiting for. A
+    slot that will never come is not: if the consumer has gone, there is nobody
+    left to read the marker.
+    """
+
+    try:
+        path_q.put_nowait(None)
+        return
+    except Exception:
+        pass
+
+    put_or_stop(path_q, None, stop_event=stop_event)
+
+
 def _env_int(name: str, default: int) -> int:
     try:
         return int(os.getenv(name, str(default)))

@@ -9,6 +9,8 @@ import time
 from voice_reader.application.services.narration.synthesis_common import (
     SynthesisStream,
     gate_synthesis_window,
+    put_or_stop,
+    signal_end_of_stream,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -101,17 +103,19 @@ def start_parallel_kokoro_synthesis(
                 if path is None:
                     time.sleep(0.01)
                     continue
-                path_q.put(path)
+                if not put_or_stop(
+                    path_q,
+                    path,
+                    stop_event=service._stop_event,  # noqa: SLF001
+                ):
+                    return
                 next_idx += 1
         finally:
             synth_done.set()
-            try:
-                path_q.put_nowait(None)
-            except Exception:
-                try:
-                    path_q.put(None)
-                except Exception:
-                    pass
+            signal_end_of_stream(
+                path_q,
+                stop_event=service._stop_event,  # noqa: SLF001
+            )
 
     threading.Thread(
         target=_publisher,

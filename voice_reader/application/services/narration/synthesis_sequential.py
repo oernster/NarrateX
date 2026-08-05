@@ -9,7 +9,9 @@ from voice_reader.application.services.narration.synthesis_common import (
     SynthesisStream,
     gate_synthesis_window,
     maybe_warmup_tts,
+    put_or_stop,
     set_synth_state,
+    signal_end_of_stream,
 )
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -61,19 +63,21 @@ def start_sequential_synthesis(
                         device=service.device,
                         language=service.language,
                     )
-                path_q.put(cand.audio_path)
+                if not put_or_stop(
+                    path_q,
+                    cand.audio_path,
+                    stop_event=service._stop_event,  # noqa: SLF001
+                ):
+                    return
         except BaseException as exc:  # pragma: no cover
             synth_errors.append(exc)
             service._log.exception("Synthesis worker failed")  # noqa: SLF001
         finally:
             synth_done.set()
-            try:
-                path_q.put_nowait(None)
-            except Exception:
-                try:
-                    path_q.put(None)
-                except Exception:
-                    pass
+            signal_end_of_stream(
+                path_q,
+                stop_event=service._stop_event,  # noqa: SLF001
+            )
 
     threading.Thread(
         target=_worker,

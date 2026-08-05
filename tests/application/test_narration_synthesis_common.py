@@ -2,17 +2,19 @@
 
 The TTS engine is a hand-written stand-in, so nothing here loads a model or
 opens a device. What is being tested is the orchestration around the engine:
-when it is called, when it is skipped, and what happens when it fails.
+when it is called, when it is skipped and what happens when it fails.
 """
 
 from __future__ import annotations
 
+import queue
 import threading
 from pathlib import Path
 
 import pytest
 
 from tests.application.narration_fakes import (
+    Boom,
     FakeBook,
     FakeCacheRepo,
     FakeEngine,
@@ -24,7 +26,9 @@ from voice_reader.application.services.narration.synthesis_common import (
     _env_int,
     gate_synthesis_window,
     maybe_warmup_tts,
+    put_or_stop,
     set_synth_state,
+    signal_end_of_stream,
     startup_warmup_tts,
 )
 from voice_reader.domain.document import plain_text
@@ -203,3 +207,90 @@ class TestSynthesisState:
         assert service.state.audible_start == 10
         assert service.state.message == "Preparing chunk 5/10"
         assert service.state.progress == pytest.approx(0.4)
+
+
+class SlotOnceQueue:
+    """A full queue that frees exactly one slot on the second attempt.
+
+    Stands in for the real bounded queue at the moment playback consumes a
+    chunk, which is when a waiting worker gets in.
+    """
+
+    def __init__(self) -> None:
+        self.attempts = 0
+        self.accepted: list[object] = []
+
+    def put(self, item: object, timeout: float | None = None) -> None:
+        del timeout
+        self.attempts += 1
+        if self.attempts == 1:
+            raise queue.Full
+        self.accepted.append(item)
+
+
+class TestPutOrStop:
+    """The put that a stop can interrupt.
+
+    A plain blocking put on a bounded queue whose consumer has gone is
+    unstoppable, which is how a worker outlives its run.
+    """
+
+    def test_an_item_goes_straight_through_when_there_is_room(self) -> None:
+        path_q: queue.Queue = queue.Queue(maxsize=1)
+
+        assert put_or_stop(path_q, Path("one.wav"), stop_event=threading.Event())
+        assert path_q.get_nowait() == Path("one.wav")
+
+    def test_a_full_queue_is_waited_on_rather_than_given_up_on(self) -> None:
+        slot = SlotOnceQueue()
+
+        assert put_or_stop(slot, Path("one.wav"), stop_event=threading.Event())
+        assert slot.attempts == 2
+        assert slot.accepted == [Path("one.wav")]
+
+    def test_a_stopped_run_never_even_tries(self) -> None:
+        stopped = threading.Event()
+        stopped.set()
+        slot = SlotOnceQueue()
+
+        assert not put_or_stop(slot, Path("one.wav"), stop_event=stopped)
+        assert slot.attempts == 0
+
+    def test_a_queue_that_refuses_outright_is_not_retried(self) -> None:
+        # Retrying a queue that raises something other than Full would spin
+        # until the run stops, which is the behaviour being avoided.
+        class Refusing:
+            def put(self, item: object, timeout: float | None = None) -> None:
+                del item, timeout
+                raise Boom("put")
+
+        assert not put_or_stop(
+            Refusing(), Path("one.wav"), stop_event=threading.Event()
+        )
+
+
+class TestSignalEndOfStream:
+    def test_the_marker_goes_in_without_waiting_when_there_is_room(self) -> None:
+        path_q: queue.Queue = queue.Queue(maxsize=1)
+
+        signal_end_of_stream(path_q, stop_event=threading.Event())
+
+        assert path_q.get_nowait() is None
+
+    def test_a_full_queue_is_waited_on_for_the_marker(self) -> None:
+        # Playback reads until the marker arrives, so a slot is worth waiting
+        # for; one that will never come is not.
+        slot = SlotOnceQueue()
+
+        signal_end_of_stream(slot, stop_event=threading.Event())
+
+        assert slot.accepted == [None]
+
+    def test_a_stopped_run_does_not_wait_for_the_marker(self) -> None:
+        stopped = threading.Event()
+        stopped.set()
+        slot = SlotOnceQueue()
+
+        signal_end_of_stream(slot, stop_event=stopped)
+
+        assert slot.accepted == []

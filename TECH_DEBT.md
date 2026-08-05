@@ -6,15 +6,7 @@ This project has the strongest structural enforcement in the portfolio: `tests/s
 
 ---
 
-## 1. A leaked narration worker thread crashes the suite about one run in ten
-
-Running the full suite repeatedly produces an intermittent native crash at roughly 87% through, sometimes an access violation and sometimes heap corruption (`0xc0000374`). The faulthandler output names the same two frames each time: a live `voice_reader/application/services/narration/synthesis_sequential.py` `_worker` thread blocked in `queue.put`, while the main thread is building a `MainWindow` in a later UI test.
-
-Measured over ten runs of the same suite on the same machine: one crash. Different exception codes at the same point are the signature of a thread outliving the test that started it and touching Qt objects that have since been freed, rather than of any single test being wrong. No individual test file reproduces it; only the whole suite does.
-
-This makes the 100% gate unreliable rather than wrong: a green run is trustworthy, a crashed run says nothing. The fix belongs with the narration workers, which need a deterministic shutdown a test can wait on, not with the UI test that happens to be running when the process dies. `tests/application/test_narration_synthesis_threads.py` shows the shape of what is missing: it waits on `synth_done` before returning, so no thread outlives a test there.
-
-## 2. The published site shares a directory with the application source
+## 1. The published site shares a directory with the application source
 
 `index.html`, `why.html`, `download.html`, `styles.css`, `favicon.ico`, `robots.txt`, `sitemap.xml`, `site.webmanifest`, `CNAME` and `site-images/` all sit at repository root beside `app.py`, the build scripts and the package. Every other project in the portfolio publishes from `docs/`.
 
@@ -22,7 +14,7 @@ Nothing is broken by this and GitHub Pages supports it. The cost is that root ha
 
 Moving the site into `docs/` and pointing Pages at it is mechanical. `stamp_version.py` would then take a directory rather than a list.
 
-## 3. Broad exception handlers on the startup path and in the installer
+## 2. Broad exception handlers on the startup path and in the installer
 
 `app.py` has ten `except Exception` blocks with no `# noqa` and no comment, on the application's startup path. `installer/ops/` has around fifteen more across `install_ops.py`, `shortcuts.py`, `repair_ops.py` and `staging.py`, of which only two carry a `# noqa: BLE001`.
 
@@ -52,4 +44,4 @@ These look like candidates but are correct as they stand; changing them would re
 - **The two unreachable lines in `estimated_aligner.py` and `chunking_service.py`.** Both are guards that cannot fire by construction (the aligner cannot fail to tokenise a stripped non-empty string; the sentence splitter cannot emit an empty part) and both say so in a comment. Deleting the guard to gain a covered line would remove the thing that makes the assumption explicit.
 - **`tests/structural/test_loc_limits.py`'s `_BUILD_SCRIPTS` exemption set.** The clearest expression of the build-script rule anywhere in the portfolio and the reference other projects should copy.
 - **`tests/structural/test_composition_roots.py` and `test_narration_contracts.py`.** A composition-root whitelist and a contract test for the narration seam. Both are the enforcement the rest of this file wishes existed elsewhere.
-- **The separate `installer/ops` and `installer/ui` packages with their own test package.** Correct decomposition; item 3 is about the handlers inside it, not the shape.
+- **The separate `installer/ops` and `installer/ui` packages with their own test package.** Correct decomposition; item 2 is about the handlers inside it, not the shape.

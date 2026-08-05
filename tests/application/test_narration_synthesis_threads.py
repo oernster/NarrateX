@@ -73,7 +73,12 @@ class ScriptedEvent:
 
 
 class RefusingQueue:
-    """A queue that accepts nothing, so both puts in the shutdown path run."""
+    """A queue that accepts nothing, so both puts in the shutdown path run.
+
+    `put` takes the same `timeout` the real queue does. Without it the call
+    raises TypeError before the body runs, which looks like a refusal but
+    counts nothing and hides which path was taken.
+    """
 
     def __init__(self) -> None:
         self.refusals = 0
@@ -83,8 +88,8 @@ class RefusingQueue:
         self.refusals += 1
         raise Boom("put_nowait")
 
-    def put(self, item: object) -> None:
-        del item
+    def put(self, item: object, timeout: float | None = None) -> None:
+        del item, timeout
         self.refusals += 1
         raise Boom("put")
 
@@ -191,6 +196,25 @@ class TestSequential:
         assert refusing.refusals == 2
         assert stream.synth_errors == []
 
+    def test_a_queue_that_will_not_take_a_chunk_ends_the_worker(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The worker stops rather than waiting on a queue nobody is draining.
+        # This is the leak: a blocking put on a full queue never reaches the
+        # stop check between chunks, so the worker outlived its whole run.
+        refusing = RefusingQueue()
+        monkeypatch.setattr(sequential_module, "queue", QueueModule(refusing))
+        engine = FakeEngine()
+        service = _service()
+
+        stream = self._start(
+            service, candidates=_candidates("One. ", "Two. "), engine=engine
+        )
+        _drain(stream)
+
+        assert [call["text"] for call in engine.synthesized] == ["One. "]
+        assert stream.synth_errors == []
+
 
 class TestParallelKokoro:
     def _start(self, service, *, candidates, engine, workers=1):
@@ -265,4 +289,22 @@ class TestParallelKokoro:
         _drain(stream)
 
         assert refusing.refusals == 2
+        assert stream.synth_errors == []
+
+    def test_a_queue_that_will_not_take_a_chunk_ends_the_publisher(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The publisher is the thread that reorders worker results onto the
+        # playback queue, so it is the one that used to wedge on a full queue.
+        refusing = RefusingQueue()
+        monkeypatch.setattr(parallel_module, "queue", QueueModule(refusing))
+        service = _service()
+
+        stream = self._start(
+            service, candidates=_candidates("One. "), engine=FakeEngine()
+        )
+        _drain(stream)
+
+        # One refused chunk, then the two the end marker costs.
+        assert refusing.refusals == 3
         assert stream.synth_errors == []
