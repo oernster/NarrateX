@@ -6,15 +6,14 @@ Run from the repository root with the venv active:
     python builddmg.py
 
 Optional env vars:
-    DEVELOPER_ID_APPLICATION  — override the default signing identity
-    APPLE_ID                  — Apple ID for notarization (skipped if not set)
-    APPLE_APP_PASSWORD        — app-specific password for notarization
-    APPLE_TEAM_ID             — Team ID for notarization (defaults to W7K465GKFJ)
+    DEVELOPER_ID_APPLICATION  : override the default signing identity
+    APPLE_ID                  : Apple ID for notarization (skipped if not set)
+    APPLE_APP_PASSWORD        : app-specific password for notarization
+    APPLE_TEAM_ID             : Team ID for notarization (defaults to W7K465GKFJ)
 """
 
 from __future__ import annotations
 
-import importlib.util
 import os
 import shutil
 import struct
@@ -24,20 +23,23 @@ import sys
 import tempfile
 from pathlib import Path
 
+VERSION_FILE = Path(__file__).resolve().parent / "VERSION"
+VERSION_FALLBACK = "0.0.0-dev"
 
-def _read_version() -> str:
-    spec = importlib.util.spec_from_file_location(
-        "version", Path(__file__).parent / "voice_reader" / "version.py"
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod.__version__
+
+def read_version() -> str:
+    """Read the repo-root VERSION file, the single source of truth."""
+    try:
+        text = VERSION_FILE.read_text(encoding="utf-8")
+    except OSError:
+        return VERSION_FALLBACK
+    return text.strip() or VERSION_FALLBACK
 
 
 # ── Constants ──────────────────────────────────────────────────────────────────
 
 APP_NAME = "NarrateX"
-APP_VERSION = _read_version()
+APP_VERSION = read_version()
 BUNDLE_ID = "uk.codecrafter.NarrateX"
 FINAL_DMG = "narratex.dmg"
 VOLUME_NAME = f"Install {APP_NAME}"
@@ -81,7 +83,7 @@ def require(tool: str, brew_pkg: str | None = None) -> None:
     if shutil.which(tool):
         return
     pkg = brew_pkg or tool
-    print(f"{tool} not found — installing via brew...")
+    print(f"{tool} not found, installing via brew...")
     run(["brew", "install", pkg])
     if not shutil.which(tool):
         sys.exit(f"ERROR: {tool} still not found after brew install. Aborting.")
@@ -135,6 +137,10 @@ def build_app_bundle(entitlements_path: Path, icns_path: Path | None = None) -> 
     icon_args = ["--icon", str(icns_path)] if icns_path else []
 
     add_data = [
+        # The single source of truth for the version. `voice_reader/version.py`
+        # reads it from beside the package, so it has to travel with the bundle
+        # or the frozen app reports the 0.0.0-dev fallback.
+        f"{root / 'VERSION'}:.",
         f"{root / 'LICENSE'}:.",
         f"{root / 'LGPL3-LICENSE'}:.",
         f"{root / 'narratex.png'}:.",
@@ -272,7 +278,7 @@ def _fill_png_background(path: Path, bg: tuple[int, int, int]) -> None:
         if ctype == b"IHDR":
             width, height = struct.unpack(">II", cdata[0:8])
             if cdata[8] != 8 or cdata[9] != 6:
-                return  # not 8-bit RGBA — leave as-is
+                return  # not 8-bit RGBA, leave as-is
         elif ctype == b"IDAT":
             idat_chunks.append(cdata)
         pos += 12 + n
@@ -522,7 +528,7 @@ def verify_dmg() -> None:
     section("Verify DMG")
     run(["codesign", "--verify", FINAL_DMG])
     size_mb = os.path.getsize(FINAL_DMG) / (1024 * 1024)
-    print(f"  {FINAL_DMG}  ({size_mb:.1f} MB)  — ready for distribution")
+    print(f"  {FINAL_DMG}  ({size_mb:.1f} MB): ready for distribution")
 
 
 def apply_file_icon(png_path: Path) -> None:
@@ -552,7 +558,7 @@ def main() -> int:
         png_path = Path(__file__).parent / "narratex.png"
         icns_path = png_to_icns(png_path, Path(icon_tmp)) if png_path.exists() else None
         if not icns_path:
-            print(f"  WARNING: {png_path} not found — building without custom icon.")
+            print(f"  WARNING: {png_path} not found, building without custom icon.")
 
         try:
             app_path = build_app_bundle(entitlements_path, icns_path)

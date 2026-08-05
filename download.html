@@ -57,7 +57,10 @@
         <p>One codebase, native packages on Windows, macOS and Linux. Pick your platform and you
             have the newest release. Free and open source (GPL-3.0, with the UI layer under
             LGPL-3.0) with no account; everything runs locally, the same way on each.</p>
-        <span class="dl-version" id="dl-version">Latest release</span>
+        <!-- The version between the delimiters is written by stamp_version.py from the
+             repo-root VERSION file; the script runs at the start of every packaged build.
+             The decorator below replaces it with the live release tag when GitHub answers. -->
+        <span class="dl-version" id="dl-version">Version <!--VERSION-->4.1.0<!--/VERSION--></span>
 
         <div class="downloads">
             <div class="dl-card">
@@ -119,7 +122,7 @@
             </div>
             <div class="faq-item">
                 <h3>Which file formats can NarrateX read?</h3>
-                <p>EPUB, PDF and plain text natively, plus Kindle formats such as MOBI, AZW and AZW3 via optional Calibre conversion to EPUB.</p>
+                <p>EPUB, PDF, plain text and Markdown natively, plus Kindle formats such as MOBI, AZW and AZW3 via optional Calibre conversion to EPUB.</p>
             </div>
             <div class="faq-item">
                 <h3>Which platforms does NarrateX run on?</h3>
@@ -163,7 +166,7 @@
         {
             "@type": "Question",
             "name": "Which file formats can NarrateX read?",
-            "acceptedAnswer": { "@type": "Answer", "text": "EPUB, PDF and plain text natively, plus Kindle formats such as MOBI, AZW and AZW3 via optional Calibre conversion to EPUB." }
+            "acceptedAnswer": { "@type": "Answer", "text": "EPUB, PDF, plain text and Markdown natively, plus Kindle formats such as MOBI, AZW and AZW3 via optional Calibre conversion to EPUB." }
         },
         {
             "@type": "Question",
@@ -177,9 +180,9 @@
 <script>
     // The download buttons never go stale: each points at GitHub's releases/latest/download
     // redirect, which always serves the newest release's asset (the asset names are version-free
-    // by design). This script only decorates the page with live details: the version chip, the
-    // release date and each installer's size, fetched from the GitHub API. If the call fails
-    // (offline, rate-limited), the static text above stands on its own.
+    // by design). This script only decorates the page with live details: the version chip and
+    // each installer's size, fetched from the GitHub API. If the call fails (offline,
+    // rate-limited), the stamped version and the static text above stand on their own.
     (function () {
         var api = 'https://api.github.com/repos/oernster/NarrateX/releases/latest';
         fetch(api).then(function (r) {

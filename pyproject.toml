@@ -21,7 +21,10 @@ requires-python = ">=3.10,<3.13"
 packages = ["voice_reader"]
 
 [tool.setuptools.dynamic]
-version = { attr = "voice_reader.version.__version__" }
+# `VERSION` at the repo root is the single source of truth. `voice_reader/
+# version.py` reads the same file at import time and the site pages carry
+# tokens stamped from it by `stamp_version.py`, so the number is written once.
+version = { file = "VERSION" }
 
 [tool.black]
 line-length = 88

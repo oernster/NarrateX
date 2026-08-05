@@ -3,7 +3,7 @@
 Developer setup, run-from-source, test and packaging instructions for NarrateX.
 For the project overview and features, see [README.md](README.md).
 For a codebase overview (layers, runtime flow and test mapping), see
-[`ARCHITECTURE.md`](ARCHITECTURE.md:1).
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Requirements
 
@@ -77,12 +77,31 @@ python app.py
   set `NARRATEX_ALLOW_MULTIINSTANCE=1`.
 - Window position: the main window is centered on the primary screen automatically at launch.
 
+## Version
+
+`VERSION` at the repository root is the single source of truth and the only place a version string
+is written by hand.
+
+- `voice_reader/version.py` reads it at import time (fallback `0.0.0-dev`), so the About dialog, the
+  installer header and the Apps-list DisplayVersion all follow it
+- `pyproject.toml` declares `version = { file = "VERSION" }`
+- every packager ships `VERSION` beside the package, so a frozen build reports the same number as
+  the source tree
+- the site pages carry delimited tokens refreshed by `stamp_version.py`, which
+  [`buildexe.py`](buildexe.py) and [`buildinstaller.py`](buildinstaller.py) call before packaging
+
+To release a new version, edit `VERSION` and nothing else. Run `python stamp_version.py` if you
+want the site updated before a build; it is idempotent and prints what it touched.
+
 ## Tests / Coverage
 
 This repo enforces **100% test coverage** for the configured runtime scope.
 
 - Canonical command: `pytest`
-- Coverage config: [`.coveragerc`](.coveragerc:1) and [`pyproject.toml`](pyproject.toml:1)
+- Coverage config: [`.coveragerc`](.coveragerc) and [`pyproject.toml`](pyproject.toml)
+
+The gate prints the coverage table last and emits no "N passed" line, so read the exit code rather
+than the text: `0` means every test passed and the gate was met.
 
 Fast local iteration without coverage:
 
@@ -123,8 +142,8 @@ zip of the app bundle.
 
 Build workflow:
 
-1) Build the app bundle (EXE + `_internal/`): [`buildexe.py`](buildexe.py:1)
-2) Build the installer (`NarrateXSetup.exe`): [`buildinstaller.py`](buildinstaller.py:1)
+1) Build the app bundle (EXE + `_internal/`): [`buildexe.py`](buildexe.py)
+2) Build the installer (`NarrateXSetup.exe`): [`buildinstaller.py`](buildinstaller.py)
 
 ### Build installer (PowerShell)
 
@@ -145,7 +164,7 @@ Output:
 
 ### Troubleshooting
 
-- If the EXE opens then immediately exits, check the crash logs written by [`app.main()`](app.py:55) near the executable.
+- If the EXE opens then immediately exits, check the crash logs written by [`app.main()`](app.py) near the executable.
 
 #### Windows taskbar icon shows the Python icon
 
@@ -155,8 +174,8 @@ the running process with the packaged EXE identity.
 
 NarrateX enforces a stable identity early in startup by setting:
 
-- Windows AppUserModelID: [`APP_APPUSERMODELID`](voice_reader/version.py:17)
-- Qt desktop identity: `QApplication.setDesktopFileName(APP_APPUSERMODELID)` in [`app.main()`](app.py:52)
+- Windows AppUserModelID: [`APP_APPUSERMODELID`](voice_reader/version.py)
+- Qt desktop identity: `QApplication.setDesktopFileName(APP_APPUSERMODELID)` in [`app.main()`](app.py)
 
 After rebuilding the EXE once, you may need to refresh the Windows icon cache:
 
@@ -177,7 +196,7 @@ Two build paths are provided for Linux:
   wheels, so the startup Python-window guard detects the sandbox (via
   `/.flatpak-info`) and stands down there. To uninstall and purge the Flatpak,
   use [`cleanup_flatpak.sh`](cleanup_flatpak.sh).
-- Native onedir bundle (PyInstaller): build with [`buildlinux.py`](buildlinux.py:1),
+- Native onedir bundle (PyInstaller): build with [`buildlinux.py`](buildlinux.py),
   producing `dist-pyinstaller/NarrateX/`.
 
 Running from source on Linux is covered in

@@ -58,18 +58,22 @@ sudo apt install python3.12 python3.12-venv python3.12-dev
 
 ## Install and run
 
+Linux has its own pinned dependency set, `requirements-linux.txt`. Do not use `requirements.txt`
+here: that one is pinned for Windows.
+
 ```bash
 python3.12 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements-linux.txt
 python app.py
 ```
 
 ## Flatpak
 
 A Flatpak build is available for sandboxed installation without manual dependency management.
-Build and install it with [`build_flatpak.sh`](build_flatpak.sh); the generated manifest is
-[`com.oliverernster.narratex.yml`](com.oliverernster.narratex.yml).
+Build and install it with [`build_flatpak.sh`](build_flatpak.sh). The script generates the manifest
+(`com.oliverernster.narratex.yml`), the launcher, the desktop entry and the metainfo file at build
+time, so none of them are tracked; only the script is.
 
 The Flatpak is self-contained: it bundles the PortAudio audio backend, the spaCy
 `en_core_web_sm` model and an espeak-ng phonemizer, so none of the system

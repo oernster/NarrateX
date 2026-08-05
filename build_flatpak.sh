@@ -6,7 +6,7 @@
 # installed inside the flatpak sandbox from local wheels.
 #
 # Usage:
-#   ./build_flatpak.sh            - build, install locally, and write
+#   ./build_flatpak.sh            - build, install locally and write
 #                                   narratex.flatpak to the repo base dir
 #   ./build_flatpak.sh --bundle   - accepted for backwards compatibility;
 #                                   the bundle is now always produced
@@ -17,7 +17,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/venv/bin/activate"
 
 APP_ID="com.oliverernster.narratex"
-APP_VERSION=$(python3 -c "exec(open('voice_reader/version.py').read()); print(__version__)")
+# VERSION at the repo root is the single source of truth. Read it directly
+# rather than through voice_reader/version.py, which is a module and not a
+# script; the module reads the same file.
+APP_VERSION=$(tr -d '[:space:]' < "${SCRIPT_DIR}/VERSION")
 # Absolute so the bundle always lands in the repo base dir, whatever the cwd.
 BUNDLE="${SCRIPT_DIR}/narratex.flatpak"
 BUILD_DIR=".flatpak-build"
@@ -32,7 +35,7 @@ RUNTIME_VERSION="25.08"
 # Not on PyPI: published as a GitHub release wheel, versioned to spaCy's
 # major.minor.  Must stay in sync with the spacy pin in requirements-flatpak.txt.
 # Without it, misaki calls spacy.cli.download() at first synthesis, which shells
-# out to uv pip install, fails in the read-only sandbox, and sys.exit(2) silently
+# out to uv pip install, fails in the read-only sandbox and sys.exit(2) silently
 # kills the narration thread (no audio, no visible error).
 SPACY_MODEL="en_core_web_sm"
 SPACY_MODEL_VERSION="3.8.0"
@@ -332,6 +335,9 @@ modules:
       - mkdir -p /app/share/narratex
       - cp -r app.py voice_reader voices /app/share/narratex/
       - cp LICENSE LGPL3-LICENSE /app/share/narratex/
+      # VERSION is the single source of truth; voice_reader/version.py reads it
+      # from beside the package, so it has to be staged with the source.
+      - cp VERSION /app/share/narratex/
       - install -m644 narratex_16.png narratex_24.png narratex_32.png
           narratex_48.png narratex_64.png narratex_128.png
           narratex_256.png narratex_512.png /app/share/narratex/

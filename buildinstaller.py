@@ -61,6 +61,13 @@ def _replace_file(src: Path, dst: Path) -> None:
 def main() -> int:
     _require_windows()
 
+    # Refresh the stamped version tokens on the site pages before packaging, so
+    # a release can never ship with a site that disagrees with VERSION. This is
+    # a build rule rather than a step somebody has to remember.
+    import stamp_version
+
+    stamp_version.main()
+
     # 1) Build payload zip + manifest.
     _run([sys.executable, "-m", "installer.build_payload"])
 
@@ -90,6 +97,10 @@ def main() -> int:
     add_data = [
         f"{payload_zip};installer/payload",
         f"{manifest_json};installer/payload",
+        # The single source of truth for the version. The installer header and
+        # the Apps-list DisplayVersion both come from it via
+        # `voice_reader/version.py`, which reads it from beside the package.
+        f"{PROJECT_ROOT / 'VERSION'};.",
         # Licences (shown in installer UI and shipped for runtime UI dialogs).
         f"{PROJECT_ROOT / 'LICENSE'};.",
         f"{PROJECT_ROOT / 'LGPL3-LICENSE'};.",

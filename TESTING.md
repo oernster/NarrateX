@@ -3,8 +3,8 @@
 This repo is intentionally test-first and gate-driven:
 
 - `black` + `flake8` + `ruff` keep formatting/lint consistent.
-- `pytest` runs with a strict **100% coverage** gate by default (see pytest `addopts` in [`pyproject.toml`](pyproject.toml:1)).
-- Structural constraints are enforced by `tests/structural/*` (see [`ARCHITECTURE_CONSTRAINTS.md`](ARCHITECTURE_CONSTRAINTS.md:1)).
+- `pytest` runs with a strict **100% coverage** gate by default (see pytest `addopts` in [`pyproject.toml`](pyproject.toml)).
+- Structural constraints are enforced by `tests/structural/*` (see [`ARCHITECTURE_CONSTRAINTS.md`](ARCHITECTURE_CONSTRAINTS.md)).
 
 ## Quick commands
 
@@ -45,7 +45,7 @@ Some UI regressions only reproduce under Windows display scaling / accessibility
 text sizing / mixed-DPI multi-monitor setups.
 
 When validating a UI sizing/layout fix (especially the installer header in
-[`InstallerMainWindow`](installer/ui/main_window.py:42)), test at least:
+[`InstallerMainWindow`](installer/ui/main_window.py)), test at least:
 
 - Display scale: 100%, 125%, 150% (Windows Settings → System → Display)
 - Accessibility → Text size: 100%, 110%+
@@ -60,12 +60,16 @@ python -m pytest -q --no-cov tests/structural
 
 ## Coverage exclusions
 
-Some modules are excluded from the 100% coverage gate because they depend on hardware or a full TTS runtime that is unavailable in the standard dev/CI environment. These are listed in [`.coveragerc`](.coveragerc:1) under `[run] omit`:
+Some modules are excluded from the 100% coverage gate because they depend on hardware, on threads or on a full TTS runtime that is unavailable in the standard dev environment. These are listed in [`.coveragerc`](.coveragerc) under `[run] omit`:
 
 - `voice_reader/infrastructure/tts/kokoro_engine.py` - Kokoro TTS runtime (requires soundfile + torch)
 - `voice_reader/infrastructure/tts/tts_engine_factory.py` - engine factory (same dependency)
-- Various narration/audio/bookmarks/preferences modules (threading + hardware I/O)
+- Narration orchestration (`application/services/narration/*` and `narration_service.py`): background threads, an audio device and an external engine
+- Structural bookmarks (`application/services/structural_bookmarks/*` and `structural_bookmark_service.py`): heuristic and regex driven, exercised through higher-level service tests
+- Audio, bookmark and preference adapters (threading plus hardware or filesystem I/O)
 - Qt-threaded UI dialogs (e.g. the first-run model download dialog) that drive a background worker and an event loop
+
+The pure-domain layer carries no exclusions. `chunking_service.py`, `estimated_aligner.py` and `sanitized_text_mapper.py` were previously omitted and are now inside the gate: there is no hardware, thread or event loop in the domain, so the fragility argument that justifies the list above never applied to them. Two lines in that set remain unreachable by construction and say so in a comment rather than being covered by a contrived test.
 
 Matching test files that must be excluded from the pytest run (they will raise `collection errors` without the soundfile runtime):
 
@@ -80,7 +84,7 @@ python -m pytest --ignore=tests/infrastructure/test_filesystem_cache.py \
 ## Test suite architecture
 
 The test tree deliberately mirrors the four-layer clean architecture of the
-production code (see [`ARCHITECTURE.md`](ARCHITECTURE.md:1)). Each directory under
+production code (see [`ARCHITECTURE.md`](ARCHITECTURE.md)). Each directory under
 `tests/` maps to a production concern and the isolation rules for each layer
 match the dependency direction the layers themselves obey:
 
@@ -89,13 +93,13 @@ match the dependency direction the layers themselves obey:
 | `tests/domain/` | `voice_reader.domain` | Pure business logic. Tests are pure and must not perform IO or import framework code. |
 | `tests/application/` | `voice_reader.application` | Orchestration/services. Tests target the controller/service boundary; Infrastructure is stubbed. |
 | `tests/infrastructure/` | `voice_reader.infrastructure` | Adapters implementing domain ports. External processes and heavy imports are stubbed. Sub-suites: `infrastructure/audio/`, `infrastructure/tts/`. |
-| `tests/ui/` | `voice_reader.ui` | PySide UI. Tests assert controller behavior and signals, not brittle widget trees. Run under an offscreen Qt platform (see the `qapp` fixture in [`tests/conftest.py`](tests/conftest.py:1)). |
+| `tests/ui/` | `voice_reader.ui` | PySide UI. Tests assert controller behavior and signals, not brittle widget trees. Run under an offscreen Qt platform (see the `qapp` fixture in [`tests/conftest.py`](tests/conftest.py)). |
 | `tests/shared/` | `voice_reader.shared` | Lowest-level helpers (logging/config/paths/runtime). |
 | `tests/installer/` | `installer/` | Installer entrypoint and installer UI. |
-| `tests/` (top level) | `app.py`, `voice_reader/bootstrap.py`, `voice_reader/book_load_worker.py` | Composition-root / entrypoint and process-boot behavior (app identity, icon fallback, preflight, book-load worker). |
+| `tests/` (top level) | `app.py`, `voice_reader/bootstrap.py`, `voice_reader/book_load_worker.py`, `voice_reader/version.py` | Composition-root / entrypoint and process-boot behavior (app identity, icon fallback, preflight, book-load worker) plus the version single-source check. |
 | `tests/structural/` | the codebase as a whole | AST/structural guards, not behavior. See below. |
 
-Shared fixtures live in [`tests/conftest.py`](tests/conftest.py:1) - notably a
+Shared fixtures live in [`tests/conftest.py`](tests/conftest.py) - notably a
 session-scoped offscreen `qapp` and an autouse per-test Qt-window cleanup, so UI
 tests never leak windows or an event loop between cases.
 
@@ -103,12 +107,15 @@ tests never leak windows or an event loop between cases.
 
 These enforce the architecture itself rather than any single behavior. They are
 intended to be fast and fail-first and are documented in full in
-[`ARCHITECTURE_CONSTRAINTS.md`](ARCHITECTURE_CONSTRAINTS.md:1):
+[`ARCHITECTURE_CONSTRAINTS.md`](ARCHITECTURE_CONSTRAINTS.md):
 
-- [`test_layering_rules.py`](tests/structural/test_layering_rules.py:1) - dependency direction between the layers (e.g. UI must not import Infrastructure; Domain imports nothing else).
-- [`test_composition_roots.py`](tests/structural/test_composition_roots.py:1) - only whitelisted composition roots may import both Application and Infrastructure.
-- [`test_loc_limits.py`](tests/structural/test_loc_limits.py:1) - the 400-line module-size guardrail (build/packaging scripts exempt).
-- [`test_narration_contracts.py`](tests/structural/test_narration_contracts.py:1) - narration is always built from a document model (no ad-hoc chunk construction).
+- [`test_layering_rules.py`](tests/structural/test_layering_rules.py) - dependency direction between the layers (e.g. UI must not import Infrastructure; Domain imports nothing else).
+- [`test_composition_roots.py`](tests/structural/test_composition_roots.py) - only whitelisted composition roots may import both Application and Infrastructure.
+- [`test_loc_limits.py`](tests/structural/test_loc_limits.py) - the 400-line module-size guardrail (build/packaging scripts exempt).
+- [`test_narration_contracts.py`](tests/structural/test_narration_contracts.py) - narration is always built from a document model (no ad-hoc chunk construction).
+
+The version single-source rule is checked outside `tests/structural/` because it is a file-contents
+assertion rather than an AST scan: see [`tests/test_version_source.py`](tests/test_version_source.py).
 
 Because they may not import runtime modules, run them in isolation with
 `--no-cov` to avoid a spurious "no data collected" coverage failure:
@@ -125,8 +132,8 @@ When changing internals (especially around narration orchestration and UI-contro
 
 Examples of “behavior locks”:
 
-- Narration orchestration: [`tests/application/test_narration_service.py`](tests/application/test_narration_service.py:1)
-- UI semantics (non-brittle): [`tests/ui/test_ui_controller_play_pause_semantics.py`](tests/ui/test_ui_controller_play_pause_semantics.py:1)
+- Narration orchestration: [`tests/application/test_narration_service.py`](tests/application/test_narration_service.py)
+- UI semantics (non-brittle): [`tests/ui/test_ui_controller_play_pause_semantics.py`](tests/ui/test_ui_controller_play_pause_semantics.py)
 
 Rule of thumb:
 

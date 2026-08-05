@@ -14,7 +14,7 @@ The primary package is `voice_reader`, which is organized into layers:
 - `voice_reader.infrastructure`: adapters that implement domain ports; may depend on Domain (+ Shared).
 - `voice_reader.ui`: PySide UI; may depend on Application (+ Domain + Shared) but must not depend on Infrastructure.
 
-Enforced by [`test_layering_rules_for_voice_reader_are_respected()`](tests/structural/test_layering_rules.py:111).
+Enforced by [`test_layering_rules_for_voice_reader_are_respected()`](tests/structural/test_layering_rules.py).
 
 ## 2) Composition roots (wiring policy)
 
@@ -25,16 +25,16 @@ In practice, composition roots are the only places allowed to import both:
 - `voice_reader.application` **and**
 - `voice_reader.infrastructure`
 
-Enforced by [`test_only_composition_roots_may_import_both_application_and_infrastructure()`](tests/structural/test_composition_roots.py:93).
+Enforced by [`test_only_composition_roots_may_import_both_application_and_infrastructure()`](tests/structural/test_composition_roots.py).
 
 Current whitelist:
 
-- [`app.py`](app.py:1) (primary runtime entrypoint)
-- [`installer/app.py`](installer/app.py:1) (installer entrypoint)
-- [`voice_reader/bootstrap.py`](voice_reader/bootstrap.py:1) (composition-root helper)
-- [`voice_reader/book_load_worker.py`](voice_reader/book_load_worker.py:1) (the book-load child process's own composition root: it wires the parser, converter and cover extraction together with the chunk and chapter services inside the child)
+- [`app.py`](app.py) (primary runtime entrypoint)
+- [`installer/app.py`](installer/app.py) (installer entrypoint)
+- [`voice_reader/bootstrap.py`](voice_reader/bootstrap.py) (composition-root helper)
+- [`voice_reader/book_load_worker.py`](voice_reader/book_load_worker.py) (the book-load child process's own composition root: it wires the parser, converter and cover extraction together with the chunk and chapter services inside the child)
 
-Related: the packagers (`buildexe.py`, `buildlinux.py`, `builddmg.py`) are whitelisted importers of `voice_reader.bootstrap` because they derive their PyInstaller hidden-import lists from [`wiring_module_names()`](voice_reader/bootstrap.py:1) instead of mirroring the wiring table by hand; a mirrored list silently drifts and the frozen app then dies at startup with ModuleNotFoundError while the dev run works.
+Related: the packagers (`buildexe.py`, `buildlinux.py`, `builddmg.py`) are whitelisted importers of `voice_reader.bootstrap` because they derive their PyInstaller hidden-import lists from [`wiring_module_names()`](voice_reader/bootstrap.py) instead of mirroring the wiring table by hand; a mirrored list silently drifts and the frozen app then dies at startup with ModuleNotFoundError while the dev run works.
 
 ## 3) Module size guardrail
 
@@ -42,7 +42,7 @@ All in-scope `*.py` files must remain at most **400 physical lines**.
 
 **Exempt: build and packaging scripts.** `buildexe.py`, `buildinstaller.py`, `builddmg.py`, `dmg_icon.py`, `build_utils.py`, `generate_icons.py`, `generate_scripts.py`, `stamp_version.py` and `installer/build_payload.py` are allowed to be large. They are linear recipes read top to bottom and splitting a sequence of flags and steps across modules costs more than it buys. The app package, the installer UI and the tests stay fully in scope.
 
-Enforced by [`test_all_in_scope_python_files_are_at_most_400_lines()`](tests/structural/test_loc_limits.py:61).
+Enforced by [`test_all_in_scope_python_files_are_at_most_400_lines()`](tests/structural/test_loc_limits.py).
 
 This is a pragmatic guardrail to encourage extracting cohesive submodules and avoiding "god" modules.
 
@@ -54,9 +54,39 @@ Trimming one or two lines to sit just under 400 buys nothing: the next edit brea
 
 This applies to the file being edited and to any file the change pushes into that band and it applies to test files exactly as it does to source.
 
+## 4) Narration is always built from a document model
+
+Narration chunks come from the document model and from nowhere else. No caller may assemble chunks
+ad hoc, because the model is the single answer to what a book contains and where; a second
+construction path would be a second answer.
+
+Enforced by [`test_every_build_chunks_call_supplies_a_document()`](tests/structural/test_narration_contracts.py).
+
+## 5) One version string, in one file
+
+[`VERSION`](VERSION) at the repository root is the single source of truth. Nothing else holds a
+version literal:
+
+- [`voice_reader/version.py`](voice_reader/version.py) reads it at import time, falling back to the
+  obvious `0.0.0-dev` sentinel when the file is absent
+- [`pyproject.toml`](pyproject.toml) declares `version = { file = "VERSION" }`
+- the packagers ([`buildexe.py`](buildexe.py), [`buildinstaller.py`](buildinstaller.py),
+  [`buildlinux.py`](buildlinux.py), [`builddmg.py`](builddmg.py),
+  [`build_flatpak.sh`](build_flatpak.sh)) ship `VERSION` beside the package and read it through a
+  `read_version()` helper carrying the same sentinel
+- the published site pages, which cannot read a file at render time, carry delimited tokens
+  refreshed from `VERSION` by [`stamp_version.py`](stamp_version.py). `buildexe.py` and
+  `buildinstaller.py` call it before packaging, so the sweep is a build rule rather than a
+  remembered step.
+
+No tracked markdown file carries a version at all. `stamp_version.py` is deliberately scoped to
+the site pages so none can acquire one by accident.
+
+Enforced by [`tests/test_version_source.py`](tests/test_version_source.py).
+
 ## Running the structural tests
 
-The repo is configured to run pytest with a strict coverage gate by default (see pytest `addopts` in [`pyproject.toml`](pyproject.toml:1)).
+The repo is configured to run pytest with a strict coverage gate by default (see pytest `addopts` in [`pyproject.toml`](pyproject.toml)).
 
 When you run only `tests/structural`, those tests may not import runtime modules, which can cause coverage to report "no data" and fail the gate.
 

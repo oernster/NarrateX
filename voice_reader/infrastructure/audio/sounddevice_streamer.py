@@ -83,8 +83,8 @@ class SoundDeviceAudioStreamer:
         if sys.platform == "darwin":
             # On macOS, PortAudio's push-based OutputStream causes buffer
             # underruns with Core Audio (sample-rate conversion + channel
-            # upmixing compound the issue).  Use afplay — macOS's built-in
-            # Core Audio player — which is glitch-free on all Mac hardware.
+            # upmixing compound the issue).  Use afplay (macOS's built-in
+            # Core Audio player), which is glitch-free on all Mac hardware.
             mac = threading.Thread(
                 target=self._afplay,
                 args=(

@@ -114,6 +114,13 @@ def _run(cmd: list[str]) -> None:
 def main() -> int:
     _require_windows()
 
+    # Refresh the stamped version tokens on the site pages before packaging, so
+    # a release can never ship with a site that disagrees with VERSION. This is
+    # a build rule rather than a step somebody has to remember.
+    import stamp_version
+
+    stamp_version.main()
+
     if not ENTRYPOINT.exists():
         raise SystemExit(f"Entrypoint not found: {ENTRYPOINT}")
     if not ICON_ICO.exists():
@@ -167,6 +174,10 @@ def main() -> int:
     # Note: `--icon` only affects the *embedded* exe icon (Explorer/Start Menu).
     # The running taskbar button typically uses the Qt window icon.
     add_data = [
+        # The single source of truth for the version. `voice_reader/version.py`
+        # reads it from beside the package, so it has to travel with the bundle
+        # or the frozen app reports the 0.0.0-dev fallback.
+        f"{PROJECT_ROOT / 'VERSION'};.",
         # Licences (shown in-app via top-right licence buttons).
         f"{PROJECT_ROOT / 'LICENSE'};.",
         f"{PROJECT_ROOT / 'LGPL3-LICENSE'};.",
@@ -253,7 +264,7 @@ def main() -> int:
         "--exclude-module=torch.distributed._shard.checkpoint",
         # Keep RPC available; include explicitly to make packaging intent clear.
         "--hidden-import=torch.distributed.rpc",
-        # scipy is not a dependency of NarrateX, but some packages include
+        # scipy is not a dependency of NarrateX; some packages include
         # optional scipy integrations. Exclude it explicitly to avoid PyInstaller
         # attempting to run hook-scipy.py in environments without scipy.
         "--exclude-module=scipy",

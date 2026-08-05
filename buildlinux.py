@@ -1,7 +1,7 @@
 """Linux PyInstaller builder for the NarrateX application.
 
 Produces a self-contained onedir bundle in dist-pyinstaller/NarrateX/.
-The bundle includes Python, Qt, and all dependencies - no system Python needed.
+The bundle includes Python, Qt and all dependencies; no system Python is needed.
 
 Usage:
     source venv/bin/activate
@@ -126,6 +126,10 @@ def main() -> int:
 
     # Linux uses ':' as the path separator in --add-data (Windows uses ';')
     add_data = [
+        # The single source of truth for the version. `voice_reader/version.py`
+        # reads it from beside the package, so it has to travel with the bundle
+        # or the frozen app reports the 0.0.0-dev fallback.
+        f"{PROJECT_ROOT / 'VERSION'}:.",
         f"{PROJECT_ROOT / 'LICENSE'}:.",
         f"{PROJECT_ROOT / 'LGPL3-LICENSE'}:.",
         f"{PROJECT_ROOT / 'narratex.png'}:.",
