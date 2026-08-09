@@ -76,6 +76,9 @@ python app.py
 - Single-instance: enabled by default. To allow multiple instances (dev/testing),
   set `NARRATEX_ALLOW_MULTIINSTANCE=1`.
 - Window position: the main window is centered on the primary screen automatically at launch.
+- Update check: shortly after launch, then daily, the app asks GitHub's releases API whether a
+  newer version has been published; a failed check is silent. The About dialog's Check for updates
+  button runs the same check on demand.
 
 ## Version
 

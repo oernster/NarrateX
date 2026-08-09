@@ -48,3 +48,21 @@ def build_runtime_icon() -> QIcon:
         if candidate.exists():
             icon.addFile(str(candidate), QSize(size, size))
     return icon
+
+
+def apply_app_identity(app, icon) -> None:
+    """Best-effort application naming and icon on the QApplication.
+
+    Every set is guarded with hasattr because some tests replace QApplication
+    with a minimal fake carrying only a subset of the surface.
+    """
+    from voice_reader.version import APP_NAME
+
+    if hasattr(app, "setApplicationName"):
+        app.setApplicationName(APP_NAME)
+    if hasattr(app, "setApplicationDisplayName"):
+        app.setApplicationDisplayName(APP_NAME)
+    if hasattr(app, "setDesktopFileName"):
+        app.setDesktopFileName(APP_APPUSERMODELID)
+    if not icon.isNull() and hasattr(app, "setWindowIcon"):
+        app.setWindowIcon(icon)

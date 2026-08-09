@@ -185,8 +185,11 @@ class MainWindow(QMainWindow):
         self.btn_next_chapter.setEnabled(bool(next_))
 
     def show_about_dialog(self) -> None:
-        # Non-blocking.
-        build_about_dialog(parent=self).open()
+        # Non-blocking. The update controller is attached by the composition
+        # root; without it the About dialog simply carries no check button.
+        controller = getattr(self, "update_controller", None)
+        on_check = controller.check_manually if controller is not None else None
+        build_about_dialog(parent=self, on_check_updates=on_check).open()
 
     def build_about_dialog(self) -> QMessageBox:
         """Backwards-compatible wrapper for older callers/tests."""

@@ -66,3 +66,12 @@ class JSONPreferencesRepository(PreferencesRepository):
         if "last_book_path" in data:
             del data["last_book_path"]
             self._save_raw(data)
+
+    def load_skipped_update_version(self) -> str | None:
+        raw = self._load_raw().get("skipped_update_version")
+        return raw if isinstance(raw, str) and raw else None
+
+    def save_skipped_update_version(self, version: str) -> None:
+        data = self._load_raw()
+        data["skipped_update_version"] = version
+        self._save_raw(data)

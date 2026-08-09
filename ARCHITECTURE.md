@@ -89,6 +89,8 @@ understanding the text: a contents-heavy book is not a badly parsed one.
     - [`TTSEngine`](voice_reader/domain/interfaces/tts_engine.py)
     - [`AudioStreamer`](voice_reader/domain/interfaces/audio_streamer.py)
     - [`VoiceProfileRepository`](voice_reader/domain/interfaces/voice_profile_repository.py)
+    - [`PreferencesRepository`](voice_reader/domain/interfaces/preferences_repository.py)
+    - [`ReleaseSource`](voice_reader/domain/interfaces/release_source.py)
   - Pure services:
     - [`ChunkingService`](voice_reader/domain/services/chunking_service.py) via [`ChunkingService.chunk_text()`](voice_reader/domain/services/chunking_service.py)
     - [`SpokenTextSanitizer`](voice_reader/domain/services/spoken_text_sanitizer.py) via [`SpokenTextSanitizer.sanitize()`](voice_reader/domain/services/spoken_text_sanitizer.py)
@@ -119,6 +121,20 @@ understanding the text: a contents-heavy book is not a badly parsed one.
     - Voice profiles: built-in Kokoro voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py)
   - Audio playback:
     - [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py) via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/audio_streamer.py)
+  - Update check:
+    - [`GitHubReleaseSource`](voice_reader/infrastructure/update/github_release_source.py): implements
+      the domain `ReleaseSource` with a single best-effort stdlib `urllib` GET of GitHub's
+      latest-release endpoint (published releases only, so drafts, prereleases and bare tags can
+      never prompt); the opener is injected so tests never touch the network. Beyond the one-off
+      Kokoro weight download, this is the application's only outbound network call. The application
+      [`UpdateService`](voice_reader/application/services/update_service.py) compares the running
+      version against it (honouring a skipped version, picking the platform asset by filename
+      suffix) and the ui [`UpdateCheckController`](voice_reader/ui/update_check.py) owns the
+      triggers: a launch check, a daily re-check and the About dialog's Check for updates button,
+      each run on a worker thread whose result crosses back through a queued signal. The skipped
+      release persists through [`PreferencesRepository`](voice_reader/domain/interfaces/preferences_repository.py)
+      beside the other preferences; wiring lives in
+      [`install_update_check()`](voice_reader/ui/update_check.py), called by [`main()`](app.py)
 
 - Shared:
   - Paths + defaults: [`Config`](voice_reader/shared/config.py) via [`Config.from_project_root()`](voice_reader/shared/config.py) and [`Config.ensure_directories()`](voice_reader/shared/config.py)

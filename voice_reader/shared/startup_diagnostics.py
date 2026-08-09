@@ -213,3 +213,20 @@ def ensure_stdio(
             pass
 
     return stdout, stderr
+
+
+def env_truthy(name: str, *, getenv=None) -> bool:
+    """Best-effort boolean environment flag, off unless plainly switched on.
+
+    Degrades to "flag not set" when the environment cannot be read: tests
+    replace os.getenv with stubs that can raise and an unreadable environment
+    must not stop startup for a flag that is off by default anyway.
+    """
+    import os
+
+    reader = getenv if getenv is not None else os.getenv
+    try:
+        v = reader(name, "")
+    except Exception:  # noqa: BLE001
+        return False
+    return v.strip().lower() in {"1", "true", "yes", "y", "on"}

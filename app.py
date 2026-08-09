@@ -32,11 +32,16 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-from voice_reader.ui._app_icon import build_runtime_icon, set_windows_app_identity
+from voice_reader.ui._app_icon import (
+    apply_app_identity,
+    build_runtime_icon,
+    set_windows_app_identity,
+)
 from voice_reader.shared.config import Config
 from voice_reader.shared.external_runtime import configure_packaged_runtime
 from voice_reader.shared.logging_utils import configure_logging
 from voice_reader.shared.startup_diagnostics import (
+    env_truthy,
     preflight_imports as _preflight_imports,
 )
 from voice_reader.shared.startup_io import append_startup_log, ensure_stdio
@@ -61,14 +66,9 @@ def _run_model_preflight(app) -> bool:  # noqa: ANN001
 
 
 def _env_truthy(name: str) -> bool:
-    try:
-        v = os.getenv(name, "")
-    except Exception:  # noqa: BLE001
-        # Degrades to "flag not set". Tests replace os.getenv with stubs that
-        # can raise; an unreadable environment must not stop startup for a
-        # flag that is off by default anyway.
-        return False
-    return v.strip().lower() in {"1", "true", "yes", "y", "on"}
+    # Reads through this module's os binding so tests stubbing app.os still
+    # apply; the shared helper owns the parsing and the degrade-to-off rule.
+    return env_truthy(name, getenv=lambda n, d="": os.getenv(n, d))
 
 
 def main() -> int:
@@ -121,19 +121,8 @@ def main() -> int:
 
         app = QApplication(sys.argv)
 
-        # Best-effort: some tests replace QApplication with a minimal fake.
-        if hasattr(app, "setApplicationName"):
-            app.setApplicationName(APP_NAME)
-        if hasattr(app, "setApplicationDisplayName"):
-            app.setApplicationDisplayName(APP_NAME)
-
-        if hasattr(app, "setDesktopFileName"):
-            app.setDesktopFileName(APP_APPUSERMODELID)
-
         icon = build_runtime_icon()
-
-        if not icon.isNull() and hasattr(app, "setWindowIcon"):
-            app.setWindowIcon(icon)
+        apply_app_identity(app, icon)
 
         # ----- Single instance guard -----
 
@@ -293,6 +282,16 @@ def main() -> int:
 
         if not icon.isNull() and hasattr(window, "setWindowIcon"):
             window.setWindowIcon(icon)
+
+        # The update check: a newer published GitHub release (a bare tag can
+        # never prompt) offers the platform's download; wiring lives beside
+        # the controller in voice_reader.ui.update_check.
+        _g("install_update_check")(
+            window=window,
+            preferences_repo=preferences_repo,
+            resolver=_g,
+            sys_platform=sys.platform,
+        )
 
         controller = _g("UiController")(
             window=window,

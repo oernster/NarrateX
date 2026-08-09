@@ -58,6 +58,11 @@ the neural voice, the parsing and the audio cache. Nothing you read leaves the d
   during playback
 - Click-to-seek: clicking in the reader restarts narration from the nearest chunk boundary
   (chunk-relative seeking)
+- Update notification: shortly after launch, then once a day while running, NarrateX asks GitHub's
+  public releases API whether a newer version has been published (only a formally published release
+  can prompt; the request carries nothing about you or your books). A newer release offers the
+  download for your platform, with Skip This Version remembered and Later; the About dialog's
+  Check for updates button runs the same check on demand and also reports up to date or unreachable
 
 ## Supported book formats
 
@@ -125,7 +130,9 @@ Linux needs its system audio libraries first; see [LINUX-INSTALLATION.md](LINUX-
 macOS uses `requirements-mac.txt` and a Python 3.13 virtual environment.
 
 On first run NarrateX downloads the Kokoro model weights (around 300 MB) from HuggingFace Hub.
-Every run after that is offline.
+After that the reading path is entirely offline; the one recurring network request is a daily
+check of this project's GitHub releases for a newer version, which carries nothing about you or
+your books and fails silently without a connection.
 
 ## Tests
 

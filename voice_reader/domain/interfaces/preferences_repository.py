@@ -21,3 +21,8 @@ class PreferencesRepository(Protocol):
 
     def clear_last_book_path(self) -> None:
         """Forget the last-opened book so it is not auto-loaded next run."""
+
+    def load_skipped_update_version(self) -> str | None: ...
+
+    def save_skipped_update_version(self, version: str) -> None:
+        """Remember a release the user chose to skip, so it never prompts again."""

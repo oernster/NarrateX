@@ -37,7 +37,7 @@ _CREDITS = (
 )
 
 
-def build_about_dialog(*, parent: QWidget) -> QMessageBox:
+def build_about_dialog(*, parent: QWidget, on_check_updates=None) -> QMessageBox:
     box = QMessageBox(parent)
     box.setWindowTitle(f"About {APP_NAME}")
     box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
@@ -80,6 +80,9 @@ def build_about_dialog(*, parent: QWidget) -> QMessageBox:
     )
 
     box.setStandardButtons(QMessageBox.Ok)
+    if on_check_updates is not None:
+        check = box.addButton("Check for updates", QMessageBox.ButtonRole.ActionRole)
+        check.clicked.connect(on_check_updates)
     return box
 
 

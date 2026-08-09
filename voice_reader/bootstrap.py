@@ -39,6 +39,14 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
         "voice_reader.application.services.voice_profile_service",
         "VoiceProfileService",
     ),
+    "UpdateService": (
+        "voice_reader.application.services.update_service",
+        "UpdateService",
+    ),
+    "platform_key_for": (
+        "voice_reader.application.services.update_service",
+        "platform_key_for",
+    ),
     # Domain layer
     "ChunkingService": (
         "voice_reader.domain.services.chunking_service",
@@ -52,6 +60,10 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
     "CoverExtractor": (
         "voice_reader.infrastructure.books.cover_extractor",
         "CoverExtractor",
+    ),
+    "GitHubReleaseSource": (
+        "voice_reader.infrastructure.update.github_release_source",
+        "GitHubReleaseSource",
     ),
     "SoundDeviceAudioStreamer": (
         "voice_reader.infrastructure.audio.audio_streamer",
@@ -89,6 +101,7 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
     # UI layer
     "MainWindow": ("voice_reader.ui.main_window", "MainWindow"),
     "UiController": ("voice_reader.ui.ui_controller", "UiController"),
+    "install_update_check": ("voice_reader.ui.update_check", "install_update_check"),
     # Child-process composition root (book loading off the UI process).
     "load_book_in_subprocess": (
         "voice_reader.book_load_worker",
