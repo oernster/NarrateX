@@ -10,6 +10,11 @@ Kindle-compatible content and multi-book compilations.
 NarrateX treats books as structured systems rather than raw text. Everything runs on your machine:
 the neural voice, the parsing and the audio cache. Nothing you read leaves the device.
 
+> **Commercial licences available.** NarrateX is free and open source under GPL-3.0, with its interface
+> layer under LGPL-3.0. If those terms do not suit what you are building, such as a closed-source
+> product, a commercial licence can be bought from me separately. It covers my own code; PySide6 keeps
+> its own LGPL-3.0 licence. See [commercial licensing](https://ernster.dev/commercial-licensing.html).
+
 ## Who it is for
 
 - Readers with a large ebook library and little time to sit and read it
@@ -170,6 +175,9 @@ anything, which is the same comparison the structural suite makes.
 NarrateX is free software. The application is released under the GNU General Public License v3.0
 ([LICENSE](LICENSE)) and the reusable Qt user-interface layer under the GNU Lesser General Public
 License v3.0 ([LGPL3-LICENSE](LGPL3-LICENSE)), aligning with Qt's own licensing.
+
+A commercial licence for my own code is also available, separately from the open-source licences: see
+[commercial licensing](https://ernster.dev/commercial-licensing.html).
 
 For the standing reference to what is still open, what is deliberately left and what only looks
 like debt, see [TECH_DEBT.md](TECH_DEBT.md).
