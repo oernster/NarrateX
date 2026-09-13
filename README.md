@@ -170,6 +170,14 @@ Icons are generated rather than authored. `generate_icons.py` derives every size
 `python generate_icons.py --check` compares the tracked set against a fresh render without writing
 anything, which is the same comparison the structural suite makes.
 
+## Supporting the project
+
+NarrateX is free and stays free. There is no paid tier, no licence key and no feature held back behind
+a donation. If it has replaced something you were paying for, a donation supports its maintenance and
+continued development.
+
+<a href="https://www.paypal.com/ncp/payment/26YQ4HUNDHYXY"><img src="docs/donate.png" alt="Donate to NarrateX" width="120"></a>
+
 ## Licence
 
 NarrateX is free software. The application is released under the GNU General Public License v3.0
