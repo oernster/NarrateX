@@ -35,7 +35,7 @@ text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
 <line class="ic" x1="97" y1="113" x2="106" y2="113"/>
 <line class="ic" x1="114" y1="113" x2="123" y2="113"/>
 <text class="ttl" x="110" y="172" text-anchor="middle">Your book</text>
-<text class="sub" x="110" y="192" text-anchor="middle">EPUB · PDF · Kindle</text>
+<text class="sub" x="110" y="192" text-anchor="middle">EPUB · PDF · Text</text>
 <line class="ic" x1="282" y1="99" x2="300" y2="99"/>
 <line class="ic" x1="282" y1="107" x2="296" y2="107"/>
 <line class="ic" x1="282" y1="115" x2="300" y2="115"/>
