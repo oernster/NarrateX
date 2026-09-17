@@ -35,6 +35,17 @@ class OverflowFocus(QObject):
         )
 
 
+def as_pane(widget):
+    """Mark `widget` as chrome: it holds controls and is never a keyboard stop.
+
+    A plain QWidget or QFrame is NoFocus already; saying so at construction
+    keeps the intent in the code rather than in the toolkit's defaults.
+    """
+
+    widget.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+    return widget
+
+
 def follow_overflow(area, **kwargs) -> OverflowFocus:
     """Make `area` a stop exactly while it overflows; the area owns the helper."""
 

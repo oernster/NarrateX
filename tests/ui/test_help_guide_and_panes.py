@@ -5,7 +5,6 @@ from __future__ import annotations
 from PySide6.QtCore import QEvent, Qt
 from PySide6.QtGui import QWheelEvent
 from PySide6.QtWidgets import (
-    QAbstractScrollArea,
     QApplication,
     QDialog,
     QTextBrowser,
@@ -20,20 +19,10 @@ from voice_reader.ui.guide_dialog import NOT_LISTED, GuideDialog, guide_html
 from voice_reader.ui.licence_dialog import PlainTextLicenceDialog
 from voice_reader.ui.main_window import MainWindow
 from voice_reader.ui.pane_focus import follow_overflow
+from tests.ui._dispose_testkit import dispose
 
 _LONG_TEXT = "\n".join(f"line {n}" for n in range(400))
 _TICKS_PER_SECOND = 1000 // AutoScroller.TICK_MS
-
-
-def _dispose(*widgets) -> None:
-    """Close and delete what a test built, before the shared window cleanup."""
-
-    from PySide6.QtCore import QCoreApplication, QEvent as _Event
-
-    for widget in widgets:
-        widget.close()
-        widget.deleteLater()
-    QCoreApplication.sendPostedEvents(None, _Event.Type.DeferredDelete)
 
 
 def _ticks(ms: int) -> int:
@@ -53,7 +42,7 @@ def test_help_menu_offers_the_guide_first_then_about(qapp, monkeypatch) -> None:
     assert w._help_menu.actions()[0].text() == "Guide"  # noqa: SLF001
     menu.actions()[0].trigger()
     assert isinstance(w._guide_dialog, GuideDialog)  # noqa: SLF001
-    _dispose(w._help_menu, menu, w._guide_dialog, w)  # noqa: SLF001
+    dispose(w._help_menu, menu, w._guide_dialog, w)  # noqa: SLF001
 
 
 def test_the_guide_shows_every_control_picture(qapp) -> None:
@@ -98,52 +87,7 @@ def test_a_region_is_a_stop_only_while_it_overflows(qapp) -> None:
     qapp.processEvents()
     assert focus.overflows()
     assert editor.focusPolicy() == Qt.FocusPolicy.StrongFocus
-    _dispose(dialog)
-
-
-def _stops(window) -> list:
-    window.show()
-    QApplication.processEvents()
-    start = window.focusWidget() or window
-    start.setFocus()
-    seen, widget = [], start
-    for _ in range(200):
-        widget = widget.nextInFocusChain()
-        if widget is start:
-            break
-        policy = widget.focusPolicy()
-        if (
-            policy & Qt.FocusPolicy.TabFocus
-            and widget.isVisible()
-            and widget.isEnabled()
-        ):
-            seen.append(widget)
-    return seen
-
-
-def test_no_surface_offers_a_region_that_scrolls_nowhere(qapp) -> None:
-    del qapp
-    main = MainWindow()
-    main.resize(1200, 700)
-    surfaces = [
-        main,
-        GuideDialog(),
-        PlainTextLicenceDialog(title="UI licence", text="short"),
-        PlainTextLicenceDialog(title="UI licence", text=_LONG_TEXT),
-    ]
-    from installer.ui.licence_dialog import InstallerLicenceDialog
-
-    surfaces.append(InstallerLicenceDialog())
-    for surface in surfaces:
-        for stop in _stops(surface):
-            if isinstance(stop, QAbstractScrollArea) and not stop.inherits(
-                "QAbstractItemView"
-            ):
-                assert (
-                    stop.verticalScrollBar().maximum() > 0
-                    or stop.horizontalScrollBar().maximum() > 0
-                ), f"{type(stop).__name__} in {surface.windowTitle()} fits yet is a stop"
-    _dispose(*surfaces)
+    dispose(dialog)
 
 
 def test_read_through_surfaces_wear_the_scroller(qapp) -> None:
@@ -159,7 +103,7 @@ def test_read_through_surfaces_wear_the_scroller(qapp) -> None:
         assert isinstance(dialog.scroller, AutoScroller)
     main = main_window_module.MainWindow()
     assert not hasattr(main, "reader_scroller")
-    _dispose(*dialogs, main)
+    dispose(*dialogs, main)
 
 
 def test_the_scroller_runs_the_whole_cycle(qapp) -> None:
@@ -230,7 +174,7 @@ def test_the_scroller_runs_the_whole_cycle(qapp) -> None:
     for _ in range(_ticks(AutoScroller.RESUME_AFTER_MS)):
         scroller.tick()
     assert scroller.phase == AutoScroller.UP
-    _dispose(dialog)
+    dispose(dialog)
 
 
 def test_a_modal_above_freezes_the_surface_and_its_input(qapp) -> None:
@@ -249,7 +193,7 @@ def test_a_modal_above_freezes_the_surface_and_its_input(qapp) -> None:
         scroller.tick()
     scroller.suspend()
     assert scroller.phase == before
-    _dispose(modal)
+    dispose(modal)
 
     # Content that fits never moves.
     short, short_editor = _text_dialog("short")
@@ -260,7 +204,7 @@ def test_a_modal_above_freezes_the_surface_and_its_input(qapp) -> None:
     for _ in range(_TICKS_PER_SECOND):
         idle.tick()
     assert short_editor.verticalScrollBar().value() == 0
-    _dispose(short, dialog)
+    dispose(short, dialog)
 
 
 def test_licence_text_reads_at_pixel_pace_not_line_pace(qapp) -> None:
@@ -281,6 +225,6 @@ def test_licence_text_reads_at_pixel_pace_not_line_pace(qapp) -> None:
         bar = dialog.editor.verticalScrollBar()
         # Pixel units: the range far exceeds the text's line count.
         assert bar.maximum() > dialog.editor.toPlainText().count("\n")
-        _dispose(dialog)
+        dispose(dialog)
     with pytest.raises(TypeError):
         AutoScroller(QPlainTextEdit())

@@ -10,11 +10,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QToolButton, QWidget
 
 from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui.artwork import Artwork
+from voice_reader.ui.pane_focus import as_pane
 from voice_reader.version import APP_NAME
 
 DONATE_TOOLTIP = f"Donate to support {APP_NAME} (opens your browser)"
@@ -31,8 +31,7 @@ class BottomTray(QWidget):
         open_donation: Callable[[], None] = lambda: None,
     ) -> None:
         super().__init__(parent)
-        # A container is never a keyboard stop; said rather than assumed.
-        self.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        as_pane(self)
 
         self.donate_button = icon_button(
             artwork=Artwork.DONATE,
@@ -43,10 +42,9 @@ class BottomTray(QWidget):
         )
         self.donate_button.clicked.connect(lambda _checked=False: open_donation())
 
-        self.separator = QFrame(self)
+        self.separator = as_pane(QFrame(self))
         self.separator.setObjectName("bottomTraySeparator")
         self.separator.setFrameShape(QFrame.Shape.VLine)
-        self.separator.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.ui_licence_button = icon_button(
             artwork=Artwork.UI_LICENCE,

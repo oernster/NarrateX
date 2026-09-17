@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from voice_reader.ui.pane_focus import as_pane
 from voice_reader.version import APP_NAME, __version__
 
 from installer.ui._safe_label import SafeLabel
@@ -26,7 +27,7 @@ def build_installer_main_window_ui(window: Any) -> None:
     under the hard <=400 LOC limit.
     """
 
-    root = QWidget(window)
+    root = as_pane(QWidget(window))
     window.setCentralWidget(root)
 
     outer = QVBoxLayout(root)

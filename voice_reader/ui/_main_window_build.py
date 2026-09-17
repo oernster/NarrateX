@@ -16,7 +16,7 @@ from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui._main_window_controls import build_controls_rows
 from voice_reader.ui.artwork import Artwork
 from voice_reader.ui.bottom_tray import BottomTray
-from voice_reader.ui.pane_focus import follow_overflow
+from voice_reader.ui.pane_focus import as_pane, follow_overflow
 from voice_reader.ui.sentence_case_label import SentenceCaseLabel
 from voice_reader.ui.window_helpers import apply_main_window_theme
 from voice_reader.version import APP_NAME
@@ -42,7 +42,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     window.setWindowTitle(APP_NAME)
     window.resize(1100, 700)
 
-    central = QWidget()
+    central = as_pane(QWidget())
     root = QVBoxLayout(central)
     root.setContentsMargins(12, 12, 12, 12)
     root.setSpacing(10)
@@ -78,7 +78,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     # count beside it; left alone, the stylesheet draws it at the bar's top.
     window.progress.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
-    progress_wrap = QWidget()
+    progress_wrap = as_pane(QWidget())
     progress_wrap.setObjectName("progressWrap")
     progress_layout = QHBoxLayout(progress_wrap)
     progress_layout.setContentsMargins(0, 0, 0, 0)
@@ -132,7 +132,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     right_panel.addWidget(window.lbl_engine)
     right_panel.addStretch(1)
 
-    right_panel_widget = QWidget()
+    right_panel_widget = as_pane(QWidget())
     right_panel_widget.setFixedWidth(cover_w)
     right_panel_widget.setLayout(right_panel)
     top_panel.addWidget(right_panel_widget)
@@ -164,7 +164,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     cover_panel.setContentsMargins(0, 0, 0, 0)
     cover_panel.setSpacing(6)
     cover_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
-    window.cover = QLabel("No cover")
+    window.cover = as_pane(QLabel("No cover"))
     window.cover.setAlignment(Qt.AlignCenter)
     window.cover.setFixedSize(cover_w, cover_h)
     window.cover.setScaledContents(False)
@@ -175,7 +175,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     # The whole column is hidden when a book has no cover, so the reader text
     # takes the full width rather than sitting beside an empty placeholder. The
     # panel is a widget, not a bare layout, so its visibility can be toggled.
-    window.cover_panel = QWidget()
+    window.cover_panel = as_pane(QWidget())
     window.cover_panel.setLayout(cover_panel)
     reader_row.addWidget(window.cover_panel, stretch=0)
 
