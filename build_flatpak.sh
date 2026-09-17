@@ -42,6 +42,12 @@ SPACY_MODEL_VERSION="3.8.0"
 SPACY_MODEL_WHEEL="${SPACY_MODEL}-${SPACY_MODEL_VERSION}-py3-none-any.whl"
 SPACY_MODEL_WHEEL_URL="https://github.com/explosion/spacy-models/releases/download/${SPACY_MODEL}-${SPACY_MODEL_VERSION}/${SPACY_MODEL_WHEEL}"
 
+# curated-tokenizers is built from its sdist, which asks for an unbounded
+# "cython>=0.25". Cython 3.3.0 crashes compiling curated_tokenizers/_bbpe.pyx
+# ("'NoneType' object is unsliceable"); the 3.2 line builds it. Measured by
+# building the 0.0.9 sdist for cp313 under both.
+CYTHON_BUILD_CONSTRAINT="cython<3.3"
+
 # A distributable single-file bundle is always written to the repo base dir.
 # The historical --bundle flag is accepted but no longer required.
 MAKE_BUNDLE=1
@@ -296,7 +302,10 @@ modules:
       env:
         CARGO_HOME: /run/build/curated-tokenizers/.cargo
     build-commands:
+      # Hold the sdist's build-time Cython below the release that crashes on it.
+      - printf '${CYTHON_BUILD_CONSTRAINT}\n' > build-constraints.txt
       - /app/bin/uv pip install --no-cache --find-links wheels --prefix /app
+          --build-constraints build-constraints.txt
           curated-tokenizers==0.0.9 curated-transformers==0.1.1
     sources:
       - type: dir
