@@ -95,15 +95,11 @@ def apply_main_window_theme(window) -> None:
                every control (buttons, sliders, lists); the green QSS border
                is the one and only focus indicator. */
             QWidget {{ color: {text}; font-family: Segoe UI; outline: none; }}
+            /* A text view is a pane: it rings in NO state, focus included,
+               as in ClearBudget, AudioDeck and Fulcrum. */
             QTextEdit, QPlainTextEdit {{
                 background: {panel};
                 border: 1px solid #1f2937;
-            }}
-            /* The reader is a ring stop (arrows scroll it, Tab and the
-               horizontal arrows leave it), so focus must be visible on it
-               like any other stop. */
-            QTextEdit:enabled:focus, QPlainTextEdit:enabled:focus {{
-                border: 1px solid {ring_green};
             }}
             QComboBox {{
                 background: {panel};

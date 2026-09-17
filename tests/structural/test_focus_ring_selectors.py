@@ -10,9 +10,12 @@ A ring belongs to a control. Three stylesheet shapes put one somewhere else:
   already shows where the reader is; a rectangle round the whole view fires on
   a click into the empty space below the items, outlining everything while
   selecting nothing.
-- A `:hover` ring on a scrolling region. The pointer rests inside a region for
-  as long as the window is open, so the ring reports where the mouse is rather
-  than what is about to be pressed. Its focus ring stays.
+- Any ring on a text view (the reader, a licence, the Guide), in any state,
+  focus included. A text view is a pane, as in ClearBudget, AudioDeck and
+  Fulcrum, none of which rings one; Tab reaching it rang the whole page green.
+- A `:hover` ring on any other scrolling region. The pointer rests inside a
+  region for as long as the window is open, so the ring reports where the
+  mouse is rather than what is about to be pressed.
 """
 
 from __future__ import annotations
@@ -50,7 +53,8 @@ ITEM_VIEWS = frozenset(
         "QColumnView",
     }
 )
-REGIONS = CONTAINERS | ITEM_VIEWS | {"QTextEdit", "QPlainTextEdit", "QTextBrowser"}
+TEXT_VIEWS = frozenset({"QTextEdit", "QPlainTextEdit", "QTextBrowser"})
+REGIONS = CONTAINERS | ITEM_VIEWS | TEXT_VIEWS
 
 _RULE = re.compile(r"([^{}]+)\{([^{}]*)\}")
 _DECLARATION = re.compile(r"([a-z-]+)\s*:\s*([^;]+)")
@@ -106,6 +110,8 @@ def ring_offences(text: str) -> list[str]:
                 found.append(f"container ring: {selector}")
             elif base in ITEM_VIEWS:
                 found.append(f"item view ring: {selector}")
+            elif base in TEXT_VIEWS:
+                found.append(f"text view ring: {selector}")
             elif base in REGIONS and hover:
                 found.append(f"region hover ring: {selector}")
     return found
@@ -130,6 +136,7 @@ def test_the_scan_catches_each_fault_and_spares_the_sanctioned_forms() -> None:
         }}
         QPushButton:enabled:hover {{ border-color: {ring}; }}
         QScrollArea#Page:enabled:focus {{ border: 2px solid {ring}; }}
+        QScrollArea#Page:enabled:hover {{ border: 2px solid {ring}; }}
         QListWidget::item:hover {{ border: 1px solid {ring}; }}
         QComboBox:enabled:focus {{ border-radius: 6px; }}
         * {{ outline: none; }}
@@ -137,5 +144,7 @@ def test_the_scan_catches_each_fault_and_spares_the_sanctioned_forms() -> None:
     assert ring_offences(sheet) == [
         "container ring: QFrame:focus",
         "item view ring: QListWidget:enabled:focus",
-        "region hover ring: QTextEdit:enabled:hover",
+        "text view ring: QTextEdit:enabled:hover",
+        "text view ring: QTextEdit:enabled:focus",
+        "region hover ring: QScrollArea#Page:enabled:hover",
     ]
