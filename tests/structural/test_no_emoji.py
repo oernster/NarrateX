@@ -1,4 +1,4 @@
-"""Structural guard: the application source carries no emoji.
+"""Structural guard: the application and installer source carry no emoji.
 
 Every picture in the interface is shipped artwork from `voice_reader/ui/artwork`.
 An emoji renders differently on each platform (boxed letters for the flags on
@@ -23,6 +23,10 @@ _EMOJI_RANGES: tuple[tuple[int, int], ...] = (
 )
 
 
+# The application and its setup program, both of which put pictures on screen.
+_SCANNED_PACKAGES = ("voice_reader", "installer")
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -34,7 +38,10 @@ def _is_emoji(char: str) -> bool:
 
 def emoji_offenders(root: Path) -> list[str]:
     offenders: list[str] = []
-    for path in sorted((root / "voice_reader").rglob("*.py")):
+    sources = [root / "app.py"]
+    for package in _SCANNED_PACKAGES:
+        sources.extend(sorted((root / package).rglob("*.py")))
+    for path in sources:
         if "__pycache__" in path.parts:
             continue
         lines = path.read_text(encoding="utf-8").splitlines()

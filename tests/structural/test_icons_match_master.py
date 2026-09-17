@@ -91,6 +91,5 @@ def test_every_authored_picture_has_a_name_and_every_name_a_picture() -> None:
     generate_icons = _generator()
     from voice_reader.ui.artwork import Artwork
 
-    masters = {path.stem for path in generate_icons.artwork_masters()}
-    masters.add(generate_icons.DONATE_MASTER.stem)
-    assert masters == {name.value for name in Artwork}
+    shipped = set(generate_icons.shipped_artwork_names())
+    assert shipped == {name.value for name in Artwork}

@@ -25,6 +25,7 @@ from voice_reader.ui.artwork import (
 )
 from voice_reader.ui.keeb_keys import install_keeb_keys
 from voice_reader.ui.voice_combo import VoiceCombo
+from voice_reader.ui.volume_mute import MUTE_TEXT, VolumeMute
 
 # Words for each picture control: its tooltip and its accessible text.
 SELECT_BOOK_TEXT = "Select book"
@@ -32,7 +33,6 @@ REMOVE_BOOK_TEXT = "Remove current book (the file is kept)"
 PLAY_TEXT = "Play"
 PAUSE_TEXT = "Pause"
 STOP_TEXT = "Stop"
-VOLUME_TEXT = "Volume (Up/Down adjusts while focused)"
 BOOKMARKS_TEXT = "Bookmarks"
 SECTIONS_TEXT = "Sections"
 PREVIOUS_CHAPTER_TEXT = "Previous chapter"
@@ -118,10 +118,16 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     window.volume_slider.setFocusPolicy(Qt.NoFocus)
 
     _text_button(
-        window, "lbl_volume_icon", artwork=Artwork.VOLUME_CONTROL, text=VOLUME_TEXT
+        window, "lbl_volume_icon", artwork=Artwork.VOLUME_CONTROL, text=MUTE_TEXT
     )
-    # The app-wide keeb filter reads this link to route Up/Down.
+    # The app-wide keeb filter reads this link to route Up/Down; pressing the
+    # speaker (or Enter on it) mutes and unmutes.
     window.lbl_volume_icon.keeb_volume_slider = window.volume_slider
+    window.volume_mute = VolumeMute(
+        button=window.lbl_volume_icon,
+        slider=window.volume_slider,
+        unmute_level=DEFAULT_VOLUME,
+    )
 
     _text_button(
         window, "btn_bookmarks", artwork=Artwork.BOOKMARKS, text=BOOKMARKS_TEXT

@@ -125,7 +125,9 @@ sizes, the multi-size Windows `narratex.ico` and the five copies the published s
 
 The button artwork is authored too, one master per picture in `assets/`. The same script reduces each
 to the copy the application ships under `voice_reader/ui/artwork/` (four times the size it is drawn
-at, named by [`voice_reader/ui/artwork.py`](voice_reader/ui/artwork.py)). `assets/donate.png` is
+at, named by [`voice_reader/ui/artwork.py`](voice_reader/ui/artwork.py)). The muted speaker is not
+authored: it is `volume-control.png` with `negative.png` laid over its centre, composed from the
+two masters on every run. `assets/donate.png` is
 cropped to its artwork and scaled by height, then written both there and to `docs/donate.png`, so
 the application and the site cannot carry different marks. A new picture needs its master in
 `assets/` and a name in `Artwork`; the structural suite fails while either is missing.

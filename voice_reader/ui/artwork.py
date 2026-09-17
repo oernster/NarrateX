@@ -28,6 +28,7 @@ class Artwork(str, Enum):
     MALE = "male"
     NEXT_CHAPTER = "next-chapter"
     PAUSE = "pause"
+    PIN = "pin"
     PLAY = "play"
     PREVIOUS_CHAPTER = "previous-chapter"
     REMOVE_CURRENT_BOOK = "remove-current-book"
@@ -39,6 +40,7 @@ class Artwork(str, Enum):
     UK_FLAG = "uk-flag"
     US_FLAG = "us-flag"
     VOLUME_CONTROL = "volume-control"
+    VOLUME_MUTED = "volume-muted"
 
 
 def artwork_path(name: Artwork) -> Path:

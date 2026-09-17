@@ -32,7 +32,7 @@ def test_bookmarks_dialog_smoke(qapp) -> None:
 
     assert dlg.list.count() == 1
     assert dlg.list.item(0).text() == "Bookmark 1"
-    # The row wears the Bookmarks artwork rather than a pin emoji.
+    # The row wears the pin artwork.
     assert not dlg.list.item(0).icon().isNull()
     dlg.btn_goto.click()
     dlg.btn_delete.click()

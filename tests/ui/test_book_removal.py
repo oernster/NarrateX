@@ -1,6 +1,6 @@
 """Removing the current book forgets NarrateX's memory, never the file.
 
-The ❌ control deletes bookmarks, the resume position, the ideas map and
+The Remove current book control deletes bookmarks, the resume position, the ideas map and
 cached audio for the loaded book, then returns the window to its fresh
 state. It always confirms first; tests drive the outcome through the
 explicit `confirmed` parameter because the real dialog is modal.

@@ -70,7 +70,7 @@ class BookmarksDialog(QDialog):
         title.setStyleSheet("font-size: 14px; font-weight: 600;")
         root.addWidget(title)
 
-        self.list = ArtworkList(Artwork.BOOKMARKS)
+        self.list = ArtworkList(Artwork.PIN)
         self.list.setSelectionMode(QListWidget.SingleSelection)
         # Always show a vertical scrollbar (keeps layout stable with many items).
         self.list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)

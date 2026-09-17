@@ -129,7 +129,7 @@ def test_voice_combo_paints_its_cue_with_and_without_a_choice(qapp) -> None:
 
 def test_artwork_list_rows_wear_the_picture(qapp) -> None:
     del qapp
-    rows = ArtworkList(Artwork.SECTIONS)
+    rows = ArtworkList(Artwork.PIN)
     item = rows.add_row("  Chapter 1  ")
     assert rows.iconSize() == QSize(LIST_ROW_ICON_PX, LIST_ROW_ICON_PX)
     assert item.text() == "Chapter 1"

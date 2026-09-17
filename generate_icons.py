@@ -68,11 +68,15 @@ SITE_SIZES: tuple[int, ...] = (16, 32, 64, 256, 512)
 # The authored button artwork. The shipped copies' home and sizes come from the
 # UI's own registry, the one place the drawn sizes are stated.
 ARTWORK_MASTER_DIR = PROJECT_ROOT / "assets"
-# The application mark also sits in assets/; its master is narratex.png and it
-# is emitted above. The donate mark is wide, so it takes its own step below.
-APP_MARK_COPY = "application-icon.png"
+# The donate mark is wide, so it takes its own step below.
 DONATE_MASTER = ARTWORK_MASTER_DIR / "donate.png"
-ARTWORK_EXCLUDED: frozenset[str] = frozenset({APP_MARK_COPY, DONATE_MASTER.name})
+# The mute cross is not a picture of its own: it is laid over the speaker to
+# make the muted speaker, centred and this fraction of the speaker's height.
+MUTE_MARK_MASTER = ARTWORK_MASTER_DIR / "negative.png"
+MUTE_MARK_HEIGHT_FRACTION = 0.8
+ARTWORK_EXCLUDED: frozenset[str] = frozenset(
+    {DONATE_MASTER.name, MUTE_MARK_MASTER.name}
+)
 
 RESAMPLE = Image.Resampling.LANCZOS
 
@@ -135,17 +139,52 @@ def artwork_masters() -> tuple[Path, ...]:
     )
 
 
-def render_artwork(path: Path) -> Image.Image:
-    """Reduce one master so its longest side is ARTWORK_MAX_SIDE.
+def open_rgba(path: Path) -> Image.Image:
+    return Image.open(path).convert("RGBA")
 
-    The aspect ratio is kept and nothing is cropped or padded; a master already
+
+def render_artwork(image: Image.Image) -> Image.Image:
+    """Reduce one picture so its longest side is ARTWORK_MAX_SIDE.
+
+    The aspect ratio is kept and nothing is cropped or padded; a picture already
     within the size is left at its own size rather than enlarged.
     """
 
-    image = Image.open(path).convert("RGBA")
     scale = min(1.0, ARTWORK_MAX_SIDE / max(image.size))
     size = (max(1, round(image.width * scale)), max(1, round(image.height * scale)))
     return image if size == image.size else image.resize(size, RESAMPLE)
+
+
+def compose_muted_speaker() -> Image.Image:
+    """The speaker master with the mute cross laid over its centre."""
+
+    speaker = open_rgba(artwork_master(Artwork.VOLUME_CONTROL))
+    mark = open_rgba(MUTE_MARK_MASTER)
+    mark = mark.crop(mark.getchannel("A").getbbox())
+    height = round(speaker.height * MUTE_MARK_HEIGHT_FRACTION)
+    width = round(mark.width * height / mark.height)
+    mark = mark.resize((width, height), RESAMPLE)
+    left = (speaker.width - width) // 2
+    top = (speaker.height - height) // 2
+    speaker.alpha_composite(mark, (left, top))
+    return speaker
+
+
+def artwork_master(name: Artwork) -> Path:
+    return ARTWORK_MASTER_DIR / artwork_path(name).name
+
+
+# Pictures made from other masters rather than authored, with their recipe.
+COMPOSED_ARTWORK = {Artwork.VOLUME_MUTED: compose_muted_speaker}
+
+
+def shipped_artwork_names() -> frozenset[str]:
+    """Every name the generator writes into ARTWORK_DIR."""
+
+    names = {path.stem for path in artwork_masters()}
+    names.add(DONATE_MASTER.stem)
+    names.update(name.value for name in COMPOSED_ARTWORK)
+    return frozenset(names)
 
 
 def render_donate() -> Image.Image:
@@ -155,7 +194,7 @@ def render_donate() -> Image.Image:
     spend part of that height on nothing.
     """
 
-    image = Image.open(DONATE_MASTER).convert("RGBA")
+    image = open_rgba(DONATE_MASTER)
     image = image.crop(image.getchannel("A").getbbox())
     width = round(image.width * DONATE_RENDER_HEIGHT / image.height)
     return image.resize((width, DONATE_RENDER_HEIGHT), RESAMPLE)
@@ -171,7 +210,9 @@ def targets(master: Image.Image) -> dict[Path, bytes]:
         wanted[SITE_DIR / png_name(size)] = png_bytes(render(master, size))
     wanted[ICO_PATH] = ico_bytes(master)
     for path in artwork_masters():
-        wanted[ARTWORK_DIR / path.name] = png_bytes(render_artwork(path))
+        wanted[ARTWORK_DIR / path.name] = png_bytes(render_artwork(open_rgba(path)))
+    for name, compose in COMPOSED_ARTWORK.items():
+        wanted[artwork_path(name)] = png_bytes(render_artwork(compose()))
     # One render, written to the app and to the site, so the two cannot drift.
     donate = png_bytes(render_donate())
     for path in (artwork_path(Artwork.DONATE), SITE_DIR / DONATE_MASTER.name):

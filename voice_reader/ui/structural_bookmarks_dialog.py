@@ -112,7 +112,7 @@ class StructuralBookmarksDialog(QDialog):
         self.status.setVisible(False)
         root.addWidget(self.status)
 
-        self.list = ArtworkList(Artwork.SECTIONS)
+        self.list = ArtworkList(Artwork.PIN)
         self.list.setSelectionMode(QListWidget.SingleSelection)
         self.list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
