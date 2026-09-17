@@ -11,7 +11,6 @@ repeated here.
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
-    QDialog,
     QHBoxLayout,
     QPushButton,
     QTextBrowser,
@@ -21,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from voice_reader.ui.artwork import GUIDE_ICON_PX, Artwork, artwork_path
 from voice_reader.ui.auto_scroller import AutoScroller
+from voice_reader.ui.first_stop_dialog import FirstStopDialog
 from voice_reader.ui.pane_focus import follow_overflow
 from voice_reader.version import APP_NAME
 
@@ -104,7 +104,7 @@ presses the one ringed. <b>Down</b> opens a dropdown. On the speaker,
 """
 
 
-class GuideDialog(QDialog):
+class GuideDialog(FirstStopDialog):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(GUIDE_TITLE)

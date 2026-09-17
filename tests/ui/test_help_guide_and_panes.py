@@ -86,7 +86,8 @@ def test_a_region_is_a_stop_only_while_it_overflows(qapp) -> None:
     editor.setPlainText(_LONG_TEXT)
     qapp.processEvents()
     assert focus.overflows()
-    assert editor.focusPolicy() == Qt.FocusPolicy.StrongFocus
+    # Tab reaches it; a click never does, so a click never rings it.
+    assert editor.focusPolicy() == Qt.FocusPolicy.TabFocus
     dispose(dialog)
 
 

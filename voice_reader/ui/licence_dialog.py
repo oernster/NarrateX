@@ -16,9 +16,9 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 
 from voice_reader.ui.auto_scroller import AutoScroller
+from voice_reader.ui.first_stop_dialog import FirstStopDialog
 from voice_reader.ui.pane_focus import follow_overflow
 from PySide6.QtWidgets import (
-    QDialog,
     QDialogButtonBox,
     QLabel,
     QTextBrowser,
@@ -85,7 +85,7 @@ def read_licence_text(filename: str) -> str:
     )
 
 
-class PlainTextLicenceDialog(QDialog):
+class PlainTextLicenceDialog(FirstStopDialog):
     def __init__(
         self,
         *,

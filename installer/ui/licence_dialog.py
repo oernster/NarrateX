@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog,
     QDialogButtonBox,
     QLabel,
     QTextBrowser,
@@ -19,6 +18,7 @@ from PySide6.QtWidgets import (
 
 from installer.ui.lgpl3_license_text import LGPL_V3_TEXT
 from voice_reader.ui.auto_scroller import AutoScroller
+from voice_reader.ui.first_stop_dialog import FirstStopDialog
 from voice_reader.ui.pane_focus import follow_overflow
 from voice_reader.version import APP_NAME
 
@@ -31,7 +31,7 @@ SCOPE_NOTE = (
 )
 
 
-class InstallerLicenceDialog(QDialog):
+class InstallerLicenceDialog(FirstStopDialog):
     def __init__(self, parent=None) -> None:  # noqa: ANN001 (Qt API)
         super().__init__(parent)
 
