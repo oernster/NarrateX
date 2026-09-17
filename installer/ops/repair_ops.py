@@ -10,6 +10,14 @@ from pathlib import Path
 
 from installer.ops.errors import AppRunningError, InstallerOperationError
 from installer.ops.payload import iter_manifest_entries, load_manifest, payload_zip_path
+from installer.ops.progress import (
+    COMPLETE_PCT,
+    REPAIR_REGISTER_PCT,
+    REPAIR_SHORTCUTS_PCT,
+    REPAIR_VERIFY_END_PCT,
+    REPAIR_VERIFY_START_PCT,
+    report,
+)
 from installer.ops.running_app import is_app_running
 from installer.ops.shortcuts import create_shortcut, get_shortcut_paths
 from installer.state.registry import read_uninstall_entry, write_uninstall_entry
@@ -50,15 +58,21 @@ def repair(
         raise AppRunningError("NarrateX is currently running")
 
     manifest = load_manifest()
+    entries = tuple(iter_manifest_entries(manifest))
+    # The verification band advances by bytes; a manifest of empty files still
+    # divides by one rather than by zero.
+    total_bytes = max(1, sum(max(0, int(e.size)) for e in entries))
+    done_bytes = 0
+    span = REPAIR_VERIFY_END_PCT - REPAIR_VERIFY_START_PCT
     with zipfile.ZipFile(payload_zip_path(), "r") as zf:
-        for e in iter_manifest_entries(manifest):
+        for e in entries:
             if (
                 cancel_event is not None
                 and getattr(cancel_event, "is_set", lambda: False)()
             ):
                 raise InstallerOperationError("Cancelled")
-            if progress:
-                progress(f"Verifying {e.path}...")
+            pct = REPAIR_VERIFY_START_PCT + span * done_bytes // total_bytes
+            report(progress, pct=pct, message=f"Verifying {e.path}...")
             dst = install_dir / e.path
             needs = True
             if dst.exists():
@@ -73,16 +87,15 @@ def repair(
                     # to replace, so the safe answer is always to rewrite it.
                     needs = True
             if needs:
-                if progress:
-                    progress(f"Restoring {e.path}...")
+                report(progress, pct=pct, message=f"Restoring {e.path}...")
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 with zf.open(e.path) as src, dst.open("wb") as out:
                     out.write(src.read())
+            done_bytes += max(0, int(e.size))
 
     # Restore shortcuts if requested.
     sp = get_shortcut_paths(identity)
-    if progress:
-        progress("Restoring shortcuts...")
+    report(progress, pct=REPAIR_SHORTCUTS_PCT, message="Restoring shortcuts...")
     if opts.restore_desktop_shortcut:
         if not sp.desktop_lnk.exists():
             create_shortcut(exe, sp.desktop_lnk, working_dir=install_dir)
@@ -92,8 +105,7 @@ def repair(
 
     # Restore uninstall metadata.
     uninstall_cmd = entry.uninstall_string
-    if progress:
-        progress("Restoring registry metadata...")
+    report(progress, pct=REPAIR_REGISTER_PCT, message="Restoring registry metadata...")
     write_uninstall_entry(
         identity.uninstall_key,
         display_name=APP_NAME,
@@ -106,3 +118,4 @@ def repair(
         shortcut_start_menu=opts.restore_start_menu_shortcut,
         installer_path=entry.installer_path or "",
     )
+    report(progress, pct=COMPLETE_PCT, message="Completed")
