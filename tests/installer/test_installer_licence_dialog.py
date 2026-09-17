@@ -38,6 +38,18 @@ def test_installer_licence_button_opens_dialog(qapp, monkeypatch) -> None:
 
     dlg = dialogs[-1]
 
+    from PySide6.QtWidgets import QLabel
+
+    scope = dlg.findChild(QLabel, "LicenceScope")
+    assert scope is not None
+    assert "setup program only" in scope.text()
+    assert "dual licensed" in scope.text()
+    # The note sits above the licence text.
+    assert (
+        scope.geometry().top()
+        < dlg.findChild(QPlainTextEdit, "LicenceText").geometry().top()
+    )
+
     editor = dlg.findChild(QPlainTextEdit, "LicenceText")
     assert editor is not None
     licence_text = editor.toPlainText()
