@@ -5,8 +5,7 @@ The runtime UI needs to show two separate licence texts:
 * UI licence: LGPL v3 (repo-root `LGPL3-LICENSE` file)
 * Backend licence: repo-root `LICENSE` file
 
-Both should render as plain text, wrap to the dialog width, and be vertically
-scrollable.
+Both render as plain text wrapped to the dialog width and scroll vertically.
 """
 
 from __future__ import annotations
@@ -15,6 +14,9 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+
+from voice_reader.ui.auto_scroller import AutoScroller
+from voice_reader.ui.pane_focus import follow_overflow
 from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
@@ -118,6 +120,10 @@ class PlainTextLicenceDialog(QDialog):
         editor.setLineWrapMode(QPlainTextEdit.WidgetWidth)
         editor.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         layout.addWidget(editor, 1)
+        # A stop only while the text overflows; it reads itself meanwhile.
+        self.editor = editor
+        self.overflow_focus = follow_overflow(editor)
+        self.scroller = AutoScroller(editor)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close, parent=self)
         buttons.rejected.connect(self.close)

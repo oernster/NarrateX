@@ -16,6 +16,7 @@ from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui._main_window_controls import build_controls_rows
 from voice_reader.ui.artwork import Artwork
 from voice_reader.ui.bottom_tray import BottomTray
+from voice_reader.ui.pane_focus import follow_overflow
 from voice_reader.ui.sentence_case_label import SentenceCaseLabel
 from voice_reader.ui.window_helpers import apply_main_window_theme
 from voice_reader.version import APP_NAME
@@ -103,12 +104,11 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     right_panel.setSpacing(6)
     right_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
 
-    # Info button (top-right) that opens About directly.
-    about_text = f"About {APP_NAME}"
+    # Help button (top-right): opens the Help menu, Guide first, then About.
     window.btn_help = icon_button(
         artwork=Artwork.HELP,
-        text=about_text,
-        tooltip=about_text,
+        text="Help",
+        tooltip="Help",
         object_name="helpButton",
     )
 
@@ -156,6 +156,8 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     # The reader is the scrollable-content stop: the arrows scroll it and
     # Tab leaves it. Without this, a read-only QTextEdit swallows Tab.
     window.reader.setTabChangesFocus(True)
+    # ...but only while it has somewhere to scroll; text that fits is not a stop.
+    window.reader_focus = follow_overflow(window.reader)
     reader_row.addWidget(window.reader, stretch=1)
 
     cover_panel = QVBoxLayout()

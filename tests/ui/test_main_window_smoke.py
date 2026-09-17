@@ -129,6 +129,9 @@ def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
     w.show()
     qapp.processEvents()
     w.set_chapter_controls_enabled(previous=True, next_=True)
+    # The reader is a stop only while its text overflows it.
+    w.set_reader_text(" ".join(["words"] * 20000))
+    qapp.processEvents()
 
     def next_stop(widget):
         nxt = widget.nextInFocusChain()

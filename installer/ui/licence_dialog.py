@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
 )
 
 from installer.ui.lgpl3_license_text import LGPL_V3_TEXT
+from voice_reader.ui.auto_scroller import AutoScroller
+from voice_reader.ui.pane_focus import follow_overflow
 from voice_reader.version import APP_NAME
 
 SCOPE_NOTE = (
@@ -57,6 +59,10 @@ class InstallerLicenceDialog(QDialog):
         text.setLineWrapMode(QPlainTextEdit.WidgetWidth)
         text.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         layout.addWidget(text, 1)
+        # A stop only while the text overflows; it reads itself meanwhile.
+        self.editor = text
+        self.overflow_focus = follow_overflow(text)
+        self.scroller = AutoScroller(text)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Close, parent=self)
         buttons.rejected.connect(self.close)

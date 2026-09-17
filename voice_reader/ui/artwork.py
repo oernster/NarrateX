@@ -53,6 +53,9 @@ def artwork_path(name: Artwork) -> Path:
 ICON_BUTTON_PX = 63
 ICON_PX = 48
 
+# A picture inline in the Guide's text, centred on its line.
+GUIDE_ICON_PX = 30
+
 # A list row's picture (the Bookmarks and Sections dialogs).
 LIST_ROW_ICON_PX = 20
 

@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QImage, QPixmap, QTextCursor
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QTextEdit, QWidget
+from PySide6.QtWidgets import QMainWindow, QMenu, QMessageBox, QTextEdit, QWidget
 
 from voice_reader.ui.window_helpers import (
     build_about_dialog,
@@ -18,8 +18,11 @@ from voice_reader.ui._main_window_controls import PAUSE_TEXT, PLAY_TEXT
 from voice_reader.ui.artwork import Artwork
 from voice_reader.ui.bottom_tray import BACKEND_LICENCE_TITLE, UI_LICENCE_TITLE
 from voice_reader.ui.document_renderer import apply_render_plan
+from voice_reader.ui.guide_dialog import GUIDE_TITLE, GuideDialog
 from voice_reader.ui.links import open_externally
-from voice_reader.version import DONATE_URL
+from voice_reader.version import APP_NAME, DONATE_URL
+
+GUIDE_MENU_TEXT = GUIDE_TITLE
 
 # Shown on the status line when the desktop will not open a browser.
 DONATE_OPEN_FAILED = "Could not open a browser for the donation page"
@@ -127,7 +130,7 @@ class MainWindow(QMainWindow):
             pass
 
         try:
-            self.btn_help.clicked.connect(self.show_about_dialog)
+            self.btn_help.clicked.connect(self.show_help_menu)
         except Exception:
             pass
 
@@ -180,6 +183,26 @@ class MainWindow(QMainWindow):
     def set_chapter_controls_enabled(self, *, previous: bool, next_: bool) -> None:
         self.btn_prev_chapter.setEnabled(bool(previous))
         self.btn_next_chapter.setEnabled(bool(next_))
+
+    def build_help_menu(self) -> QMenu:
+        """Help: the Guide first, then About."""
+
+        menu = QMenu(self)
+        menu.addAction(GUIDE_MENU_TEXT, self.show_guide)
+        menu.addAction(f"About {APP_NAME}", self.show_about_dialog)
+        return menu
+
+    def show_help_menu(self) -> None:
+        """Open the Help menu under its button, keyboard or mouse alike."""
+
+        self._help_menu = self.build_help_menu()
+        self._help_menu.popup(
+            self.btn_help.mapToGlobal(self.btn_help.rect().bottomLeft())
+        )
+
+    def show_guide(self) -> None:
+        self._guide_dialog = GuideDialog(self)
+        self._guide_dialog.open()
 
     def show_about_dialog(self) -> None:
         # Non-blocking. The update controller is attached by the composition
