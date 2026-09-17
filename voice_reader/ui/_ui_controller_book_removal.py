@@ -1,6 +1,6 @@
 """Remove the current book from NarrateX's memory, never from disk.
 
-The ❌ control forgets everything the app derived from the loaded book:
+The Remove current book control forgets everything the app derived from the loaded book:
 bookmarks and the resume position, the persisted ideas map, the cached
 narration audio and the last-book auto-load preference. The book file
 itself is untouched, so selecting it again later starts completely fresh.
@@ -78,8 +78,8 @@ def _reset_ui_to_no_book(controller) -> None:
     except Exception:
         pass
 
-    # The picker (and the ❌ itself) lock again behind the next book, and a
-    # still-flashing choose-a-voice prompt has nothing left to ask about.
+    # The picker (and the remove control itself) lock again behind the next
+    # book; a still-flashing choose-a-voice prompt has nothing left to ask about.
     attention = getattr(controller, "_picker_attention", None)
     if attention is not None:
         try:

@@ -16,12 +16,15 @@ from __future__ import annotations
 from PySide6.QtCore import QEvent, QObject, QTimer
 
 from voice_reader.domain.entities.voice_profile import VoiceProfile
+from voice_reader.ui._icon_buttons import set_button_artwork
+from voice_reader.ui.artwork import Artwork
 
-# Display order: British first. Each entry is (prefix, glyph, label).
-# Flag glyphs render as boxed GB/US letters on Windows and as flags on
-# macOS and Linux; both read correctly.
-VOICE_REGIONS = (("b", "🇬🇧", "British"), ("a", "🇺🇸", "American"))
-VOICE_SEXES = (("f", "♀", "Female"), ("m", "♂", "Male"))
+# Display order: British first. Each entry is (prefix, artwork, label).
+VOICE_REGIONS = (
+    ("b", Artwork.UK_FLAG, "British"),
+    ("a", Artwork.US_FLAG, "American"),
+)
+VOICE_SEXES = (("f", Artwork.FEMALE, "Female"), ("m", Artwork.MALE, "Male"))
 
 # The attention ring's half period: one second on, one second off, so the
 # full flash cycle is two seconds.
@@ -74,28 +77,20 @@ def book_is_loaded(controller) -> bool:
 
 
 def _update_toggle_cues(controller) -> None:
-    from PySide6.QtGui import QIcon
-
-    from voice_reader.ui._main_window_controls import emoji_cue_pixmap
-
     region = VOICE_REGIONS[controller._voice_region_index]  # noqa: SLF001
     sex = VOICE_SEXES[controller._voice_sex_index]  # noqa: SLF001
 
     window = controller.window
-    # The glyph is shown as an icon rather than button text: Qt centres an
-    # icon geometrically, while text sits on the emoji font's lopsided
-    # baseline and rides high in the circular ring. The text is still set
-    # (an icon-only QToolButton does not display it) so the state stays
-    # readable to tests and accessibility tooling.
-    for button, glyph, tip in (
-        (window.btn_voice_region, region[1], f"{region[2]} voices (click to change)"),
-        (window.btn_voice_sex, sex[1], f"{sex[2]} voices (click to change)"),
+    # The label is the button's text. It is never drawn beside the picture;
+    # it is what tests and accessibility tooling read for the current state.
+    for button, artwork, label, tip in (
+        (window.btn_voice_region, region[1], region[2], f"{region[2]} voices"),
+        (window.btn_voice_sex, sex[1], sex[2], f"{sex[2]} voices"),
     ):
-        pm = emoji_cue_pixmap(glyph)
-        button.setIcon(QIcon(pm))
-        button.setIconSize(pm.size())
-        button.setText(glyph)
+        set_button_artwork(button, artwork, label)
+        tip = f"{tip} (click to change)"
         button.setToolTip(tip)
+        button.setAccessibleName(tip)
 
 
 def refresh_voices(controller) -> None:
@@ -132,7 +127,7 @@ def refresh_voices(controller) -> None:
     else:
         combo.setCurrentIndex(-1)
         # A toggle just cost the user their pick: re-raise the amber
-        # choose-a-voice prompt exactly as a fresh book does, but only when
+        # choose-a-voice prompt exactly as a fresh book does; only when
         # there is a book to voice and there was a pick to lose.
         if previous and book_is_loaded(controller):
             begin_attention(controller)

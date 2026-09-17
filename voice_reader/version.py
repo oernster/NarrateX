@@ -24,6 +24,10 @@ APP_COPYRIGHT: str = "© Oliver Ernster"
 # builds as a different app (separate taskbar grouping / pinned item).
 APP_APPUSERMODELID: str = "com.oliverernster.narratex"
 
+# Where the donate button sends a browser. It is handed to the desktop rather
+# than fetched, so the application itself never opens a connection for it.
+DONATE_URL: str = "https://www.paypal.com/ncp/payment/26YQ4HUNDHYXY"
+
 # Sentinel used when `VERSION` cannot be found. It is deliberately obvious: a
 # build that ships without the file should say so rather than invent a number.
 VERSION_FALLBACK: str = "0.0.0-dev"

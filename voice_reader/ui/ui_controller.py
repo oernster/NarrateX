@@ -309,7 +309,7 @@ class UiController(QObject):
         return poll_ideas_indexing(self)
 
     def _apply_search_enabled_state(self) -> None:
-        """Enable 🔎 only when a completed idea index exists for the loaded book."""
+        """Enable search only when a completed idea index exists for the loaded book."""
 
         # Search removed from UI.
         return

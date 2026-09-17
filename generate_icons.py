@@ -4,8 +4,8 @@ Run from the repository root:
 
     python generate_icons.py
 
-`narratex.png` is the master and the only icon file that is authored. Everything
-else here is derived from it, so the set cannot drift from its own source:
+`narratex.png` is the master of the application mark. Everything below is
+derived from it, so the set cannot drift from its own source:
 
     narratex_<size>.png   the sizes the delivery scripts stage (buildexe,
                           buildinstaller, buildlinux, builddmg) and the Flatpak
@@ -22,6 +22,13 @@ The master is 487x487, so `narratex_512.png` is a slight upscale. That is how
 the existing set was produced and this script reproduces it exactly; a larger
 master would be an improvement to make deliberately rather than by accident.
 
+`assets/*.png` are the authored button artwork. Each is reduced to the size the
+running application needs and written to `voice_reader/ui/artwork/`, which is
+what ships inside the package; `assets/donate.png` is cropped to its artwork
+and written both there and to `docs/` for the site. The masters are well over a
+megabyte apiece, so shipping them would put tens of megabytes in the bundle and
+decode every one at start-up for a picture drawn at a few dozen pixels.
+
 The script is idempotent: run it twice and the second run reports nothing
 written. Pass --check to compare without writing, which is what a verification
 step wants.
@@ -34,6 +41,14 @@ import sys
 from pathlib import Path
 
 from PIL import Image
+
+from voice_reader.ui.artwork import (
+    ARTWORK_DIR,
+    ARTWORK_MAX_SIDE,
+    DONATE_RENDER_HEIGHT,
+    Artwork,
+    artwork_path,
+)
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 MASTER = PROJECT_ROOT / "narratex.png"
@@ -49,6 +64,15 @@ ICO_SIZES: tuple[int, ...] = (16, 24, 32, 48, 64, 128, 256)
 # The published site, which cannot reach the copies above it.
 SITE_DIR = PROJECT_ROOT / "docs"
 SITE_SIZES: tuple[int, ...] = (16, 32, 64, 256, 512)
+
+# The authored button artwork. The shipped copies' home and sizes come from the
+# UI's own registry, the one place the drawn sizes are stated.
+ARTWORK_MASTER_DIR = PROJECT_ROOT / "assets"
+# The application mark also sits in assets/; its master is narratex.png and it
+# is emitted above. The donate mark is wide, so it takes its own step below.
+APP_MARK_COPY = "application-icon.png"
+DONATE_MASTER = ARTWORK_MASTER_DIR / "donate.png"
+ARTWORK_EXCLUDED: frozenset[str] = frozenset({APP_MARK_COPY, DONATE_MASTER.name})
 
 RESAMPLE = Image.Resampling.LANCZOS
 
@@ -101,6 +125,42 @@ def ico_bytes(master: Image.Image) -> bytes:
     return buffer.getvalue()
 
 
+def artwork_masters() -> tuple[Path, ...]:
+    """Every authored button image, in name order."""
+
+    return tuple(
+        path
+        for path in sorted(ARTWORK_MASTER_DIR.glob("*.png"))
+        if path.name not in ARTWORK_EXCLUDED
+    )
+
+
+def render_artwork(path: Path) -> Image.Image:
+    """Reduce one master so its longest side is ARTWORK_MAX_SIDE.
+
+    The aspect ratio is kept and nothing is cropped or padded; a master already
+    within the size is left at its own size rather than enlarged.
+    """
+
+    image = Image.open(path).convert("RGBA")
+    scale = min(1.0, ARTWORK_MAX_SIDE / max(image.size))
+    size = (max(1, round(image.width * scale)), max(1, round(image.height * scale)))
+    return image if size == image.size else image.resize(size, RESAMPLE)
+
+
+def render_donate() -> Image.Image:
+    """The donate mark cropped to its artwork, then scaled by height alone.
+
+    It is a wide picture drawn at a button's height, so a square canvas would
+    spend part of that height on nothing.
+    """
+
+    image = Image.open(DONATE_MASTER).convert("RGBA")
+    image = image.crop(image.getchannel("A").getbbox())
+    width = round(image.width * DONATE_RENDER_HEIGHT / image.height)
+    return image.resize((width, DONATE_RENDER_HEIGHT), RESAMPLE)
+
+
 def targets(master: Image.Image) -> dict[Path, bytes]:
     """Every file this script owns, mapped to the bytes it should hold."""
 
@@ -110,6 +170,12 @@ def targets(master: Image.Image) -> dict[Path, bytes]:
     for size in SITE_SIZES:
         wanted[SITE_DIR / png_name(size)] = png_bytes(render(master, size))
     wanted[ICO_PATH] = ico_bytes(master)
+    for path in artwork_masters():
+        wanted[ARTWORK_DIR / path.name] = png_bytes(render_artwork(path))
+    # One render, written to the app and to the site, so the two cannot drift.
+    donate = png_bytes(render_donate())
+    for path in (artwork_path(Artwork.DONATE), SITE_DIR / DONATE_MASTER.name):
+        wanted[path] = donate
     return wanted
 
 

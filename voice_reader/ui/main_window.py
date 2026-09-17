@@ -12,8 +12,17 @@ from voice_reader.ui.window_helpers import (
     build_about_dialog,
     open_licence_dialog,
 )
+from voice_reader.ui._icon_buttons import set_button_artwork
 from voice_reader.ui._main_window_build import build_main_window_widgets
+from voice_reader.ui._main_window_controls import PAUSE_TEXT, PLAY_TEXT
+from voice_reader.ui.artwork import Artwork
+from voice_reader.ui.bottom_tray import BACKEND_LICENCE_TITLE, UI_LICENCE_TITLE
 from voice_reader.ui.document_renderer import apply_render_plan
+from voice_reader.ui.links import open_externally
+from voice_reader.version import DONATE_URL
+
+# Shown on the status line when the desktop will not open a browser.
+DONATE_OPEN_FAILED = "Could not open a browser for the donation page"
 
 # Used when the reader's own font reports no usable point size.
 _FALLBACK_READER_POINT_SIZE = 11.0
@@ -21,16 +30,7 @@ _FALLBACK_READER_POINT_SIZE = 11.0
 
 @dataclass(frozen=True, slots=True)
 class UiStrings:
-    select_book: str = "📚 Select Book"
-    select_voice: str = "🎙 Select Voice"
-    # Windows renders the official Pause/Stop "button" emoji codepoints as blue
-    # emoji glyphs. Use monochrome symbol characters instead so they stay
-    # readable on the dark theme and match text height.
-    play: str = "▶ Play"
-    pause: str = "Ⅱ Pause"
-    stop: str = "■ Stop"
-    play_tooltip: str = "Play"
-    pause_tooltip: str = "Pause"
+    select_voice: str = "Select voice"
 
 
 class _NeutralStart(QWidget):
@@ -131,8 +131,7 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
-        # Keep volume icon consistent with current slider position.
-        self.volume_slider.valueChanged.connect(self._update_volume_icon)
+        self.bottom_tray.donate_button.clicked.connect(self.open_donation)
 
         # Reader click-to-seek (best-effort; the reader widget may be swapped in tests).
         try:
@@ -144,7 +143,7 @@ class MainWindow(QMainWindow):
     def _on_play_pause_clicked(self, checked: bool) -> None:
         """Emit unified Play/Pause without visually flipping ahead of state.
 
-        QToolButton is checkable for styling, but we keep the checked state driven
+        QToolButton is checkable for styling; we keep the checked state driven
         by narration state updates.
         """
 
@@ -155,15 +154,11 @@ class MainWindow(QMainWindow):
             pass
         self.play_pause_clicked.emit()
 
-    def _update_volume_icon(self, value: int) -> None:
-        v = int(value)
-        if v <= 0:
-            icon = "🔇"
-        elif v <= 50:
-            icon = "🔉"
-        else:
-            icon = "🔊"
-        self.lbl_volume_icon.setText(icon)
+    def open_donation(self) -> None:
+        """Hand the donation page to whatever the desktop opens links with."""
+
+        if not open_externally(DONATE_URL):
+            self.lbl_status.setText(DONATE_OPEN_FAILED)
 
     def set_transport_playing(self, *, is_playing: bool) -> None:
         """Update the Play/Pause toggle button to reflect playback state."""
@@ -171,12 +166,14 @@ class MainWindow(QMainWindow):
         self._transport_is_playing = bool(is_playing)
         try:
             self.btn_play_pause.setChecked(bool(is_playing))
-            self.btn_play_pause.setText("Ⅱ" if is_playing else "▶")
-            self.btn_play_pause.setToolTip(
-                self._strings.pause_tooltip
-                if is_playing
-                else self._strings.play_tooltip
+            words = PAUSE_TEXT if is_playing else PLAY_TEXT
+            set_button_artwork(
+                self.btn_play_pause,
+                Artwork.PAUSE if is_playing else Artwork.PLAY,
+                words,
             )
+            self.btn_play_pause.setToolTip(words)
+            self.btn_play_pause.setAccessibleName(words)
         except Exception:
             pass
 
@@ -200,7 +197,7 @@ class MainWindow(QMainWindow):
         open_licence_dialog(
             owner=self,
             attr_name="_ui_licence_dialog",
-            title="UI licence",
+            title=UI_LICENCE_TITLE,
             filename="LGPL3-LICENSE",
         )
 
@@ -208,7 +205,7 @@ class MainWindow(QMainWindow):
         open_licence_dialog(
             owner=self,
             attr_name="_backend_licence_dialog",
-            title="Backend licence",
+            title=BACKEND_LICENCE_TITLE,
             filename="LICENSE",
             initial_width=475,
         )
@@ -236,7 +233,7 @@ class MainWindow(QMainWindow):
 
     @property
     def render_plan(self):
-        """The active render plan, or None when showing raw text."""
+        """The active render plan; None when showing raw text."""
 
         return getattr(self, "_render_plan", None)
 

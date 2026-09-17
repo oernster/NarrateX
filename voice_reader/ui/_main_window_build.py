@@ -8,12 +8,15 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QProgressBar,
-    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
+from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui._main_window_controls import build_controls_rows
+from voice_reader.ui.artwork import Artwork
+from voice_reader.ui.bottom_tray import BottomTray
+from voice_reader.ui.sentence_case_label import SentenceCaseLabel
 from voice_reader.ui.window_helpers import apply_main_window_theme
 from voice_reader.version import APP_NAME
 
@@ -60,7 +63,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     status = QHBoxLayout()
     status.setSpacing(12)
 
-    window.lbl_status = QLabel("Idle")
+    window.lbl_status = SentenceCaseLabel("Idle")
     window.lbl_status.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
     window.lbl_status.setMinimumWidth(260)
 
@@ -96,37 +99,14 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     right_panel.setSpacing(6)
     right_panel.setAlignment(Qt.AlignTop | Qt.AlignRight)
 
-    window.btn_ui_licence = QToolButton()
-    window.btn_ui_licence.setText("📜")
-    window.btn_ui_licence.setObjectName("uiLicenceButton")
-    window.btn_ui_licence.setToolTip("UI licence")
-    window.btn_ui_licence.setCursor(Qt.PointingHandCursor)
-    window.btn_ui_licence.setAutoRaise(True)
-    window.btn_ui_licence.setFixedSize(38, 38)
-    window.btn_ui_licence.setFont(QFont("Segoe UI Emoji", 16))
-    window.btn_ui_licence.setProperty("topIconButton", True)
-
-    window.btn_backend_licence = QToolButton()
-    window.btn_backend_licence.setText("📃")
-    window.btn_backend_licence.setObjectName("backendLicenceButton")
-    window.btn_backend_licence.setToolTip("Backend licence")
-    window.btn_backend_licence.setCursor(Qt.PointingHandCursor)
-    window.btn_backend_licence.setAutoRaise(True)
-    window.btn_backend_licence.setFixedSize(38, 38)
-    window.btn_backend_licence.setFont(QFont("Segoe UI Emoji", 16))
-    window.btn_backend_licence.setProperty("topIconButton", True)
-
     # Info button (top-right) that opens About directly.
-    window.btn_help = QToolButton()
-    # Blue help/info glyph.
-    window.btn_help.setText("ℹ")
-    window.btn_help.setObjectName("helpButton")
-    window.btn_help.setToolTip(f"About {APP_NAME}")
-    window.btn_help.setCursor(Qt.PointingHandCursor)
-    window.btn_help.setAutoRaise(True)
-    window.btn_help.setFixedSize(38, 38)
-    window.btn_help.setFont(QFont("Segoe UI", 16))
-    window.btn_help.setProperty("topIconButton", True)
+    about_text = f"About {APP_NAME}"
+    window.btn_help = icon_button(
+        artwork=Artwork.HELP,
+        text=about_text,
+        tooltip=about_text,
+        object_name="helpButton",
+    )
 
     help_row = QHBoxLayout()
     help_row.setContentsMargins(0, 0, 0, 0)
@@ -136,8 +116,6 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     # Zone C: unified utility cluster (far right)
     help_row.addWidget(window.btn_bookmarks)
     help_row.addWidget(window.btn_ideas)
-    help_row.addWidget(window.btn_ui_licence)
-    help_row.addWidget(window.btn_backend_licence)
     help_row.addWidget(window.btn_help)
     right_panel.addLayout(help_row)
 
@@ -197,14 +175,20 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
 
     root.addLayout(reader_row, stretch=3)
 
+    # The strip along the foot: donate, a separator, then the two licences.
+    window.bottom_tray = BottomTray()
+    window.btn_ui_licence = window.bottom_tray.ui_licence_button
+    window.btn_backend_licence = window.bottom_tray.backend_licence_button
+    root.addWidget(window.bottom_tray)
+
     window.log = None
 
     window.setCentralWidget(central)
 
     # Explicit keyboard ring in visual order, replacing creation-order
     # traversal. Qt wraps from the last stop back to the first, so Tab on
-    # Next Chapter proceeds to Select Book. Disabled stops are skipped by
-    # Qt natively.
+    # the last button in the foot strip proceeds to Select Book. Disabled
+    # stops are skipped by Qt natively.
     ring = [
         window.btn_select_book,
         window.btn_remove_book,
@@ -217,12 +201,11 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
         window.lbl_volume_icon,
         window.btn_bookmarks,
         window.btn_ideas,
-        window.btn_ui_licence,
-        window.btn_backend_licence,
         window.btn_help,
         window.btn_prev_chapter,
         window.btn_next_chapter,
         window.reader,
+        *window.bottom_tray.ring_stops(),
     ]
     for earlier, later in zip(ring, ring[1:]):
         QWidget.setTabOrder(earlier, later)

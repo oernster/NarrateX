@@ -40,8 +40,7 @@ def test_disabled_controls_ring_red_permanently(qapp) -> None:
     for selector in (
         "QPushButton:disabled",
         "QComboBox:disabled",
-        "QToolButton#playPauseButton:disabled",
-        "QPushButton#stopButton:disabled",
+        'QToolButton[iconButton="true"]:disabled',
     ):
         assert selector in sheet, f"missing {selector}"
     assert RED in sheet

@@ -79,3 +79,18 @@ def test_the_site_copies_match_the_root_copies() -> None:
             f"{name} differs between the repository root and docs/. Both are "
             "emitted by generate_icons.py; neither is edited by hand."
         )
+
+
+def test_every_authored_picture_has_a_name_and_every_name_a_picture() -> None:
+    """The UI's artwork registry and the masters in assets/ describe one set.
+
+    A master with no name ships a picture nothing draws; a name with no master
+    draws a button that falls back to words.
+    """
+
+    generate_icons = _generator()
+    from voice_reader.ui.artwork import Artwork
+
+    masters = {path.stem for path in generate_icons.artwork_masters()}
+    masters.add(generate_icons.DONATE_MASTER.stem)
+    assert masters == {name.value for name in Artwork}

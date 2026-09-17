@@ -140,6 +140,9 @@ def main() -> int:
         f"{PROJECT_ROOT / 'narratex_128.png'}:.",
         f"{PROJECT_ROOT / 'narratex_256.png'}:.",
         f"{PROJECT_ROOT / 'narratex_512.png'}:.",
+        # The button artwork, beside the package module that resolves it
+        # (voice_reader/ui/artwork.py reads it from its own directory).
+        f"{PROJECT_ROOT / 'voice_reader' / 'ui' / 'artwork'}:voice_reader/ui/artwork",
     ]
 
     cmd = [

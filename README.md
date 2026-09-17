@@ -166,7 +166,8 @@ also run `stamp_version.py` before packaging, so a release cannot ship site page
 `VERSION`.
 
 Icons are generated rather than authored. `generate_icons.py` derives every size, the Windows
-`narratex.ico` and the site's copies under `docs/` from the single master `narratex.png`;
+`narratex.ico` and the site's copies under `docs/` from the single master `narratex.png`, then reduces
+each button picture in `assets/` to the copy the application ships under `voice_reader/ui/artwork/`;
 `python generate_icons.py --check` compares the tracked set against a fresh render without writing
 anything, which is the same comparison the structural suite makes.
 
@@ -174,7 +175,8 @@ anything, which is the same comparison the structural suite makes.
 
 NarrateX is free and stays free. There is no paid tier, no licence key and no feature held back behind
 a donation. If it has replaced something you were paying for, a donation supports its maintenance and
-continued development.
+continued development. The same link sits at the foot of the application's own window, where the
+donate button hands it to your browser; NarrateX itself never opens a connection for it.
 
 <a href="https://www.paypal.com/ncp/payment/26YQ4HUNDHYXY"><img src="docs/donate.png" alt="Donate to NarrateX" width="120"></a>
 

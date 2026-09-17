@@ -20,27 +20,19 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QListWidget,
-    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QVBoxLayout,
 )
 
 from voice_reader.domain.entities.bookmark import Bookmark
+from voice_reader.ui._icon_buttons import ArtworkList
+from voice_reader.ui.artwork import Artwork
 
 
 def _in_tests() -> bool:
     # pytest sets this environment variable for each test.
     return bool(os.getenv("PYTEST_CURRENT_TEST"))
-
-
-def _display_label(label: str) -> str:
-    s = str(label or "").strip()
-    if not s:
-        return "📌"
-    if s.startswith("📌"):
-        return s
-    return f"📌 {s}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +70,7 @@ class BookmarksDialog(QDialog):
         title.setStyleSheet("font-size: 14px; font-weight: 600;")
         root.addWidget(title)
 
-        self.list = QListWidget()
+        self.list = ArtworkList(Artwork.BOOKMARKS)
         self.list.setSelectionMode(QListWidget.SingleSelection)
         # Always show a vertical scrollbar (keeps layout stable with many items).
         self.list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
@@ -116,9 +108,8 @@ class BookmarksDialog(QDialog):
         self.list.clear()
         bookmarks = list(self._actions.list_bookmarks())
         for bm in bookmarks:
-            item = QListWidgetItem(_display_label(bm.name))
+            item = self.list.add_row(bm.name)
             item.setData(Qt.UserRole, bm)
-            self.list.addItem(item)
         if self.list.count() > 0:
             self.list.setCurrentRow(0)
 

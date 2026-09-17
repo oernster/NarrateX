@@ -21,18 +21,12 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from voice_reader.ui._icon_buttons import ArtworkList
+from voice_reader.ui.artwork import Artwork
+
 
 def _in_tests() -> bool:
     return bool(os.getenv("PYTEST_CURRENT_TEST"))
-
-
-def _display_label(label: str) -> str:
-    s = str(label or "").strip()
-    if not s:
-        return "📌"
-    if s.startswith("📌"):
-        return s
-    return f"📌 {s}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,7 +112,7 @@ class StructuralBookmarksDialog(QDialog):
         self.status.setVisible(False)
         root.addWidget(self.status)
 
-        self.list = QListWidget()
+        self.list = ArtworkList(Artwork.SECTIONS)
         self.list.setSelectionMode(QListWidget.SingleSelection)
         self.list.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.list.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -190,9 +184,8 @@ class StructuralBookmarksDialog(QDialog):
 
         self.list.clear()
         for it in list(items or []):
-            lw = QListWidgetItem(_display_label(it.label))
+            lw = self.list.add_row(it.label)
             lw.setData(Qt.UserRole, it)
-            self.list.addItem(lw)
         if self.list.count() > 0:
             self.list.setCurrentRow(0)
         try:
@@ -229,9 +222,8 @@ class StructuralBookmarksDialog(QDialog):
         self.list.clear()
         items = list(self._actions.list_items())
         for it in items:
-            lw = QListWidgetItem(_display_label(it.label))
+            lw = self.list.add_row(it.label)
             lw.setData(Qt.UserRole, it)
-            self.list.addItem(lw)
         if self.list.count() > 0:
             self.list.setCurrentRow(0)
         try:

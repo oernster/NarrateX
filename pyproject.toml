@@ -20,6 +20,10 @@ requires-python = ">=3.10,<3.13"
 # (installer/, tests/ and the build scripts all sit at the repo root).
 packages = ["voice_reader"]
 
+[tool.setuptools.package-data]
+# The button artwork ships inside the package, beside the module that reads it.
+voice_reader = ["ui/artwork/*.png"]
+
 [tool.setuptools.dynamic]
 # `VERSION` at the repo root is the single source of truth. `voice_reader/
 # version.py` reads the same file at import time and the site pages carry

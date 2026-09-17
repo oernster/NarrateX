@@ -1,7 +1,7 @@
 """The voice picker: sex and region toggles filtering the dropdown.
 
 The dropdown only ever shows the current sex and region combination; the
-toggles carry their state as glyphs; the user's pick survives a refresh
+toggles carry their state as artwork; the user's pick survives a refresh
 when it still matches. No voice is defaulted: the picker is disabled until
 a book loads, then an amber attention ring flashes until first touched,
 holds steady until a voice is chosen and clears on choice.
@@ -70,13 +70,14 @@ def test_default_lists_british_females_with_nothing_selected(qapp) -> None:
         "Emma (British Female)",
         "Isabella (British Female)",
     ]
-    # No voice is defaulted: the combo rests on its mic placeholder.
+    # No voice is defaulted: the combo rests on its placeholder.
     assert c.window.voice_combo.currentIndex() == -1
     assert c.window.voice_combo.currentData() is None
-    assert c.window.voice_combo.placeholderText() == "🎙 Select Voice"
-    assert c.window.btn_voice_sex.text() == "♀"
-    assert c.window.btn_voice_region.text() == "🇬🇧"
-    # The glyphs display as centred icons, not baseline-riding text.
+    assert c.window.voice_combo.placeholderText() == "Select voice"
+    assert c.window.btn_voice_sex.text() == "Female"
+    assert c.window.btn_voice_region.text() == "British"
+    assert c.window.btn_voice_sex.toolTip() == "Female voices (click to change)"
+    # The state shows as artwork; the words are for accessibility.
     assert not c.window.btn_voice_sex.icon().isNull()
     assert not c.window.btn_voice_region.icon().isNull()
 
@@ -87,7 +88,7 @@ def test_sex_toggle_switches_to_british_males(qapp) -> None:
     c.toggle_voice_sex()
 
     assert _labels(c) == ["Daniel (British Male)", "George (British Male)"]
-    assert c.window.btn_voice_sex.text() == "♂"
+    assert c.window.btn_voice_sex.text() == "Male"
 
 
 def test_region_cycle_reaches_american_voices(qapp) -> None:
@@ -96,11 +97,11 @@ def test_region_cycle_reaches_american_voices(qapp) -> None:
     c.cycle_voice_region()
 
     assert _labels(c) == ["Bella (American Female)", "Heart (American Female)"]
-    assert c.window.btn_voice_region.text() == "🇺🇸"
+    assert c.window.btn_voice_region.text() == "American"
 
     # Cycling wraps back to British.
     c.cycle_voice_region()
-    assert c.window.btn_voice_region.text() == "🇬🇧"
+    assert c.window.btn_voice_region.text() == "British"
 
 
 def test_a_pick_survives_a_refresh_when_it_still_matches(qapp) -> None:

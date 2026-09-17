@@ -118,10 +118,17 @@ Fast local iteration without coverage:
 
 ## Icons
 
-`narratex.png` at the repository root is the only authored icon. Every other image the build stages
-is derived from it by [`generate_icons.py`](generate_icons.py): the eight PNG sizes, the multi-size
-Windows `narratex.ico` and the five copies the published site needs under `docs/`. The site needs
-its own copies because GitHub Pages publishes `docs/` and nothing above it.
+`narratex.png` at the repository root is the master of the application mark. Every other image the
+build stages is derived by [`generate_icons.py`](generate_icons.py): from that master, the eight PNG
+sizes, the multi-size Windows `narratex.ico` and the five copies the published site needs under
+`docs/`. The site needs its own copies because GitHub Pages publishes `docs/` and nothing above it.
+
+The button artwork is authored too, one master per picture in `assets/`. The same script reduces each
+to the copy the application ships under `voice_reader/ui/artwork/` (four times the size it is drawn
+at, named by [`voice_reader/ui/artwork.py`](voice_reader/ui/artwork.py)). `assets/donate.png` is
+cropped to its artwork and scaled by height, then written both there and to `docs/donate.png`, so
+the application and the site cannot carry different marks. A new picture needs its master in
+`assets/` and a name in `Artwork`; the structural suite fails while either is missing.
 
 ```powershell
 python generate_icons.py

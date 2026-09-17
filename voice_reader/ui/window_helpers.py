@@ -16,8 +16,14 @@ __all__ = [
 ]
 
 
+# How long the pointer rests on a control before its tooltip opens. The
+# platform default (700ms) reads as a lag on picture buttons, whose tooltip is
+# the only place their purpose is written.
+TOOLTIP_WAKE_UP_MS = 100
+
+
 class _NoFocusRectStyle(QProxyStyle):
-    """Drop the platform style's native focus rectangle everywhere.
+    """Drop the native focus rectangle everywhere; open tooltips promptly.
 
     The QSS green ring is the app's one focus indicator; some platform
     styles additionally draw an inner focus rectangle (white on the dark
@@ -25,6 +31,13 @@ class _NoFocusRectStyle(QProxyStyle):
     style level constrains that out of existence for every control and
     every dialog, rather than chasing it per widget with outline rules.
     """
+
+    def styleHint(  # noqa: N802 (Qt naming)
+        self, hint, option=None, widget=None, return_data=None
+    ) -> int:
+        if hint == QStyle.StyleHint.SH_ToolTip_WakeUpDelay:
+            return TOOLTIP_WAKE_UP_MS
+        return super().styleHint(hint, option, widget, return_data)
 
     def drawPrimitive(self, element, option, painter, widget=None) -> None:
         if element == QStyle.PrimitiveElement.PE_FrameFocusRect:
@@ -73,6 +86,9 @@ def apply_main_window_theme(window) -> None:
     # book loads, held steady after first interaction, cleared on choice.
     ring_attention = "#f59e0b"
     disabled_text = "#94a3b8"
+    divider = "#374151"
+    # One corner radius for every bordered button, text or picture.
+    control_radius = "6px"
     window.setStyleSheet(f"""
             QMainWindow {{ background: {bg}; }}
             /* outline: none suppresses the native inner focus rectangle on
@@ -121,7 +137,7 @@ def apply_main_window_theme(window) -> None:
                 background: {panel};
                 border: 2px solid #1f2937;
                 padding: 6px 10px;
-                border-radius: 6px;
+                border-radius: {control_radius};
             }}
             QPushButton:enabled:hover {{ border-color: {ring_green}; }}
             QPushButton:enabled:focus {{ border-color: {ring_green}; }}
@@ -132,76 +148,36 @@ def apply_main_window_theme(window) -> None:
                 color: {disabled_text};
             }}
 
-            QToolButton[topIconButton="true"] {{
+            /* Every picture button: a rounded square ring, transparent at
+               rest. The ring sits inside the button's box on whole pixels,
+               where a circle drawn to the box's edge lost its antialiased rim
+               at the four points it touched the edge. */
+            QToolButton[iconButton="true"] {{
                 background: transparent;
                 border: 2px solid transparent;
-                border-radius: 17px;
+                border-radius: {control_radius};
                 padding: 0px;
                 color: {text};
             }}
-            QToolButton[topIconButton="true"]:enabled:hover {{
+            QToolButton[iconButton="true"]:enabled:hover {{
                 border-color: {ring_green};
             }}
-            QToolButton[topIconButton="true"]:enabled:focus {{
+            QToolButton[iconButton="true"]:enabled:focus {{
                 border-color: {ring_green};
             }}
-            QToolButton[topIconButton="true"]:pressed {{
+            QToolButton[iconButton="true"]:pressed {{
                 background: rgba(255, 255, 255, 0.08);
             }}
-            QToolButton[topIconButton="true"]:disabled {{
-                border-color: {ring_red};
-                color: {disabled_text};
-            }}
-            QToolButton#helpButton {{
-                color: #3b82f6;
-            }}
-
-            /* Primary transport control: single circular play/pause toggle. */
-            QToolButton#playPauseButton {{
-                background: #0b1220;
-                border: 3px solid rgba(59, 130, 246, 0.62);
-                border-radius: 26px;
-                padding: 0px;
-                color: {text};
-            }}
-            QToolButton#playPauseButton:enabled:hover {{
-                border-color: {ring_green};
-                background: #0d172a;
-            }}
-            QToolButton#playPauseButton:enabled:focus {{
-                border-color: {ring_green};
-            }}
-            QToolButton#playPauseButton:pressed {{
-                background: #0a1020;
-            }}
-            QToolButton#playPauseButton:checked {{
-                /* Slightly stronger ring when actively playing. */
-                border-color: {blue};
-            }}
-            QToolButton#playPauseButton:disabled {{
+            QToolButton[iconButton="true"]:disabled {{
                 border-color: {ring_red};
                 color: {disabled_text};
             }}
 
-            /* Secondary transport: Stop should read clearly, but stay subordinate. */
-            QPushButton#stopButton {{
-                background: {panel};
-                border: 2px solid #334155;
-                padding: 7px 12px;
-                border-radius: 6px;
-            }}
-            QPushButton#stopButton:enabled:hover {{
-                border-color: {ring_green};
-            }}
-            QPushButton#stopButton:enabled:focus {{
-                border-color: {ring_green};
-            }}
-            QPushButton#stopButton:pressed {{
-                background: #111827;
-            }}
-            QPushButton#stopButton:disabled {{
-                border: 2px solid {ring_red};
-                color: {disabled_text};
+            /* The foot strip's divider between donate and the licences. */
+            QFrame#bottomTraySeparator {{
+                border: none;
+                background: {divider};
+                max-width: 1px;
             }}
 
             /* Volume slider, themed: dark groove, blue fill, blue handle.

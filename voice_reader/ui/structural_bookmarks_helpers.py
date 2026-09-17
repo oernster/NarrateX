@@ -2,7 +2,7 @@
 
 This module is intentionally UI-layer (under `voice_reader.ui`) but contains no
 Qt/PySide dependencies. It centralizes the (somewhat fiddly) logic used to
-produce the 🧠 Sections dialog list so other UI actions (like Play-from-scratch)
+produce the Sections dialog list so other UI actions (like Play-from-scratch)
 can reuse the exact same computation.
 """
 

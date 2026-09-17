@@ -91,9 +91,7 @@ def play(controller) -> None:
             book_absent = False
         if book_absent:
             try:
-                controller.window.lbl_status.setText(
-                    "Select a book first (📚 Select Book)"
-                )
+                controller.window.lbl_status.setText("Select a book first")
             except Exception:
                 pass
             return
@@ -109,7 +107,7 @@ def play(controller) -> None:
         # Voices exist but none is chosen: prompt rather than log-and-die.
         if getattr(controller, "_voices", None):
             try:
-                controller.window.lbl_status.setText("Choose a voice first (🎙)")
+                controller.window.lbl_status.setText("Choose a voice first")
             except Exception:
                 pass
             return

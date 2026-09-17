@@ -117,7 +117,7 @@ def open_ideas_dialog(controller) -> None:
 
         if running_id == book_id or launch_inflight:
             # Avoid extra transient dialogs while mapping: the main window shows
-            # a dedicated progress bar under 🧠.
+            # a dedicated progress bar under the Sections button.
             try:
                 if hasattr(controller.window, "lbl_status"):
                     controller.window.lbl_status.setText("Mapping ideas…")
@@ -125,7 +125,7 @@ def open_ideas_dialog(controller) -> None:
                 pass
             return
 
-        # If we have a persisted status (e.g. app exited mid-index, or the book
+        # If we have a persisted status (e.g. app exited mid-index; the book
         # text changed and the idea map is now stale), give the user a slightly
         # more informative prompt.
         status_hint = None

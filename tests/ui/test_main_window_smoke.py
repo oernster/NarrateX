@@ -47,7 +47,7 @@ def test_main_window_remove_book_button_exists_and_starts_locked(qapp) -> None:
     del qapp
     w = MainWindow()
     assert hasattr(w, "btn_remove_book")
-    assert w.btn_remove_book.text() == "❌"
+    assert not w.btn_remove_book.icon().isNull()
     assert w.btn_remove_book.isEnabled() is False
     assert "file is kept" in w.btn_remove_book.toolTip()
 
@@ -109,7 +109,7 @@ def test_main_window_volume_controls_smoke(qapp) -> None:
     assert w.volume_slider.value() == 25
 
     assert hasattr(w, "lbl_volume_icon")
-    assert w.lbl_volume_icon.text() in {"🔊", "🔉", "🔇"}
+    assert not w.lbl_volume_icon.icon().isNull()
 
     # The keyboard stop for volume is the speaker button, never the slider.
     from PySide6.QtCore import Qt
@@ -119,7 +119,7 @@ def test_main_window_volume_controls_smoke(qapp) -> None:
 
 
 def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
-    """Next Chapter proceeds to Select Book; Stop proceeds to the volume stop."""
+    """The foot strip closes the ring; Stop proceeds to the volume stop."""
 
     from PySide6.QtCore import Qt
 
@@ -144,12 +144,15 @@ def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
     assert next_stop(w.lbl_volume_icon) is w.btn_bookmarks
     assert next_stop(w.btn_help) is w.btn_prev_chapter
     assert next_stop(w.btn_next_chapter) is w.reader
-    assert next_stop(w.reader) is w.btn_select_book
+    assert next_stop(w.reader) is w.bottom_tray.donate_button
+    assert next_stop(w.bottom_tray.donate_button) is w.btn_ui_licence
+    assert next_stop(w.btn_ui_licence) is w.btn_backend_licence
+    assert next_stop(w.btn_backend_licence) is w.btn_select_book
     w.close()
 
 
 def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
-    """Smoke test for the two top-right licence buttons."""
+    """Smoke test for the two licence buttons in the foot strip."""
 
     from PySide6.QtWidgets import QApplication, QDialog, QPlainTextEdit, QToolButton
 

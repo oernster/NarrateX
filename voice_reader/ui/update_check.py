@@ -17,10 +17,10 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, QTimer, QUrl, Signal
-from PySide6.QtGui import QDesktopServices
+from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QMessageBox
 
+from voice_reader.ui.links import open_externally
 from voice_reader.version import APP_NAME
 
 if TYPE_CHECKING:
@@ -120,7 +120,7 @@ class UpdateCheckController(QObject):
         if clicked is download:
             url = status.download_url or status.page_url
             if url:
-                QDesktopServices.openUrl(QUrl(url))
+                open_externally(url)
         elif clicked is skip and status.latest:
             self._preferences_repo.save_skipped_update_version(status.latest)
 
