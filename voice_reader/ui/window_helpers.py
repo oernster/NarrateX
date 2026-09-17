@@ -71,6 +71,9 @@ def apply_main_window_theme(window) -> None:
     bg = "#0b0f17"
     panel = "#121826"
     text = "#e5e7eb"
+    # Text on the blue selection: the theme text measures 4.17:1 there, under
+    # the WCAG AA 4.5:1 floor; white measures 5.17:1.
+    selected_text = "#ffffff"
 
     # Interaction rings, applied uniformly to every control:
     # - hover or keyboard focus on an ENABLED control shows a green ring
@@ -123,6 +126,30 @@ def apply_main_window_theme(window) -> None:
                 selection-color: {text};
                 border: 1px solid #374151;
                 outline: 0;
+            }}
+
+            /* The Help menu: the dropdown list's dark panel and blue
+               selection. With no rule of its own it took the style's white
+               background under the light text set on every QWidget. */
+            QMenu {{
+                background: {panel};
+                color: {text};
+                border: 1px solid {divider};
+                padding: 4px 0px;
+            }}
+            QMenu::item {{
+                background: transparent;
+                padding: 6px 20px;
+            }}
+            QMenu::item:selected {{
+                background: {blue};
+                color: {selected_text};
+            }}
+            QMenu::item:disabled {{ color: {disabled_text}; }}
+            QMenu::separator {{
+                height: 1px;
+                background: {divider};
+                margin: 4px 8px;
             }}
 
             QLabel#cover {{
