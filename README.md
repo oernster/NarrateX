@@ -125,7 +125,7 @@ enforced by structural tests at every test run. See
 
 ## Screenshot
 
-<img width="1050" height="606" src="images/narratex.png" />
+<img width="1050" height="678" src="images/narratex.png" alt="NarrateX reading a book with the Sections dialog open over the reading pane" />
 
 ## Install and run
 
