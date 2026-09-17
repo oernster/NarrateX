@@ -15,7 +15,6 @@ from voice_reader.ui._icon_buttons import ArtworkList, artwork_icon, icon_button
 from voice_reader.ui.artwork import (
     ICON_BUTTON_PX,
     LIST_ROW_ICON_PX,
-    PRIMARY_BUTTON_PX,
     TOP_ICON_BUTTON_PX,
     Artwork,
 )
@@ -71,10 +70,11 @@ def test_select_book_and_chapter_nav_carry_no_visible_words(qapp) -> None:
         assert button.size() == QSize(TOP_ICON_BUTTON_PX, TOP_ICON_BUTTON_PX)
 
 
-def test_play_pause_is_the_larger_control_and_follows_state(qapp) -> None:
+def test_play_pause_matches_its_neighbours_and_follows_state(qapp) -> None:
     del qapp
     w = MainWindow()
-    assert w.btn_play_pause.size() == QSize(PRIMARY_BUTTON_PX, PRIMARY_BUTTON_PX)
+    for button in (w.btn_play_pause, w.btn_stop):
+        assert button.size() == QSize(TOP_ICON_BUTTON_PX, TOP_ICON_BUTTON_PX)
 
     w.set_transport_playing(is_playing=True)
     assert w.btn_play_pause.toolTip() == "Pause"
@@ -159,3 +159,23 @@ def test_progress_percentage_shares_the_count_line(qapp) -> None:
     w = MainWindow()
     assert w.progress.alignment() & Qt.AlignmentFlag.AlignVCenter
     assert w.lbl_progress.alignment() & Qt.AlignmentFlag.AlignVCenter
+
+
+def test_transport_row_is_centred_between_the_chapter_buttons(qapp) -> None:
+    w = MainWindow()
+    w.resize(1400, 700)
+    w.show()
+    qapp.processEvents()
+    order = [w.btn_prev_chapter, w.btn_play_pause, w.btn_stop, w.btn_next_chapter]
+    xs = [button.x() for button in order]
+    assert xs == sorted(xs)
+    assert all(button.y() == order[0].y() for button in order)
+    # The row sits below the top controls rather than beside them.
+    assert order[0].y() > w.btn_select_book.geometry().bottom()
+
+    row = w.transport_row.geometry()
+    space_left = order[0].geometry().left() - row.left()
+    space_right = row.right() - order[-1].geometry().right()
+    # Centred: the space either side differs by at most a rounding pixel.
+    assert abs(space_left - space_right) <= 1
+    w.close()

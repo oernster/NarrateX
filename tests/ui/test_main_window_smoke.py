@@ -119,7 +119,7 @@ def test_main_window_volume_controls_smoke(qapp) -> None:
 
 
 def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
-    """The foot strip closes the ring; Stop proceeds to the volume stop."""
+    """The transport row runs left to right; the foot strip closes the ring."""
 
     from PySide6.QtCore import Qt
 
@@ -140,9 +140,12 @@ def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
             nxt = nxt.nextInFocusChain()
         return nxt
 
-    assert next_stop(w.btn_stop) is w.lbl_volume_icon
+    assert next_stop(w.speed_combo) is w.lbl_volume_icon
     assert next_stop(w.lbl_volume_icon) is w.btn_bookmarks
     assert next_stop(w.btn_help) is w.btn_prev_chapter
+    assert next_stop(w.btn_prev_chapter) is w.btn_play_pause
+    assert next_stop(w.btn_play_pause) is w.btn_stop
+    assert next_stop(w.btn_stop) is w.btn_next_chapter
     assert next_stop(w.btn_next_chapter) is w.reader
     assert next_stop(w.reader) is w.bottom_tray.donate_button
     assert next_stop(w.bottom_tray.donate_button) is w.btn_ui_licence

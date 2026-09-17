@@ -56,6 +56,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     left_panel.setAlignment(Qt.AlignTop)
 
     controls, chapter_nav = build_controls_rows(window, strings=strings)
+    window.transport_row = chapter_nav
     left_panel.addLayout(controls)
     left_panel.addLayout(chapter_nav)
 
@@ -201,13 +202,13 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
         window.btn_voice_region,
         window.voice_combo,
         window.speed_combo,
-        window.btn_play_pause,
-        window.btn_stop,
         window.lbl_volume_icon,
         window.btn_bookmarks,
         window.btn_ideas,
         window.btn_help,
         window.btn_prev_chapter,
+        window.btn_play_pause,
+        window.btn_stop,
         window.btn_next_chapter,
         window.reader,
         *window.bottom_tray.ring_stops(),

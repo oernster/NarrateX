@@ -19,8 +19,6 @@ from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui._ui_controller_voices import VOICE_REGIONS, VOICE_SEXES
 from voice_reader.ui.artwork import (
     ICON_BUTTON_PX,
-    PRIMARY_BUTTON_PX,
-    PRIMARY_ICON_PX,
     TOP_ICON_BUTTON_PX,
     TOP_ICON_PX,
     Artwork,
@@ -100,16 +98,10 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
         window.speed_combo.addItem(speed)
     window.speed_combo.setCurrentText(DEFAULT_SPEED)
 
-    # Primary playback control: one larger Play/Pause toggle. Checkable so
-    # narration state, not the click, decides what it shows.
-    window.btn_play_pause = icon_button(
-        artwork=Artwork.PLAY,
-        text=PLAY_TEXT,
-        tooltip=PLAY_TEXT,
-        button_px=PRIMARY_BUTTON_PX,
-        icon_px=PRIMARY_ICON_PX,
-        object_name="playPauseButton",
-    )
+    # One Play/Pause toggle. Checkable so narration state, not the click,
+    # decides what it shows.
+    _text_button(window, "btn_play_pause", artwork=Artwork.PLAY, text=PLAY_TEXT)
+    window.btn_play_pause.setObjectName("playPauseButton")
     window.btn_play_pause.setCheckable(True)
 
     _text_button(window, "btn_stop", artwork=Artwork.STOP, text=STOP_TEXT)
@@ -166,11 +158,9 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     zone_a.addWidget(QLabel("Speed"))
     zone_a.addWidget(window.speed_combo)
 
-    # Zone B: primary playback (center)
+    # Zone B: volume (center)
     zone_b = QHBoxLayout()
     zone_b.setSpacing(ROW_SPACING)
-    zone_b.addWidget(window.btn_play_pause)
-    zone_b.addWidget(window.btn_stop)
     zone_b.addWidget(window.lbl_volume_icon)
     zone_b.addWidget(window.volume_slider)
 
@@ -179,7 +169,8 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     controls.addLayout(zone_b)
     controls.addStretch(1)
 
-    # Chapter navigation row: pictures only, the tooltip names the direction.
+    # Transport row, centred: previous chapter, play/pause, stop, next chapter.
+    # Pictures only; each tooltip names what the button does.
     chapter_nav = QHBoxLayout()
     chapter_nav.setSpacing(ROW_SPACING)
     _text_button(
@@ -194,8 +185,14 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
         artwork=Artwork.NEXT_CHAPTER,
         text=NEXT_CHAPTER_TEXT,
     )
-    chapter_nav.addWidget(window.btn_prev_chapter)
-    chapter_nav.addWidget(window.btn_next_chapter)
+    chapter_nav.addStretch(1)
+    for button in (
+        window.btn_prev_chapter,
+        window.btn_play_pause,
+        window.btn_stop,
+        window.btn_next_chapter,
+    ):
+        chapter_nav.addWidget(button)
     chapter_nav.addStretch(1)
 
     return controls, chapter_nav

@@ -58,13 +58,6 @@ TOP_SCALE = 1.5
 TOP_ICON_BUTTON_PX = round(ICON_BUTTON_PX * TOP_SCALE)
 TOP_ICON_PX = round(ICON_PX * TOP_SCALE)
 
-# Play/Pause is the one primary control, so it is drawn larger than the rest
-# of the top row, at these base sizes scaled the same way.
-PRIMARY_BASE_BUTTON_PX = 52
-PRIMARY_BASE_ICON_PX = 44
-PRIMARY_BUTTON_PX = round(PRIMARY_BASE_BUTTON_PX * TOP_SCALE)
-PRIMARY_ICON_PX = round(PRIMARY_BASE_ICON_PX * TOP_SCALE)
-
 # A list row's picture (the Bookmarks and Sections dialogs).
 LIST_ROW_ICON_PX = 20
 
@@ -73,7 +66,7 @@ LIST_ROW_ICON_PX = 20
 RENDER_SCALE = 4
 
 # The longest side of a shipped copy: enough for the largest drawn size.
-ARTWORK_MAX_SIDE = PRIMARY_ICON_PX * RENDER_SCALE
+ARTWORK_MAX_SIDE = TOP_ICON_PX * RENDER_SCALE
 
 # The donate mark is wide rather than square, so it is rendered by height
 # alone; the site's copy is the same render.
