@@ -160,7 +160,7 @@ def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
 def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
     """Smoke test for the two licence buttons in the foot strip."""
 
-    from PySide6.QtWidgets import QApplication, QDialog, QPlainTextEdit, QToolButton
+    from PySide6.QtWidgets import QApplication, QDialog, QTextBrowser, QToolButton
 
     w = MainWindow()
     w.show()
@@ -185,7 +185,7 @@ def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
     assert ui_dialogs, "Expected a UI licence dialog to be open"
     ui_dlg = ui_dialogs[-1]
 
-    ui_editor = ui_dlg.findChild(QPlainTextEdit, "LicenceText")
+    ui_editor = ui_dlg.findChild(QTextBrowser, "LicenceText")
     assert ui_editor is not None
     assert "GNU LESSER GENERAL PUBLIC LICENSE" in ui_editor.toPlainText()
 
@@ -206,7 +206,7 @@ def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
     # Backend licence dialog should be narrower than the UI LGPL dialog.
     assert backend_dlg.width() <= 520
 
-    backend_editor = backend_dlg.findChild(QPlainTextEdit, "LicenceText")
+    backend_editor = backend_dlg.findChild(QTextBrowser, "LicenceText")
     assert backend_editor is not None
     assert "GNU GENERAL PUBLIC LICENSE" in backend_editor.toPlainText()
 

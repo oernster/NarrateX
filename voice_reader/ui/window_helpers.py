@@ -217,11 +217,6 @@ def apply_main_window_theme(window) -> None:
             QMessageBox QLabel {{ color: {text}; }}
             QDialog {{ background: {bg}; color: {text}; }}
             QDialog QLabel {{ color: {text}; }}
-            QDialog QPlainTextEdit {{
-                background: {panel};
-                color: {text};
-                border: 1px solid #1f2937;
-            }}
 
             QScrollBar:vertical {{
                 background: {panel};

@@ -8,7 +8,7 @@ from PySide6.QtWidgets import (
     QAbstractScrollArea,
     QApplication,
     QDialog,
-    QPlainTextEdit,
+    QTextBrowser,
     QPushButton,
     QVBoxLayout,
 )
@@ -77,7 +77,7 @@ def test_a_missing_picture_is_left_out_rather_than_broken(qapp, monkeypatch) -> 
 def _text_dialog(text: str):
     dialog = QDialog()
     layout = QVBoxLayout(dialog)
-    editor = QPlainTextEdit(dialog)
+    editor = QTextBrowser(dialog)
     editor.setPlainText(text)
     layout.addWidget(editor)
     layout.addWidget(QPushButton("Close", dialog))
@@ -261,3 +261,26 @@ def test_a_modal_above_freezes_the_surface_and_its_input(qapp) -> None:
         idle.tick()
     assert short_editor.verticalScrollBar().value() == 0
     _dispose(short, dialog)
+
+
+def test_licence_text_reads_at_pixel_pace_not_line_pace(qapp) -> None:
+    """The licences scrolled a line per step; a step must be one pixel."""
+
+    import pytest
+    from PySide6.QtWidgets import QPlainTextEdit
+
+    from installer.ui.licence_dialog import InstallerLicenceDialog
+    from voice_reader.ui.licence_dialog import read_licence_text
+
+    for dialog in (
+        PlainTextLicenceDialog(title="t", text=read_licence_text("LGPL3-LICENSE")),
+        InstallerLicenceDialog(),
+    ):
+        dialog.show()
+        qapp.processEvents()
+        bar = dialog.editor.verticalScrollBar()
+        # Pixel units: the range far exceeds the text's line count.
+        assert bar.maximum() > dialog.editor.toPlainText().count("\n")
+        _dispose(dialog)
+    with pytest.raises(TypeError):
+        AutoScroller(QPlainTextEdit())

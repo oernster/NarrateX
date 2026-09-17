@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QLabel,
-    QPlainTextEdit,
+    QTextBrowser,
     QVBoxLayout,
 )
 
@@ -113,11 +113,11 @@ class PlainTextLicenceDialog(QDialog):
         title_lbl.setStyleSheet("font-size: 14px; font-weight: 600;")
         layout.addWidget(title_lbl)
 
-        editor = QPlainTextEdit(self)
+        editor = QTextBrowser(self)
         editor.setObjectName("LicenceText")
         editor.setReadOnly(True)
         editor.setPlainText(text)
-        editor.setLineWrapMode(QPlainTextEdit.WidgetWidth)
+        editor.setLineWrapMode(QTextBrowser.WidgetWidth)
         editor.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         layout.addWidget(editor, 1)
         # A stop only while the text overflows; it reads itself meanwhile.

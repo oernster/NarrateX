@@ -10,7 +10,7 @@ import pytest
 def test_installer_licence_button_opens_dialog(qapp, monkeypatch) -> None:
     """Smoke test for the installer Licence button and dialog."""
 
-    from PySide6.QtWidgets import QApplication, QDialog, QPlainTextEdit, QPushButton
+    from PySide6.QtWidgets import QApplication, QDialog, QTextBrowser, QPushButton
 
     # Avoid touching the real registry in tests.
     import installer.ui.main_window as mw
@@ -47,10 +47,10 @@ def test_installer_licence_button_opens_dialog(qapp, monkeypatch) -> None:
     # The note sits above the licence text.
     assert (
         scope.geometry().top()
-        < dlg.findChild(QPlainTextEdit, "LicenceText").geometry().top()
+        < dlg.findChild(QTextBrowser, "LicenceText").geometry().top()
     )
 
-    editor = dlg.findChild(QPlainTextEdit, "LicenceText")
+    editor = dlg.findChild(QTextBrowser, "LicenceText")
     assert editor is not None
     licence_text = editor.toPlainText()
     assert "GNU LESSER GENERAL PUBLIC LICENSE" in licence_text

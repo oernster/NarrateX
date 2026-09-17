@@ -253,3 +253,6 @@ narratex.flatpak
 # PyInstaller Linux build output
 dist-pyinstaller/
 build/pyinstaller/
+
+# Session resume snapshot (local only)
+.claude/resume.md

@@ -16,7 +16,7 @@ reader's own to pace and does not.
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, QTimer
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QPlainTextEdit, QWidget
 
 
 class AutoScroller(QObject):
@@ -44,6 +44,12 @@ class AutoScroller(QObject):
     )
 
     def __init__(self, area) -> None:
+        # QPlainTextEdit's scrollbar counts LINES, not pixels: measured on the
+        # LGPL text, a range of 80 against 2168 in a QTextBrowser. One step is
+        # then a whole line and the reading pace runs fourteen times too fast.
+        # Read-through text belongs in a QTextBrowser, as in ClearBudget.
+        if isinstance(area, QPlainTextEdit):
+            raise TypeError("AutoScroller needs a pixel-scrolled area")
         super().__init__(area)
         self._area = area
         self._bar = area.verticalScrollBar()
