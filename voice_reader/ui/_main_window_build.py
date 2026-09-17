@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 
 from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui._main_window_controls import build_controls_rows
-from voice_reader.ui.artwork import TOP_ICON_BUTTON_PX, TOP_ICON_PX, Artwork
+from voice_reader.ui.artwork import Artwork
 from voice_reader.ui.bottom_tray import BottomTray
 from voice_reader.ui.sentence_case_label import SentenceCaseLabel
 from voice_reader.ui.window_helpers import apply_main_window_theme
@@ -109,8 +109,6 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
         artwork=Artwork.HELP,
         text=about_text,
         tooltip=about_text,
-        button_px=TOP_ICON_BUTTON_PX,
-        icon_px=TOP_ICON_PX,
         object_name="helpButton",
     )
 

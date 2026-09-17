@@ -18,8 +18,7 @@ from PySide6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QSlider
 from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui._ui_controller_voices import VOICE_REGIONS, VOICE_SEXES
 from voice_reader.ui.artwork import (
-    TOP_ICON_BUTTON_PX,
-    TOP_ICON_PX,
+    ICON_BUTTON_PX,
     Artwork,
 )
 from voice_reader.ui.keeb_keys import install_keeb_keys
@@ -52,8 +51,6 @@ def _text_button(window: Any, attr: str, *, artwork: Artwork, text: str):
         artwork=artwork,
         text=text,
         tooltip=text,
-        button_px=TOP_ICON_BUTTON_PX,
-        icon_px=TOP_ICON_PX,
     )
     setattr(window, attr, button)
     return button
@@ -85,14 +82,14 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
 
     window.voice_combo = VoiceCombo()
     window.voice_combo.setMinimumWidth(VOICE_COMBO_MIN_WIDTH)
-    window.voice_combo.setMinimumHeight(TOP_ICON_BUTTON_PX)
+    window.voice_combo.setMinimumHeight(ICON_BUTTON_PX)
     # No voice is defaulted: the combo rests on this placeholder until the
     # user chooses; the picker stays disabled until a book loads.
     window.voice_combo.setPlaceholderText(strings.select_voice)
 
     window.speed_combo = QComboBox()
     window.speed_combo.setMinimumWidth(SPEED_COMBO_MIN_WIDTH)
-    window.speed_combo.setMinimumHeight(TOP_ICON_BUTTON_PX)
+    window.speed_combo.setMinimumHeight(ICON_BUTTON_PX)
     for speed in SPEEDS:
         window.speed_combo.addItem(speed)
     window.speed_combo.setCurrentText(DEFAULT_SPEED)

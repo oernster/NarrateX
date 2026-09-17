@@ -15,8 +15,7 @@ from voice_reader.ui._icon_buttons import ArtworkList, artwork_icon, icon_button
 from voice_reader.ui.artwork import (
     ICON_BUTTON_PX,
     LIST_ROW_ICON_PX,
-    TOP_ICON_BUTTON_PX,
-    TOP_ICON_PX,
+    ICON_PX,
     Artwork,
 )
 from voice_reader.ui.main_window import MainWindow
@@ -68,14 +67,14 @@ def test_select_book_and_chapter_nav_carry_no_visible_words(qapp) -> None:
     assert w.btn_prev_chapter.toolTip() == "Previous chapter"
     assert w.btn_next_chapter.toolTip() == "Next chapter"
     for button in (w.btn_select_book, w.btn_prev_chapter, w.btn_next_chapter):
-        assert button.size() == QSize(TOP_ICON_BUTTON_PX, TOP_ICON_BUTTON_PX)
+        assert button.size() == QSize(ICON_BUTTON_PX, ICON_BUTTON_PX)
 
 
 def test_play_pause_matches_its_neighbours_and_follows_state(qapp) -> None:
     del qapp
     w = MainWindow()
     for button in (w.btn_play_pause, w.btn_stop):
-        assert button.size() == QSize(TOP_ICON_BUTTON_PX, TOP_ICON_BUTTON_PX)
+        assert button.size() == QSize(ICON_BUTTON_PX, ICON_BUTTON_PX)
 
     w.set_transport_playing(is_playing=True)
     assert w.btn_play_pause.toolTip() == "Pause"
@@ -185,7 +184,15 @@ def test_transport_row_is_centred_between_the_chapter_buttons(qapp) -> None:
 def test_voice_picker_cue_matches_the_top_row_pictures(qapp) -> None:
     del qapp
     w = MainWindow()
-    assert w.voice_combo.iconSize() == QSize(TOP_ICON_PX, TOP_ICON_PX)
+    assert w.voice_combo.iconSize() == QSize(ICON_PX, ICON_PX)
     # Tall enough to draw it whole; level with the buttons beside it.
     for combo in (w.voice_combo, w.speed_combo):
-        assert combo.minimumHeight() == TOP_ICON_BUTTON_PX
+        assert combo.minimumHeight() == ICON_BUTTON_PX
+
+
+def test_the_foot_strip_buttons_match_the_top_rows(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    for button in w.bottom_tray.ring_stops():
+        assert button.size() == w.btn_select_book.size()
+        assert button.iconSize() == QSize(ICON_PX, ICON_PX)

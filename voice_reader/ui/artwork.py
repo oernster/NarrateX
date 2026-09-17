@@ -47,16 +47,11 @@ def artwork_path(name: Artwork) -> Path:
     return ARTWORK_DIR / f"{name.value}{ARTWORK_SUFFIX}"
 
 
-# A picture button is a square of this side, the height of a dropdown, drawing
-# its artwork at ICON_PX inside the interaction ring. The foot strip uses it.
-ICON_BUTTON_PX = 42
-ICON_PX = 32
-
-# The buttons across the top of the window (controls, chapter navigation and
-# the top-right cluster) are drawn this much larger than the base size.
-TOP_SCALE = 1.5
-TOP_ICON_BUTTON_PX = round(ICON_BUTTON_PX * TOP_SCALE)
-TOP_ICON_PX = round(ICON_PX * TOP_SCALE)
+# Every picture button in the window, top rows and foot strip alike, is a
+# square of this side drawing its artwork at ICON_PX inside the interaction
+# ring. The dropdowns take the same height so the controls row stays level.
+ICON_BUTTON_PX = 63
+ICON_PX = 48
 
 # A list row's picture (the Bookmarks and Sections dialogs).
 LIST_ROW_ICON_PX = 20
@@ -66,7 +61,7 @@ LIST_ROW_ICON_PX = 20
 RENDER_SCALE = 4
 
 # The longest side of a shipped copy: enough for the largest drawn size.
-ARTWORK_MAX_SIDE = TOP_ICON_PX * RENDER_SCALE
+ARTWORK_MAX_SIDE = ICON_PX * RENDER_SCALE
 
 # The donate mark is wide rather than square, so it is rendered by height
 # alone; the site's copy is the same render.
