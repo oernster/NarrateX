@@ -47,14 +47,23 @@ def artwork_path(name: Artwork) -> Path:
     return ARTWORK_DIR / f"{name.value}{ARTWORK_SUFFIX}"
 
 
-# Every picture button is a square of this side, the height of the controls
-# row, drawing its artwork at ICON_PX inside the interaction ring.
+# A picture button is a square of this side, the height of a dropdown, drawing
+# its artwork at ICON_PX inside the interaction ring. The foot strip uses it.
 ICON_BUTTON_PX = 42
 ICON_PX = 32
 
-# Play/Pause is the one primary control, so it is drawn larger than the rest.
-PRIMARY_BUTTON_PX = 52
-PRIMARY_ICON_PX = 44
+# The buttons across the top of the window (controls, chapter navigation and
+# the top-right cluster) are drawn this much larger than the base size.
+TOP_SCALE = 1.5
+TOP_ICON_BUTTON_PX = round(ICON_BUTTON_PX * TOP_SCALE)
+TOP_ICON_PX = round(ICON_PX * TOP_SCALE)
+
+# Play/Pause is the one primary control, so it is drawn larger than the rest
+# of the top row, at these base sizes scaled the same way.
+PRIMARY_BASE_BUTTON_PX = 52
+PRIMARY_BASE_ICON_PX = 44
+PRIMARY_BUTTON_PX = round(PRIMARY_BASE_BUTTON_PX * TOP_SCALE)
+PRIMARY_ICON_PX = round(PRIMARY_BASE_ICON_PX * TOP_SCALE)
 
 # A list row's picture (the Bookmarks and Sections dialogs).
 LIST_ROW_ICON_PX = 20

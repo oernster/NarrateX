@@ -21,6 +21,8 @@ from voice_reader.ui.artwork import (
     ICON_BUTTON_PX,
     PRIMARY_BUTTON_PX,
     PRIMARY_ICON_PX,
+    TOP_ICON_BUTTON_PX,
+    TOP_ICON_PX,
     Artwork,
 )
 from voice_reader.ui.keeb_keys import install_keeb_keys
@@ -48,8 +50,14 @@ SPEED_COMBO_MIN_WIDTH = 95
 ROW_SPACING = 8
 
 
-def _text_button(window: Any, attr: str, *, artwork: Artwork, text: str, **kw):
-    button = icon_button(artwork=artwork, text=text, tooltip=text, **kw)
+def _text_button(window: Any, attr: str, *, artwork: Artwork, text: str):
+    button = icon_button(
+        artwork=artwork,
+        text=text,
+        tooltip=text,
+        button_px=TOP_ICON_BUTTON_PX,
+        icon_px=TOP_ICON_PX,
+    )
     setattr(window, attr, button)
     return button
 

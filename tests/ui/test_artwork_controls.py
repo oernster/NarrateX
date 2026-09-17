@@ -16,6 +16,7 @@ from voice_reader.ui.artwork import (
     ICON_BUTTON_PX,
     LIST_ROW_ICON_PX,
     PRIMARY_BUTTON_PX,
+    TOP_ICON_BUTTON_PX,
     Artwork,
 )
 from voice_reader.ui.main_window import MainWindow
@@ -67,7 +68,7 @@ def test_select_book_and_chapter_nav_carry_no_visible_words(qapp) -> None:
     assert w.btn_prev_chapter.toolTip() == "Previous chapter"
     assert w.btn_next_chapter.toolTip() == "Next chapter"
     for button in (w.btn_select_book, w.btn_prev_chapter, w.btn_next_chapter):
-        assert button.size() == QSize(ICON_BUTTON_PX, ICON_BUTTON_PX)
+        assert button.size() == QSize(TOP_ICON_BUTTON_PX, TOP_ICON_BUTTON_PX)
 
 
 def test_play_pause_is_the_larger_control_and_follows_state(qapp) -> None:
@@ -149,3 +150,12 @@ def test_status_line_always_opens_with_a_capital(qapp) -> None:
     assert isinstance(w.lbl_status, SentenceCaseLabel)
     w.lbl_status.setText(NarrationStatus.IDLE.value)
     assert w.lbl_status.text() == "Idle"
+
+
+def test_progress_percentage_shares_the_count_line(qapp) -> None:
+    """The bar's text is centred vertically, as the 0/0 label beside it is."""
+
+    del qapp
+    w = MainWindow()
+    assert w.progress.alignment() & Qt.AlignmentFlag.AlignVCenter
+    assert w.lbl_progress.alignment() & Qt.AlignmentFlag.AlignVCenter
