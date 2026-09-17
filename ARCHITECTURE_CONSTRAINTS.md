@@ -101,6 +101,26 @@ Enforced by [`tests/structural/test_icons_match_master.py`](tests/structural/tes
 which compares the whole set against a fresh render. `python generate_icons.py --check` performs
 the same comparison without writing.
 
+## 7) No emoji in the interface
+
+The application and the setup program draw shipped artwork only. An emoji renders differently on
+every platform and sits at its font's baseline rather than the button's centre.
+
+Enforced by [`test_application_source_has_no_emoji()`](tests/structural/test_no_emoji.py).
+
+## 8) A pane is never a stop and never wears a ring
+
+A focus ring belongs to a control. No stylesheet rule may ring a text view (`QTextEdit`,
+`QPlainTextEdit`, `QTextBrowser`) or an item view in any state, nor name a container class or `*`
+in a `:focus` or `:hover` rule; a scroll area scoped by object name is the one sanctioned focus ring.
+At runtime no window or dialog in the application or the setup program offers a pane as a Tab
+stop, no text view can be focused by a click and no dialog opens focused on its text.
+
+Enforced by [`test_no_stylesheet_rings_a_pane_or_a_region()`](tests/structural/test_focus_ring_selectors.py)
+plus, because focus needs a live widget tree,
+[`test_no_surface_offers_a_pane_as_a_stop()`](tests/ui/test_panes_are_not_stops.py) outside the
+structural suite. Each has a companion test proving it reports a planted fault.
+
 ## Running the structural tests
 
 The repo is configured to run pytest with a strict coverage gate by default (see pytest `addopts` in [`pyproject.toml`](pyproject.toml)).

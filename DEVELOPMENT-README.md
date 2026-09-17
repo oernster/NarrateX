@@ -25,8 +25,8 @@ See [LINUX-INSTALLATION.md](LINUX-INSTALLATION.md) for distro-specific instructi
 ### Windows
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
+python -m venv venv
+venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 ```
 
@@ -106,7 +106,7 @@ This repo enforces **100% test coverage** for the configured runtime scope.
 On Windows, prefer the venv interpreter so a global one cannot be picked up by accident:
 
 ```powershell
-.venv\Scripts\python.exe -m pytest
+venv\Scripts\python.exe -m pytest
 ```
 
 The gate prints the coverage table last and emits no "N passed" line, so read the exit code rather
@@ -157,7 +157,7 @@ This significantly reduces dependency creep and makes packaging more predictable
 ### Build the app EXE (PowerShell)
 
 ```powershell
- .venv\Scripts\Activate.ps1
+venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python buildexe.py
 ```
@@ -182,7 +182,7 @@ Build workflow:
 ### Build installer (PowerShell)
 
 ```powershell
-.venv\Scripts\Activate.ps1
+venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 
 # 1) Build dist-pyinstaller/NarrateX/NarrateX.exe (onedir)

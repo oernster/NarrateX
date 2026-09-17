@@ -54,7 +54,15 @@ the neural voice, the parsing and the audio cache. Nothing you read leaves the d
 - Full keyboard reachability as one explicit focus ring: Tab and Right step forward, Shift+Tab and
   Left step back, the ring wraps and follows the visual order, Enter activates like Space,
   dropdowns open on Down and commit on Space or Tab and nothing is focused on launch
-- Remove current book (the ❌ beside Select Book) forgets bookmarks, resume position, ideas map,
+- Panes are never rung: a text view reached by Tab takes the arrow keys without an outline, a click
+  never focuses it and every dialog opens on its first control rather than on its text
+- A Help menu holding a Guide (every control, led by the picture it wears, plus the keyboard keys)
+  and About
+- The Guide and the licence texts read themselves slowly once open for a few seconds; scrolling,
+  clicking or a key pauses them and they carry on from where you left them. The book in the reading
+  pane never does this: it keeps pace with the narration
+- The speaker button mutes and brings back the level you had
+- Remove current book (the button beside Select book) forgets bookmarks, resume position, ideas map,
   cached audio and the auto-load preference after a confirmation; the book file on disk is never
   touched
 - Progress names the chapter being read and Previous and Next step by chapters
@@ -115,7 +123,7 @@ enforced by structural tests at every test run. See
 [ARCHITECTURE.md](ARCHITECTURE.md) for the invariants and the full design;
 [ARCHITECTURE_CONSTRAINTS.md](ARCHITECTURE_CONSTRAINTS.md) holds the constraints themselves.
 
-# Screenshot
+## Screenshot
 
 <img width="1050" height="606" src="images/narratex.png" />
 
@@ -125,8 +133,8 @@ Full developer setup, including the per-platform dependency sets, is in
 [DEVELOPMENT-README.md](DEVELOPMENT-README.md). The short version on Windows:
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
+python -m venv venv
+venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python app.py
 ```
@@ -142,7 +150,7 @@ your books and fails silently without a connection.
 ## Tests
 
 ```powershell
-.venv\Scripts\python.exe -m pytest -q
+venv\Scripts\python.exe -m pytest -q
 ```
 
 The suite runs under a strict 100% coverage gate, so the coverage table prints last and there is no

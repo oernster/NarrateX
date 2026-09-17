@@ -97,8 +97,8 @@ Qt and all dependencies.
 ## First-run model download
 
 NarrateX uses the Kokoro-82M TTS model (~300 MB), downloaded automatically from HuggingFace Hub on first run.
-The download happens the first time synthesis is attempted (at app startup during warmup).
-Expect 15-60 seconds on first launch depending on connection speed.
+The download happens at startup, before the main window opens, behind a progress dialog; if it
+fails, NarrateX says so and exits rather than opening a window that cannot narrate.
 Subsequent launches load the model from disk cache (`~/.cache/huggingface/hub/`).
 
 ## Troubleshooting

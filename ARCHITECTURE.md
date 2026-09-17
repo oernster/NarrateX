@@ -22,6 +22,8 @@ description; this section is the contract.
 | **The version is written once.** `VERSION` at the repo root is the source; the package reads it, `pyproject.toml` reads it and the site pages carry tokens stamped from it. | A number copied into a second place is a number that will disagree with the first. | [`tests/test_version_source.py`](tests/test_version_source.py) |
 | **Every icon is derived from one master.** `narratex.png` is the master of the application mark; the eight staged sizes, the Windows `.ico` and the five copies the site needs are all emitted by [`generate_icons.py`](generate_icons.py) and none is hand-edited. Each button picture has its own master in `assets/`, reduced by the same script into `voice_reader/ui/artwork/`; every master has exactly one name in [`Artwork`](voice_reader/ui/artwork.py). | A hand-touched frame is a frame that stops matching the others, silently, in whichever size nobody looks at. Deriving each size straight from the master rather than resizing a resize is also what keeps the 16 and 24 pixel frames legible. | [`tests/structural/test_icons_match_master.py`](tests/structural/test_icons_match_master.py) |
 | **The interface draws no emoji, nor does the setup program.** Every picture is shipped artwork, built through one factory ([`_icon_buttons.py`](voice_reader/ui/_icon_buttons.py)) that gives each button the same box, the same rounded-square interaction ring and a tooltip naming what it does. | An emoji renders differently on every platform (the flags came out as boxed letters on Windows) and sits at the emoji font's own baseline rather than the button's centre. One factory is what keeps the buttons matched by construction rather than by care. | [`tests/structural/test_no_emoji.py`](tests/structural/test_no_emoji.py), [`tests/ui/test_artwork_controls.py`](tests/ui/test_artwork_controls.py) |
+| **A pane is never a stop and never wears a ring.** Panels, frames and picture labels are `NoFocus` at construction ([`as_pane()`](voice_reader/ui/pane_focus.py)); a text view is reachable only by Tab and only while it overflows ([`follow_overflow()`](voice_reader/ui/pane_focus.py)); no stylesheet rule rings a text view, an item view or a container; and a dialog holding a text view opens on its first control ([`FirstStopDialog`](voice_reader/ui/first_stop_dialog.py)). | A ring round a whole page tells the reader nothing they can act on. Tab alone must reach a long text, since otherwise the keyboard could not scroll it; neither a click nor a dialog merely opening may outline it. | [`tests/ui/test_panes_are_not_stops.py`](tests/ui/test_panes_are_not_stops.py), [`tests/structural/test_focus_ring_selectors.py`](tests/structural/test_focus_ring_selectors.py) |
+| **Read-through text reads itself at one pace.** The Guide and the licence texts wear one [`AutoScroller`](voice_reader/ui/auto_scroller.py) whose constants belong to the class, never to a dialog; it refuses a `QPlainTextEdit`, whose scrollbar counts lines rather than pixels. The book in the reading pane never wears it. | A surface with its own pace means the pace is wrong everywhere. A line-counted scrollbar turned one reading step into a whole line and the licences raced. | [`tests/ui/test_help_guide_and_panes.py`](tests/ui/test_help_guide_and_panes.py) |
 | **Muted is the volume at zero, not a second state.** The speaker button ([`volume_mute.py`](voice_reader/ui/volume_mute.py)) drops the slider to zero and puts the last audible level back; its picture follows the level wherever the level came from. | The audio, the saved preference and the slider already share one number. A separate mute flag would be a second answer to "is it audible" that could disagree with the first. | [`tests/ui/test_volume_mute.py`](tests/ui/test_volume_mute.py) |
 
 ### Document model invariants
@@ -69,8 +71,8 @@ understanding the text: a contents-heavy book is not a badly parsed one.
 - UI layer: [`voice_reader/ui`](voice_reader/ui)
   - [`MainWindow`](voice_reader/ui/main_window.py): widgets, theming, highlighting, cover display
   - [`UiController`](voice_reader/ui/ui_controller.py): file picker, wiring signals, applying narration state to UI
-  - To respect the 400-line guardrail, `UiController` is decomposed into focused helper modules: signal wiring ([`_ui_controller_wiring.py`](voice_reader/ui/_ui_controller_wiring.py)), book-load orchestration ([`_ui_controller_book_loading.py`](voice_reader/ui/_ui_controller_book_loading.py)) with its in-process compute fallback ([`_book_load_compute.py`](voice_reader/ui/_book_load_compute.py)), the voice picker ([`_ui_controller_voices.py`](voice_reader/ui/_ui_controller_voices.py)), book removal ([`_ui_controller_book_removal.py`](voice_reader/ui/_ui_controller_book_removal.py)) and playback/sections/chapters/bookmarks/state/seek/ideas handlers. `MainWindow` construction is likewise split: the controls rows (selection, voice picker toggles, transport, chapter nav) live in [`_main_window_controls.py`](voice_reader/ui/_main_window_controls.py) with the rest in [`_main_window_build.py`](voice_reader/ui/_main_window_build.py). The strip along the window's foot ([`bottom_tray.py`](voice_reader/ui/bottom_tray.py)) holds the donate button, a separator and the UI and Backend licence buttons; donate hands its address to the desktop through the one seam [`links.py`](voice_reader/ui/links.py), so the application never fetches the page itself. Application-icon setup lives in [`_app_icon.py`](voice_reader/ui/_app_icon.py); the Help menu's About and licence dialogs live in [`_help_dialogs.py`](voice_reader/ui/_help_dialogs.py) (re-exported by [`window_helpers.py`](voice_reader/ui/window_helpers.py)); first-run weight download is handled by [`model_download_dialog.py`](voice_reader/ui/model_download_dialog.py).
-  - Keyboard model: one application-level event filter ([`keeb_keys.py`](voice_reader/ui/keeb_keys.py)) implements the explicit focus ring. Tab and Right step forward, Shift+Tab and Left step back, the ring wraps and follows the visual order, Enter clicks the focused button, Down opens a closed dropdown instead of changing its value and Space or Tab commits from an open popup. Combo popups grab the keyboard *without* taking focus, so popup handling keys off the receiver's combo ancestry rather than `focusWidget`. Plain Up and Down are consumed on buttons so focus can never wander off the ring geometrically; modified arrows stay native. The platform focus rectangle is suppressed app-wide by `_NoFocusRectStyle` in [`window_helpers.py`](voice_reader/ui/window_helpers.py) so the green QSS ring is the single focus indicator.
+  - To respect the 400-line guardrail, `UiController` is decomposed into focused helper modules: signal wiring ([`_ui_controller_wiring.py`](voice_reader/ui/_ui_controller_wiring.py)), book-load orchestration ([`_ui_controller_book_loading.py`](voice_reader/ui/_ui_controller_book_loading.py)) with its in-process compute fallback ([`_book_load_compute.py`](voice_reader/ui/_book_load_compute.py)), the voice picker ([`_ui_controller_voices.py`](voice_reader/ui/_ui_controller_voices.py)), book removal ([`_ui_controller_book_removal.py`](voice_reader/ui/_ui_controller_book_removal.py)) and playback/sections/chapters/bookmarks/state/seek/ideas handlers. `MainWindow` construction is likewise split: the controls rows (selection, voice picker toggles, transport, chapter nav) live in [`_main_window_controls.py`](voice_reader/ui/_main_window_controls.py) with the rest in [`_main_window_build.py`](voice_reader/ui/_main_window_build.py). The strip along the window's foot ([`bottom_tray.py`](voice_reader/ui/bottom_tray.py)) holds the donate button, a separator and the UI and Backend licence buttons; donate hands its address to the desktop through the one seam [`links.py`](voice_reader/ui/links.py), so the application never fetches the page itself. Application-icon setup lives in [`_app_icon.py`](voice_reader/ui/_app_icon.py); the Help menu offers the Guide ([`guide_dialog.py`](voice_reader/ui/guide_dialog.py)) then About, with the About and licence dialogs in [`_help_dialogs.py`](voice_reader/ui/_help_dialogs.py) (re-exported by [`window_helpers.py`](voice_reader/ui/window_helpers.py)); the Guide and both licence dialogs derive [`FirstStopDialog`](voice_reader/ui/first_stop_dialog.py), take their text's focus rule from [`pane_focus.py`](voice_reader/ui/pane_focus.py) and read themselves through [`auto_scroller.py`](voice_reader/ui/auto_scroller.py), which the installer's licence dialog imports as well; first-run weight download is handled by [`model_download_dialog.py`](voice_reader/ui/model_download_dialog.py).
+  - Keyboard model: one application-level event filter ([`keeb_keys.py`](voice_reader/ui/keeb_keys.py)) implements the explicit focus ring. Tab and Right step forward, Shift+Tab and Left step back, the ring wraps and follows the visual order, Enter clicks the focused button, Down opens a closed dropdown instead of changing its value and Space or Tab commits from an open popup. Combo popups grab the keyboard *without* taking focus, so popup handling keys off the receiver's combo ancestry rather than `focusWidget`. Plain Up and Down are consumed on buttons so focus can never wander off the ring geometrically; modified arrows stay native. The platform focus rectangle is suppressed app-wide by `_NoFocusRectStyle` in [`window_helpers.py`](voice_reader/ui/window_helpers.py) so the green QSS ring is the single focus indicator. That ring belongs to controls alone: a text view keeps its resting border when Tab reaches it, as described in the pane invariant above.
   - Widget enablement is owned by [`_ui_controller_state.py`](voice_reader/ui/_ui_controller_state.py): it re-applies its widget list on every narration state change, so any new state-gated control must join that list or it stays stuck at its built state.
 
 - Application layer: [`voice_reader/application`](voice_reader/application)
@@ -104,7 +106,7 @@ understanding the text: a contents-heavy book is not a badly parsed one.
     - [`text_index.py`](voice_reader/domain/document/text_index.py): how extracted text is matched against the canonical text, shared by anchoring and narration planning
     - [`anchoring.py`](voice_reader/domain/document/anchoring.py): locates each draft in `normalized_text`
     - [`sectioning.py`](voice_reader/domain/document/sectioning.py), [`assembly.py`](voice_reader/domain/document/assembly.py): group anchored blocks into the finished document
-    - [`reading_start.py`](voice_reader/domain/document/reading_start.py): where the body begins, the single answer for the pane, the narrator, the 🧠 Sections bookmarks and the ideas-index scope
+    - [`reading_start.py`](voice_reader/domain/document/reading_start.py): where the body begins, the single answer for the pane, the narrator, the Sections bookmarks and the ideas-index scope
     - [`render_plan.py`](voice_reader/domain/document/render_plan.py): what the pane shows and the source-to-render coordinate mapping
     - [`narration_plan.py`](voice_reader/domain/document/narration_plan.py): what the narrator speaks, as chunks in book coordinates
 
@@ -122,7 +124,7 @@ understanding the text: a contents-heavy book is not a badly parsed one.
     - [`configure_espeak()`](voice_reader/infrastructure/tts/_espeak_setup.py): when no system phonemizer library is discoverable (packaged/sandboxed builds), points phonemizer at a bundled espeak-ng library + data directory so out-of-dictionary words can be phonemized; a working system install is never overridden. Called by [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py) before the lazy Kokoro import.
     - Voice profiles: built-in Kokoro voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py)
   - Audio playback:
-    - [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py) via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/audio_streamer.py)
+    - [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/sounddevice_streamer.py) via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/sounddevice_streamer.py)
   - Update check:
     - [`GitHubReleaseSource`](voice_reader/infrastructure/update/github_release_source.py): implements
       the domain `ReleaseSource` with a single best-effort stdlib `urllib` GET of GitHub's
@@ -179,12 +181,13 @@ Startup is in [`main()`](app.py):
 2.5. Packaged runtime support: before importing heavy deps, call [`configure_packaged_runtime()`](voice_reader/shared/external_runtime.py) to:
    - add a sibling `ext/` folder to `sys.path` (optional distribution strategy)
    - point HuggingFace/Transformers caches at a sibling `hf-cache/` (optional)
+2.6. Model preflight: before the main window is built, [`maybe_download_model()`](voice_reader/ui/model_download_dialog.py) returns at once when the Kokoro weights are already cached; otherwise it downloads them behind a progress dialog. A failed download ends startup with a message rather than opening a window that cannot narrate.
 3. Instantiate infrastructure adapters:
    - books: [`CalibreConverter`](voice_reader/infrastructure/books/converter.py), [`BookParser`](voice_reader/infrastructure/books/parser.py), [`LocalBookRepository`](voice_reader/infrastructure/books/repository.py)
    - cache: [`FilesystemCacheRepository`](voice_reader/infrastructure/cache/filesystem_cache.py)
 - voices: Kokoro built-in voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py) + [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py)
 - tts: Kokoro engine via [`TTSEngineFactory.create()`](voice_reader/infrastructure/tts/tts_engine_factory.py)
-- audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py)
+- audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/sounddevice_streamer.py)
 4. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py)
 5. Create UI: [`MainWindow`](voice_reader/ui/main_window.py) + [`UiController`](voice_reader/ui/ui_controller.py)
 6. Show window via `window.show()`, then center it on the primary screen via [`center_window_on_screen()`](voice_reader/shared/startup_ui.py). Centering is best-effort (swallows exceptions so fakes/tests are unaffected).
@@ -266,7 +269,7 @@ Preparation does:
 - If a saved resume position exists for the book, narration resumes using the stored absolute `char_offset`.
    - The resume `char_offset` is mapped into the *current* playback candidate list using [`resolve_playback_index_for_char_offset()`](voice_reader/application/services/narration/prepare.py) inside [`prepare()`](voice_reader/application/services/narration/prepare.py).
    - The stored `chunk_index` is treated as non-authoritative because chunking start/candidate filtering can change between runs.
-- If **no** resume position exists (first-time start), the UI prefers the *first* deterministic 🧠 Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py)). This aligns “start from scratch” playback with what the Sections dialog shows.
+- If **no** resume position exists (first-time start), the UI prefers the *first* deterministic Sections bookmark as the start point (computed via [`compute_structural_bookmarks()`](voice_reader/ui/structural_bookmarks_helpers.py)). This aligns “start from scratch” playback with what the Sections dialog shows.
    - If no Sections can be computed, the start comes from the document model via [`reading_start_offset()`](voice_reader/domain/document/reading_start.py). That is the same offset the reading pane opens on, so the two cannot disagree about where the book begins.
 
 2. Build chunks from the document model via [`build_narration_chunks()`](voice_reader/domain/document/narration_plan.py)
@@ -283,12 +286,12 @@ Preparation does:
    - Note: `Essay Index` and similar marker headings are treated as *front matter*
      only when they occur before the first real body marker. Some books include an
      `Essay Index` inside the body (e.g. after `PROLOGUE`); this must not cause the
-     🧠 Sections list (structural bookmarks) to jump forward to `CHAPTER 1`.
+     Sections list (structural bookmarks) to jump forward to `CHAPTER 1`.
 3. Store chunk start/end character offsets so the UI can highlight the currently spoken chunk
 
-#### Structural bookmarks (“🧠 Sections”) pipeline
+#### Structural bookmarks (“Sections”) pipeline
 
-The 🧠 Sections list is a deterministic set of *structural bookmarks* derived from the normalized book text. It is used by:
+The Sections list is a deterministic set of *structural bookmarks* derived from the normalized book text. It is used by:
 
 - the Sections dialog controller ([`open_structural_bookmarks_dialog()`](voice_reader/ui/_ui_controller_sections.py))
 - first-time “Play from scratch” behavior ([`play()`](voice_reader/ui/_ui_controller_playback.py))
@@ -307,7 +310,7 @@ At a high level, the service:
 
 2. Collects *candidate heading labels* from multiple sources:
    - parsed chapter-like candidates adapted by [`StructuralBookmarkService._adapt_chapter_like_candidates()`](voice_reader/application/services/structural_bookmarks/service.py)
-   - text scanning via [`scan_structural_headings()`](voice_reader/application/services/structural_bookmarks/text_scan.py) and [`extract_heading_labels_from_text()`](voice_reader/application/services/structural_bookmarks/service.py)
+   - text scanning via [`scan_structural_headings()`](voice_reader/application/services/structural_bookmarks/text_scan.py) and [`extract_heading_labels_from_text()`](voice_reader/application/services/structural_bookmarks/candidate_scan.py)
 
 3. Classifies and resolves each label to a stable navigation anchor:
    - heading classification via [`classify_heading()`](voice_reader/application/services/structural_bookmarks/classification.py) (includes `Book N` headings)
@@ -362,7 +365,7 @@ Core responsibilities of the narration runner (see [`run()`](voice_reader/applic
   - compute a deterministic cache location via [`FilesystemCacheRepository.audio_path()`](voice_reader/infrastructure/cache/filesystem_cache.py)
   - on cache miss: call [`TTSEngine.synthesize_to_file()`](voice_reader/domain/interfaces/tts_engine.py)
   - publish ready-to-play WAV paths into a bounded queue
-- Start audio playback via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/audio_streamer.py)
+- Start audio playback via [`SoundDeviceAudioStreamer.start()`](voice_reader/infrastructure/audio/sounddevice_streamer.py)
   - the streamer calls back into the runner to update narration state (chunk boundaries + highlight spans)
 
 Error behavior:
@@ -389,7 +392,7 @@ The app is **Kokoro-only**.
 - The runtime always uses [`KokoroEngine`](voice_reader/infrastructure/tts/kokoro_engine.py), created by [`TTSEngineFactory.create()`](voice_reader/infrastructure/tts/tts_engine_factory.py).
 - Voice choices come from [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py), which lists Kokoro's complete English inventory (28 voices: 8 British, 20 American; Kokoro ships no other English regions) and are shown with friendly labels by [`voice_label()`](voice_reader/ui/_ui_controller_voices.py).
 - The picker filters that list by the voice ID's own prefix taxonomy (`bf_emma` is British female): a sex toggle and a region toggle in the controls row, with regions and sexes held as data tuples so a new region is a one-line change.
-- No voice is defaulted. The dropdown rests on a mic placeholder, the picker enables when a book loads, an amber attention ring asks for a choice (flashing until first touched, steady until chosen) and pre-synthesis starts at selection time.
+- No voice is defaulted. The dropdown rests on a Select voice placeholder, the picker enables when a book loads, an amber attention ring asks for a choice (flashing until first touched, steady until chosen) and pre-synthesis starts at selection time.
 - Voice profiles are Kokoro voice IDs (e.g. `bf_emma`, `am_michael`) and do not require reference audio.
 
 ## Concurrency model
@@ -397,7 +400,7 @@ The app is **Kokoro-only**.
 - UI runs on Qt main thread.
 - Book loading runs in a separate process (see [`book_load_worker.py`](voice_reader/book_load_worker.py), a second composition root for the child process and [`load_selected_book()`](voice_reader/ui/_ui_controller_book_loading.py)). A thread is not enough here: the parse is CPU-bound pure Python, so a worker thread holds the GIL and starves the Qt loop anyway. The child parses the file and builds the render plan, the chapter index and the cover; a `book-load` thread in the parent only blocks on the result queue (which releases the GIL) and then hands the book to [`NarrationService.adopt_book()`](voice_reader/application/services/narration_service.py). Widget updates return to the UI thread through the `ui_call_requested` signal; an in-flight flag blocks re-entry and a loading indicator (status text plus indeterminate progress bar) runs for the duration. Without an injected loader (tests) the compute falls back to running on the thread in-process.
 - Narration runs on a background thread started by [`NarrationService.start()`](voice_reader/application/services/narration_service.py).
-- Audio playback (`sounddevice` + `soundfile`) uses internal producer/player threads inside [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/audio_streamer.py).
+- Audio playback (`sounddevice` + `soundfile`) uses internal producer/player threads inside [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/sounddevice_streamer.py).
 - In Kokoro-native mode, TTS synthesis can be parallelized by multiple worker threads and a publisher thread (see [`run()`](voice_reader/application/services/narration/run.py)).
 
 ## Packaging note (Windows)

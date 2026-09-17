@@ -65,7 +65,7 @@ Some modules are excluded from the 100% coverage gate because they depend on har
 - `voice_reader/infrastructure/tts/kokoro_engine.py` - Kokoro TTS runtime (requires soundfile + torch)
 - `voice_reader/infrastructure/tts/tts_engine_factory.py` - engine factory (same dependency)
 - Audio, bookmark and preference adapters (threading plus hardware or filesystem I/O)
-- The Qt layer: windows, dialogs and the controllers that drive them, which need an event loop and a live widget tree
+- The Qt windows, dialogs and controllers named there, which need an event loop and a live widget tree. The rest of `voice_reader/ui` (the keyboard filter, the auto scroller, the pane focus helpers, the Guide and the first-stop dialog among them) sits inside the gate
 
 `app.py` is not named in the source list at all. The entrypoint wires the composition root to a real Qt application and a real audio device, so measuring it would measure the wiring and nothing else.
 
@@ -113,6 +113,13 @@ intended to be fast and fail-first and are documented in full in
 - [`test_loc_limits.py`](tests/structural/test_loc_limits.py) - the 400-line module-size guardrail (build/packaging scripts exempt), plus the 5% danger band: one assertion for the cap and a second for the 381 to 399 range, so a red run names which half was broken. The band is derived from the cap rather than written as a second literal.
 - [`test_narration_contracts.py`](tests/structural/test_narration_contracts.py) - narration is always built from a document model (no ad-hoc chunk construction).
 - [`test_icons_match_master.py`](tests/structural/test_icons_match_master.py) - every tracked icon matches a fresh render from the single master `narratex.png`, so no frame can be hand-edited out of step with the rest.
+- [`test_no_emoji.py`](tests/structural/test_no_emoji.py) - the application and setup program source carries no emoji.
+- [`test_focus_ring_selectors.py`](tests/structural/test_focus_ring_selectors.py) - no stylesheet rings a text view, an item view or a container, with a companion test proving the scan reports each fault.
+
+The runtime half of the pane rule needs a live widget tree, so it lives under `tests/ui/`:
+[`test_panes_are_not_stops.py`](tests/ui/test_panes_are_not_stops.py) walks every window and dialog in
+the application and the setup program from the window itself, then fails any pane a Tab reaches,
+any text view a click could focus and any dialog that opens on its text.
 
 The version single-source rule is checked outside `tests/structural/` because it is a file-contents
 assertion rather than an AST scan: see [`tests/test_version_source.py`](tests/test_version_source.py).
