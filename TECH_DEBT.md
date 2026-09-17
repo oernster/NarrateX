@@ -16,8 +16,7 @@ This project has the strongest structural enforcement in the portfolio: `tests/s
 - The eleven files between 355 and 380 lines. All under the cap, all clear of the danger band, none needs anything.
 - The `_ui_controller_*.py` and `_main_window_*.py` families and the twelve-module `structural_bookmarks/` package. These are the 400-line cap doing its job; the parts are cohesive and merging any of them would breach it immediately.
 - `voice_reader/ui/_ui_controller_ideas.py` and `ideas_dialog.py`, marked in `.coveragerc` as "Legacy Ideas UI (the brain button now uses Sections instead of Ideas)". Superseded UI that still loads. Worth deleting when someone is next in that area, not worth a dedicated pass.
-- Four `requirements-*.txt` variants (base, linux, mac, flatpak). Native audio dependencies genuinely differ per platform; this is the documented split.
-- `docs/site-images/NarrateX2.png`, a screenshot no page references any more. One stale binary, harmless where it sits; delete it next time the site images are touched.
+- Four `requirements-*.txt` variants (base, mac, linux, flatpak). Native audio dependencies genuinely differ per platform; this is the documented split.
 - The master `narratex.png` being 487x487, which makes `narratex_512.png` a slight upscale. That is how the whole existing set was produced and `generate_icons.py` reproduces it exactly. Replacing the master with a 1024 render is an improvement to make deliberately, with the change to every derived asset visible in its own commit, rather than as a side effect of some other work.
 
 ## Not debt (do not "fix" these)

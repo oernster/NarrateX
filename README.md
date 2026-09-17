@@ -54,8 +54,8 @@ the neural voice, the parsing and the audio cache. Nothing you read leaves the d
 - Full keyboard reachability as one explicit focus ring: Tab and Right step forward, Shift+Tab and
   Left step back, the ring wraps and follows the visual order, Enter activates like Space,
   dropdowns open on Down and commit on Space or Tab and nothing is focused on launch
-- Panes are never rung: a text view reached by Tab takes the arrow keys without an outline, a click
-  never focuses it and every dialog opens on its first control rather than on its text
+- Panes are never rung: a long text view reached by Tab scrolls on Up and Down without an outline,
+  a click never focuses it and every dialog opens on its first control rather than on its text
 - A Help menu holding a Guide (every control, led by the picture it wears, plus the keyboard keys)
   and About
 - The Guide and the licence texts read themselves slowly once open for a few seconds; scrolling,
@@ -107,7 +107,7 @@ Kindle formats (via optional Calibre conversion to EPUB):
 | Persistence | JSON bookmark, preference and ideas stores plus a filesystem audio cache |
 | Tests | pytest with a 100% coverage gate over the configured runtime scope |
 | Format and lint | black (88), flake8, ruff |
-| Packaging | PyInstaller (Windows onedir plus installer, Linux onedir, macOS DMG) and Flatpak |
+| Packaging | PyInstaller (Windows onedir plus installer, macOS DMG, Linux onedir) and Flatpak |
 | Licence | GPL-3.0, with the reusable UI layer under LGPL-3.0 |
 
 ## Architecture
@@ -165,8 +165,8 @@ python buildinstaller.py
 ```
 
 That produces `dist-pyinstaller/NarrateX/NarrateX.exe` and then
-`dist-installer/NarrateXSetup.exe`. Linux builds with `build_flatpak.sh` (Flatpak) or
-`buildlinux.py` (onedir bundle); macOS builds with `builddmg.py`.
+`dist-installer/NarrateXSetup.exe`. macOS builds with `builddmg.py`; Linux builds with
+`build_flatpak.sh` (Flatpak) or `buildlinux.py` (onedir bundle).
 
 Every packager reads the version from the repo-root `VERSION` file and ships that file beside the
 application, so a built copy reports the same number as the source tree. The two Windows packagers

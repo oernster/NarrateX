@@ -34,7 +34,7 @@ Current whitelist:
 - [`voice_reader/bootstrap.py`](voice_reader/bootstrap.py) (composition-root helper)
 - [`voice_reader/book_load_worker.py`](voice_reader/book_load_worker.py) (the book-load child process's own composition root: it wires the parser, converter and cover extraction together with the chunk and chapter services inside the child)
 
-Related: the packagers (`buildexe.py`, `buildlinux.py`, `builddmg.py`) are whitelisted importers of `voice_reader.bootstrap` because they derive their PyInstaller hidden-import lists from [`wiring_module_names()`](voice_reader/bootstrap.py) instead of mirroring the wiring table by hand; a mirrored list silently drifts and the frozen app then dies at startup with ModuleNotFoundError while the dev run works.
+Related: the packagers (`buildexe.py`, `builddmg.py`, `buildlinux.py`) are whitelisted importers of `voice_reader.bootstrap` because they derive their PyInstaller hidden-import lists from [`wiring_module_names()`](voice_reader/bootstrap.py) instead of mirroring the wiring table by hand; a mirrored list silently drifts and the frozen app then dies at startup with ModuleNotFoundError while the dev run works.
 
 ## 3) Module size guardrail
 
@@ -73,17 +73,20 @@ version literal:
   obvious `0.0.0-dev` sentinel when the file is absent
 - [`pyproject.toml`](pyproject.toml) declares `version = { file = "VERSION" }`
 - the packagers ([`buildexe.py`](buildexe.py), [`buildinstaller.py`](buildinstaller.py),
-  [`buildlinux.py`](buildlinux.py), [`builddmg.py`](builddmg.py),
-  [`build_flatpak.sh`](build_flatpak.sh)) ship `VERSION` beside the package and read it through a
-  `read_version()` helper carrying the same sentinel
+  [`builddmg.py`](builddmg.py), [`buildlinux.py`](buildlinux.py),
+  [`build_flatpak.sh`](build_flatpak.sh)) ship `VERSION` beside the package. Where a packager
+  needs the number itself it reads the same file: `builddmg.py` and `stamp_version.py` through
+  their own `read_version()` carrying the same sentinel, `build_flatpak.sh` directly and the
+  installer payload through `voice_reader/version.py`
 - the published site pages, which cannot read a file at render time, carry delimited tokens
   refreshed from `VERSION` by [`stamp_version.py`](stamp_version.py). `buildexe.py` and
   `buildinstaller.py` call it before packaging, so the sweep is a build rule rather than a
   remembered step.
 
 No tracked markdown file carries a version at all. `stamp_version.py` is deliberately scoped to
-`docs/*.html`, the published site, so no markdown can acquire one by accident. It globs the
-directory rather than naming pages, so adding a page does not mean remembering to list it.
+every `*.html` under `docs/`, the published site, so no markdown can acquire one by accident. It
+rewrites the delimited tokens and the structured data's `softwareVersion`. It globs the directory
+rather than naming pages, so adding a page does not mean remembering to list it.
 
 Enforced by [`tests/test_version_source.py`](tests/test_version_source.py).
 
@@ -112,7 +115,8 @@ Enforced by [`test_application_source_has_no_emoji()`](tests/structural/test_no_
 
 A focus ring belongs to a control. No stylesheet rule may ring a text view (`QTextEdit`,
 `QPlainTextEdit`, `QTextBrowser`) or an item view in any state, nor name a container class or `*`
-in a `:focus` or `:hover` rule; a scroll area scoped by object name is the one sanctioned focus ring.
+in a `:focus` or `:hover` rule. The one sanctioned form is a focus ring on a container scoped by
+object name (`QScrollArea#Page:focus`); the same container may never wear a hover ring.
 At runtime no window or dialog in the application or the setup program offers a pane as a Tab
 stop, no text view can be focused by a click and no dialog opens focused on its text.
 

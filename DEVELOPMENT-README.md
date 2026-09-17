@@ -1,4 +1,4 @@
-# NarrateX - Development & Build Guide
+# NarrateX: Development and Build Guide
 
 Developer setup, run-from-source, test and packaging instructions for NarrateX.
 For the project overview and features, see [README.md](README.md).
@@ -9,9 +9,9 @@ For a codebase overview (layers, runtime flow and test mapping), see
 
 - Python version and requirements file depend on platform (each platform has its own pinned dependency set):
   - **Windows** (`requirements.txt`): Python 3.10, 3.11 or 3.12 (`kokoro` requires `Python<3.13`)
+  - **macOS** (`requirements-mac.txt`): **Python 3.13 only** (3.13.x). This is the sole supported version for the macOS venv: the pinned wheels (e.g. `tokenizers==0.20.3`) target CPython 3.13 and have no 3.14 wheels, so Python 3.14+ fails to build from source. Earlier 3.x are not supported for this pin set either.
   - **Linux** (`requirements-linux.txt`): Python 3.12
-  - **macOS** (`requirements-mac.txt`): **Python 3.13 only** (3.13.x). This is the sole supported version for the macOS venv - the pinned wheels (e.g. `tokenizers==0.20.3`, built on PyO3 0.22.5) target CPython 3.13 and have no 3.14 wheels, so Python 3.14+ fails to build from source. Earlier 3.x are not supported for this pin set either.
-- spaCy `en_core_web_sm` model - installed automatically via the requirements file using the PEP 440 URL format (no separate download step needed)
+- spaCy `en_core_web_sm` model: installed automatically via the requirements file using the PEP 440 URL format (no separate download step needed)
 
 Optional:
 
@@ -28,18 +28,6 @@ See [LINUX-INSTALLATION.md](LINUX-INSTALLATION.md) for distro-specific instructi
 python -m venv venv
 venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
-```
-
-### Linux
-
-Install the system libraries first (see
-[LINUX-INSTALLATION.md](LINUX-INSTALLATION.md) for distro-specific steps), then
-create the venv with **Python 3.12** and use `requirements-linux.txt`:
-
-```bash
-python3.12 -m venv venv
-source venv/bin/activate
-python -m pip install -r requirements-linux.txt
 ```
 
 ### macOS
@@ -62,6 +50,18 @@ After installing, apply the `misaki` 0.7.4 patch noted at the top of
 ```bash
 sed -i '' 's/t\.phonemes + t\.whitespace/(t.phonemes or "") + (t.whitespace or "")/g' \
   venv/lib/python3.13/site-packages/misaki/en.py
+```
+
+### Linux
+
+Install the system libraries first (see
+[LINUX-INSTALLATION.md](LINUX-INSTALLATION.md) for distro-specific steps), then
+create the venv with **Python 3.12** and use `requirements-linux.txt`:
+
+```bash
+python3.12 -m venv venv
+source venv/bin/activate
+python -m pip install -r requirements-linux.txt
 ```
 
 ## Run
