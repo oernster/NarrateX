@@ -18,14 +18,15 @@ from PySide6.QtWidgets import (
 )
 
 from voice_reader.ui._icon_buttons import artwork_icon
-from voice_reader.ui.artwork import ICON_PX, Artwork
+from voice_reader.ui.artwork import TOP_ICON_PX, Artwork
 
 
 class VoiceCombo(QComboBox):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._cue = artwork_icon(Artwork.SELECT_VOICE)
-        self.setIconSize(QSize(ICON_PX, ICON_PX))
+        # The same drawn size as every other picture on the top row.
+        self.setIconSize(QSize(TOP_ICON_PX, TOP_ICON_PX))
 
     def paintEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         del event

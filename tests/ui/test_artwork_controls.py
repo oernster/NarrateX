@@ -16,6 +16,7 @@ from voice_reader.ui.artwork import (
     ICON_BUTTON_PX,
     LIST_ROW_ICON_PX,
     TOP_ICON_BUTTON_PX,
+    TOP_ICON_PX,
     Artwork,
 )
 from voice_reader.ui.main_window import MainWindow
@@ -179,3 +180,12 @@ def test_transport_row_is_centred_between_the_chapter_buttons(qapp) -> None:
     # Centred: the space either side differs by at most a rounding pixel.
     assert abs(space_left - space_right) <= 1
     w.close()
+
+
+def test_voice_picker_cue_matches_the_top_row_pictures(qapp) -> None:
+    del qapp
+    w = MainWindow()
+    assert w.voice_combo.iconSize() == QSize(TOP_ICON_PX, TOP_ICON_PX)
+    # Tall enough to draw it whole; level with the buttons beside it.
+    for combo in (w.voice_combo, w.speed_combo):
+        assert combo.minimumHeight() == TOP_ICON_BUTTON_PX
