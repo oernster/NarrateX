@@ -7,7 +7,10 @@ from __future__ import annotations
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.application.services.chapter_progress import chapter_progress_label
-from voice_reader.ui._ui_controller_chapters import apply_chapter_controls
+from voice_reader.ui._ui_controller_chapters import (
+    apply_chapter_controls,
+    refresh_chapter_availability,
+)
 
 
 def _apply_progress_label(controller, state: NarrationState) -> None:
@@ -117,7 +120,7 @@ def apply_state(controller, state: object) -> None:
     # Lock voice + speed only (volume must remain editable). The picker
     # toggles change the effective voice, so they lock with the dropdown;
     # the picker additionally needs a loaded book before it enables at all.
-    # Remove-book shares both gates: there must be a book, and removal is
+    # Remove-book shares both gates: there must be a book; removal is also
     # locked while narration is busy with it.
     editable_statuses = {
         NarrationStatus.IDLE,
@@ -168,8 +171,12 @@ def apply_state(controller, state: object) -> None:
     except Exception:
         pass
 
-    if start is not None:
-        try:
+    try:
+        if start is not None:
             apply_chapter_controls(controller, current_char_offset=int(start))
-        except Exception:
-            pass
+        else:
+            # No position in this state (Stop clears it): the buttons still
+            # have to say whether a press would act.
+            refresh_chapter_availability(controller)
+    except Exception:
+        pass

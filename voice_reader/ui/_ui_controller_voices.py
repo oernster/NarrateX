@@ -232,6 +232,11 @@ def begin_attention(controller) -> None:
 def on_voice_selected(controller) -> None:
     """A combo selection changed: clear the prompt and pre-synthesise."""
 
+    # A chapter jump needs a voice, so the chapter buttons follow the choice.
+    from voice_reader.ui._ui_controller_chapters import refresh_chapter_availability
+
+    refresh_chapter_availability(controller)
+
     if not controller.window.voice_combo.currentData():
         return
 

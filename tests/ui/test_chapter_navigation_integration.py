@@ -198,3 +198,80 @@ def test_prev_next_chapter_boundaries_noop(qapp) -> None:
     c.window.voice_combo.setCurrentIndex(0)
     c.next_chapter()
     assert narration.prepare_calls == []
+
+
+def _controller_with_chapters(narration):
+    from voice_reader.domain.entities.chapter import Chapter
+
+    c = UiController(
+        window=MainWindow(),
+        narration_service=narration,  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=_FakeBookmarkRepo()),  # type: ignore
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo()),  # type: ignore
+        voice_service=VoiceProfileService(repo=_FakeVoiceRepo()),
+        device="cpu",
+        engine_name="engine",
+        cover_extractor=None,
+    )
+    c._chapters = [  # noqa: SLF001
+        Chapter(title="Chapter 1", char_offset=0, chunk_index=0),
+        Chapter(title="Chapter 2", char_offset=100, chunk_index=5),
+        Chapter(title="Chapter 3", char_offset=200, chunk_index=9),
+    ]
+    c.window.voice_combo.setCurrentIndex(0)
+    return c
+
+
+def _state(status, *, start=None):
+    return NarrationState(
+        status=status,
+        current_chunk_id=None if start is None else 5,
+        total_chunks=12,
+        progress=0.0,
+        message=status.value,
+        audible_start=start,
+        audible_end=None if start is None else start + 1,
+    )
+
+
+def test_stopping_rings_the_chapter_buttons_red_because_they_cannot_act(
+    qapp,
+) -> None:
+    del qapp
+    narration = _FakeNarration(listeners=[], prepare_calls=[])
+    c = _controller_with_chapters(narration)
+
+    # Playing mid-book: both directions can act.
+    narration.current_pos = (5, 150)
+    c.on_state(_state(NarrationStatus.PLAYING, start=150))
+    assert c.window.btn_prev_chapter.isEnabled()
+    assert c.window.btn_next_chapter.isEnabled()
+
+    # Stopped: there is no position to move from, so neither button acts.
+    narration.current_pos = (None, None)
+    c.on_state(_state(NarrationStatus.STOPPED))
+    c.next_chapter()
+    assert narration.prepare_calls == []
+    assert not c.window.btn_prev_chapter.isEnabled()
+    assert not c.window.btn_next_chapter.isEnabled()
+
+    # Paused keeps the position, so both act again.
+    narration.current_pos = (5, 150)
+    c.on_state(_state(NarrationStatus.PAUSED, start=150))
+    assert c.window.btn_prev_chapter.isEnabled()
+    assert c.window.btn_next_chapter.isEnabled()
+
+
+def test_chapter_buttons_are_red_until_a_voice_is_chosen(qapp) -> None:
+    del qapp
+    narration = _FakeNarration(listeners=[], prepare_calls=[])
+    c = _controller_with_chapters(narration)
+    narration.current_pos = (5, 150)
+    c.window.voice_combo.setCurrentIndex(-1)
+    c.on_state(_state(NarrationStatus.PAUSED, start=150))
+    c.next_chapter()
+    assert narration.prepare_calls == []
+    assert not c.window.btn_next_chapter.isEnabled()
+
+    c.window.voice_combo.setCurrentIndex(0)
+    assert c.window.btn_next_chapter.isEnabled()
