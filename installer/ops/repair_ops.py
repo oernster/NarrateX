@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from installer.ops.errors import AppRunningError, InstallerOperationError
+from installer.ops.file_locks import open_for_write
 from installer.ops.payload import iter_manifest_entries, load_manifest, payload_zip_path
 from installer.ops.progress import (
     COMPLETE_PCT,
@@ -89,7 +90,14 @@ def repair(
             if needs:
                 report(progress, pct=pct, message=f"Restoring {e.path}...")
                 dst.parent.mkdir(parents=True, exist_ok=True)
-                with zf.open(e.path) as src, dst.open("wb") as out:
+
+                def _waiting(holders, *, name=e.path, at=pct) -> None:
+                    report(progress, pct=at, message=f"Waiting for {name}...")
+
+                with (
+                    zf.open(e.path) as src,
+                    open_for_write(dst, on_wait=_waiting) as out,
+                ):
                     out.write(src.read())
             done_bytes += max(0, int(e.size))
 
