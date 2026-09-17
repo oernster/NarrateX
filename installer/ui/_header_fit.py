@@ -60,9 +60,13 @@ class HeaderFitController:
         if self._scheduled:
             return
         self._scheduled = True
-        # Layout/style can settle over multiple event loop turns.
-        QTimer.singleShot(0, self._ensure_fits)
-        QTimer.singleShot(50, self._ensure_fits)
+        # Layout/style can settle over multiple event loop turns. The window is
+        # the timers' context: this controller is not a QObject, so without
+        # one a pass still pending when the window is deleted runs against a
+        # dead window (measured: a RuntimeError; an access violation when
+        # another window shares the application).
+        QTimer.singleShot(0, self.window, self._ensure_fits)
+        QTimer.singleShot(50, self.window, self._ensure_fits)
 
     def ensure_now(self) -> None:
         """Run a sizing pass immediately (best effort)."""
@@ -132,7 +136,7 @@ class HeaderFitController:
 
         min_layout_h = cw.minimumSizeHint().height()
 
-        # Word-wrapping labels report height-for-width, and the box layout
+        # Word-wrapping labels report height-for-width; the box layout
         # hands them that allocation first; sizing the window to the plain
         # minimum then starves the fixed-height button rows below their
         # minimums and they collide. The height-for-width answer is the real
@@ -163,7 +167,7 @@ class HeaderFitController:
         """Ensure the whole installer UI has enough room for all labels.
 
         This does not attempt to make *arbitrarily long* dynamic strings fit
-        horizontally (e.g. very long paths in editable controls), but it does
+        horizontally (e.g. very long paths in editable controls); it does
         ensure the window can expand to fit the layout's size hint so that
         labels are not clipped by an artificially-small window.
         """
