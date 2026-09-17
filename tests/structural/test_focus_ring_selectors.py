@@ -1,6 +1,6 @@
 """No stylesheet paints a focus or hover ring on a pane or a region.
 
-A ring belongs to a control. Three stylesheet shapes put one somewhere else:
+A ring belongs to a control. Four stylesheet shapes put one somewhere else:
 
 - A `:focus` or `:hover` ring on a container class or `*`. A QSS class
   selector matches every subclass, so `QFrame:focus` reaches every text view,
@@ -104,14 +104,17 @@ def ring_offences(text: str) -> list[str]:
         for selector, subject in _subjects(match.group(1)):
             base = re.split(r"[:#\[.]", subject)[0]
             focus, hover = ":focus" in subject, ":hover" in subject
-            if not (focus or hover):
-                continue
-            if base in CONTAINERS and "#" not in subject:
-                found.append(f"container ring: {selector}")
-            elif base in ITEM_VIEWS:
+            # A view's resting border is not a ring; a border tied to any
+            # state (focus, hover, disabled, anything) is one.
+            stateful = ":" in subject
+            if base in ITEM_VIEWS and stateful:
                 found.append(f"item view ring: {selector}")
-            elif base in TEXT_VIEWS:
+            elif base in TEXT_VIEWS and stateful:
                 found.append(f"text view ring: {selector}")
+            elif not (focus or hover):
+                continue
+            elif base in CONTAINERS and "#" not in subject:
+                found.append(f"container ring: {selector}")
             elif base in REGIONS and hover:
                 found.append(f"region hover ring: {selector}")
     return found
@@ -134,6 +137,9 @@ def test_the_scan_catches_each_fault_and_spares_the_sanctioned_forms() -> None:
         QTextEdit:enabled:hover, QTextEdit:enabled:focus {{
             border: 1px solid {ring};
         }}
+        QTextBrowser:disabled {{ border: 1px solid {danger}; }}
+        QTreeView:!enabled {{ border-color: {danger}; }}
+        QTextBrowser, QListView {{ border: 1px solid {edge}; }}
         QPushButton:enabled:hover {{ border-color: {ring}; }}
         QScrollArea#Page:enabled:focus {{ border: 2px solid {ring}; }}
         QScrollArea#Page:enabled:hover {{ border: 2px solid {ring}; }}
@@ -146,5 +152,7 @@ def test_the_scan_catches_each_fault_and_spares_the_sanctioned_forms() -> None:
         "item view ring: QListWidget:enabled:focus",
         "text view ring: QTextEdit:enabled:hover",
         "text view ring: QTextEdit:enabled:focus",
+        "text view ring: QTextBrowser:disabled",
+        "item view ring: QTreeView:!enabled",
         "region hover ring: QScrollArea#Page:enabled:hover",
     ]

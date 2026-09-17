@@ -57,7 +57,7 @@ def guide_html() -> str:
 <h3>Choosing what to hear</h3>
 {_row(Artwork.SELECT_BOOK, "Select book", "open an EPUB, PDF, text or Markdown file.")}
 {_row(Artwork.REMOVE_CURRENT_BOOK, "Remove current book",
-      "forget the bookmarks, resume point, sections map and cached audio for "
+      "forget the bookmarks, resume point, ideas map and cached audio for "
       "this book. The file on disk is never touched.")}
 {_row((Artwork.FEMALE, Artwork.MALE), "Female or male",
       "press to switch which voices the list shows.")}
@@ -100,7 +100,8 @@ shows where each chapter sits in the book.</p>
 <p><b>Tab</b> and <b>Shift+Tab</b> move between controls; <b>Left</b> and
 <b>Right</b> do the same along a row of buttons. <b>Enter</b> or <b>Space</b>
 presses the one ringed. <b>Down</b> opens a dropdown. On the speaker,
-<b>Up</b> and <b>Down</b> change the volume. In the text, the arrows scroll.</p>
+<b>Up</b> and <b>Down</b> change the volume. In the text, <b>Up</b> and
+<b>Down</b> scroll.</p>
 """
 
 

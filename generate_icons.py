@@ -25,7 +25,9 @@ master would be an improvement to make deliberately rather than by accident.
 `assets/*.png` are the authored button artwork. Each is reduced to the size the
 running application needs and written to `voice_reader/ui/artwork/`, which is
 what ships inside the package; `assets/donate.png` is cropped to its artwork
-and written both there and to `docs/` for the site. The masters are well over a
+and written there alone. The site's `docs/donate.png` is not generated: it is
+the same small mark every project site carries, byte for byte, so it is copied
+in rather than rendered at the app's size. The masters are well over a
 megabyte apiece, so shipping them would put tens of megabytes in the bundle and
 decode every one at start-up for a picture drawn at a few dozen pixels.
 
@@ -213,10 +215,7 @@ def targets(master: Image.Image) -> dict[Path, bytes]:
         wanted[ARTWORK_DIR / path.name] = png_bytes(render_artwork(open_rgba(path)))
     for name, compose in COMPOSED_ARTWORK.items():
         wanted[artwork_path(name)] = png_bytes(render_artwork(compose()))
-    # One render, written to the app and to the site, so the two cannot drift.
-    donate = png_bytes(render_donate())
-    for path in (artwork_path(Artwork.DONATE), SITE_DIR / DONATE_MASTER.name):
-        wanted[path] = donate
+    wanted[artwork_path(Artwork.DONATE)] = png_bytes(render_donate())
     return wanted
 
 

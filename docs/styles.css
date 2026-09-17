@@ -333,7 +333,7 @@ nav.site .links a:hover { color: #e6edf3; }
    than made the rule for every action link, so the shared inline-block rule is
    left alone. The mark is sized in em against the button's own type, so the two
    stay in proportion if that type ever changes; at one line box the artwork
-   could not be read, so it takes 1.8 times that and the button is deliberately
+   could not be read, so it takes 2.7 times that and the button is deliberately
    the taller of the two. display: block drops the inline descender space. */
 .actions a.donate {
     display: inline-flex;
