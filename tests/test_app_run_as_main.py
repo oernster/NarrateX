@@ -148,6 +148,14 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
     _m("voice_reader.ui.main_window").MainWindow = FakeWindow
     _m("voice_reader.ui.ui_controller").UiController = FakeUiController
     _m("voice_reader.ui.model_download_dialog").maybe_download_model = lambda a: True
+    # The real install parents a QObject to the application, which this fake
+    # cannot be. `from voice_reader.ui import inactive_tooltips` reads the
+    # package attribute before sys.modules, so the stub goes in both.
+    tips = _m("voice_reader.ui.inactive_tooltips")
+    tips.install = lambda app: None
+    monkeypatch.setattr(
+        sys.modules["voice_reader.ui"], "inactive_tooltips", tips, raising=False
+    )
 
     monkeypatch.setenv("NARRATEX_PRESERVE_CACHE", "1")
     with pytest.raises(SystemExit) as excinfo:

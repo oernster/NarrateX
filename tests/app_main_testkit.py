@@ -119,12 +119,28 @@ class FakeLogger:
         self.exception_calls += 1
 
 
+def stub_inactive_tooltips(monkeypatch) -> list:  # noqa: ANN001
+    """Record `app.main()`'s tooltip install instead of running it.
+
+    The real install parents a QObject filter to the application, which a
+    fake QApplication cannot be; the filter itself is tested against a real
+    one in tests/ui/test_inactive_tooltips.py. Returns the applications the
+    install was handed, so a test can assert main reached it.
+    """
+    installed: list = []
+    monkeypatch.setattr(
+        app, "inactive_tooltips", SimpleNamespace(install=installed.append)
+    )
+    return installed
+
+
 @dataclass(frozen=True, slots=True)
 class MainWiringRig:
     rmtree_calls: list[Path]
     stop_calls: dict[str, int]
     qapp: FakeQApplication
     logger: FakeLogger | None
+    tooltips_installed_on: list
 
 
 def patch_app_main_wiring(
@@ -169,6 +185,7 @@ def patch_app_main_wiring(
 
     fake_qapp = qapp_instance or FakeQApplication([])
     monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
+    tooltips_installed_on = stub_inactive_tooltips(monkeypatch)
 
     # Provide module-level names that app.main() imports lazily.
     monkeypatch.setattr(app, "MainWindow", FakeWindow)
@@ -247,4 +264,5 @@ def patch_app_main_wiring(
         stop_calls=stop_calls,
         qapp=fake_qapp,
         logger=logger,
+        tooltips_installed_on=tooltips_installed_on,
     )

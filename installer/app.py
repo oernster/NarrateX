@@ -18,6 +18,7 @@ from installer.ui.icons import (
 )
 from installer.ui.main_window import InstallerMainWindow
 from voice_reader.shared.resources import find_qt_window_icon_path
+from voice_reader.ui import inactive_tooltips
 from voice_reader.version import APP_NAME, __version__
 
 
@@ -44,6 +45,7 @@ def main(argv: list[str] | None = None) -> int:
     _ = wants_remove_user_data(args)
 
     app = QApplication([f"{APP_NAME} Setup"])
+    inactive_tooltips.install(app)
     app.setApplicationName(f"{APP_NAME} Setup")
     app.setApplicationVersion(__version__)
 

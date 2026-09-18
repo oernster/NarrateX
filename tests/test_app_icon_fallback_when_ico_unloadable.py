@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import app
 import voice_reader.ui._app_icon as _app_icon
+from tests.app_main_testkit import stub_inactive_tooltips
 
 
 class _FakeSignal:
@@ -89,6 +90,7 @@ def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(
     # Minimal wiring.
     fake_qapp = _FakeQApplication([])
     monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
+    stub_inactive_tooltips(monkeypatch)
     monkeypatch.setattr(_app_icon, "QIcon", _FakeQIcon)
     monkeypatch.setattr(
         app,

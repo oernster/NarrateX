@@ -52,6 +52,7 @@ from voice_reader.shared.startup_ui import (
     maybe_show_splash,
 )
 from voice_reader.bootstrap import install_wiring_placeholders, resolve_app_wiring
+from voice_reader.ui import inactive_tooltips
 from voice_reader.version import APP_APPUSERMODELID, APP_NAME
 
 # Several unit tests monkeypatch the wiring names on this module to avoid the
@@ -120,6 +121,7 @@ def main() -> int:
         os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.services=false")
 
         app = QApplication(sys.argv)
+        inactive_tooltips.install(app)
 
         icon = build_runtime_icon()
         apply_app_identity(app, icon)

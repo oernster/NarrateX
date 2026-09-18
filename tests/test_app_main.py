@@ -23,6 +23,16 @@ def test_main_preserve_cache_skips_rmtree(monkeypatch, tmp_path: Path) -> None:
     assert rig.stop_calls["n"] == 1
 
 
+def test_main_shows_tooltips_over_an_inactive_window(
+    monkeypatch, tmp_path: Path
+) -> None:
+    rig = patch_app_main_wiring(monkeypatch, tmp_path, preserve_cache=True)
+
+    app.main()
+
+    assert rig.tooltips_installed_on == [rig.qapp]
+
+
 def test_main_clears_cache_and_registers_quit_handler(
     monkeypatch, tmp_path: Path
 ) -> None:

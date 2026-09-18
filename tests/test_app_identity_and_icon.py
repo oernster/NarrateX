@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import app
+from tests.app_main_testkit import stub_inactive_tooltips
 
 
 class _FakeSignal:
@@ -68,6 +69,7 @@ def test_main_sets_application_display_name_when_supported(
         app.Config, "from_project_root", lambda project_root: _FakeConfig()
     )
     monkeypatch.setattr(app, "QApplication", _FakeQApplication)
+    stub_inactive_tooltips(monkeypatch)
     monkeypatch.setattr(
         app,
         "MainWindow",
@@ -109,6 +111,7 @@ def test_main_sets_application_display_name_when_supported(
 
     fake_qapp = _FakeQApplication([])
     monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
+    stub_inactive_tooltips(monkeypatch)
 
     rc = app.main()
     assert rc == 0
@@ -142,6 +145,7 @@ def test_main_sets_qt_desktop_file_name_to_match_appusermodelid(
 
     fake_qapp = _FakeQApplication([])
     monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)
+    stub_inactive_tooltips(monkeypatch)
 
     monkeypatch.setattr(
         app,
