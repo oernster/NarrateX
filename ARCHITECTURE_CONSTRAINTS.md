@@ -40,7 +40,7 @@ Related: the packagers (`buildexe.py`, `builddmg.py`, `buildlinux.py`) are white
 
 All in-scope `*.py` files must remain at most **400 physical lines**.
 
-**Exempt: build and packaging scripts.** `buildexe.py`, `buildinstaller.py`, `builddmg.py`, `dmg_icon.py`, `build_utils.py`, `generate_icons.py`, `generate_scripts.py`, `stamp_version.py` and `installer/build_payload.py` are allowed to be large. They are linear recipes read top to bottom and splitting a sequence of flags and steps across modules costs more than it buys. The app package, the installer UI and the tests stay fully in scope.
+**Exempt: build and packaging scripts.** `buildexe.py`, `buildinstaller.py`, `builddmg.py`, `generate_icons.py`, `stamp_version.py` and `installer/build_payload.py` are allowed to be large. The exemption is by file name, listed in the test's `_BUILD_SCRIPTS` set. They are linear recipes read top to bottom and splitting a sequence of flags and steps across modules costs more than it buys. The app package, the installer UI and the tests stay fully in scope.
 
 Enforced by [`test_all_in_scope_python_files_are_at_most_400_lines()`](tests/structural/test_loc_limits.py).
 

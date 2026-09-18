@@ -52,11 +52,11 @@ When validating a UI sizing/layout fix (especially the installer header in
 - Single monitor vs 2+ monitors with *mixed* scale factors
 - Move the window between monitors and confirm text remains un-clipped
 
-Run *only* structural tests (without coverage, to avoid “no data collected” failures):
-
-```bash
-python -m pytest -q --no-cov tests/structural
-```
+Tooltips over an inactive window cannot be checked under the offscreen platform, because it does
+not model window activation faithfully. To check them, run the application on the real
+Windows platform, click into another program and hover a picture button: the tooltip should appear.
+[`tests/ui/test_inactive_tooltips.py`](tests/ui/test_inactive_tooltips.py) pins the part that is
+ours, that every top-level window carries the attribute once shown.
 
 ## Coverage exclusions
 

@@ -41,9 +41,9 @@ If you are on a headless or minimal system without an audio daemon, install Puls
 ## Python version
 
 The Linux dependency set (`requirements-linux.txt`) is pinned for **Python 3.12** and the wider
-Windows set supports 3.10, 3.11 or 3.12. Use 3.12 here; 3.13 and later are not supported by these
-pins. (macOS is the exception and is pinned to 3.13 alone, with its own requirements file; see
-[DEVELOPMENT-README.md](DEVELOPMENT-README.md).)
+Windows set supports 3.10, 3.11 or 3.12. Use 3.12 here: when run from source, `app.py` refuses
+3.13 and later at startup with a message naming the supported range. (The macOS build environment
+is pinned to 3.13 with its own requirements file; see [DEVELOPMENT-README.md](DEVELOPMENT-README.md).)
 
 Check your version:
 
@@ -96,7 +96,7 @@ Qt and all dependencies.
 
 ## First-run model download
 
-NarrateX uses the Kokoro-82M TTS model (~300 MB), downloaded automatically from HuggingFace Hub on first run.
+NarrateX uses the Kokoro-82M TTS model (around 330 MB), downloaded automatically from HuggingFace Hub on first run.
 The download happens at startup, before the main window opens, behind a progress dialog; if it
 fails, NarrateX says so and exits rather than opening a window that cannot narrate.
 Subsequent launches load the model from disk cache (`~/.cache/huggingface/hub/`).

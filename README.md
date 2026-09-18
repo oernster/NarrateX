@@ -51,6 +51,8 @@ the neural voice, the parsing and the audio cache. Nothing you read leaves the d
   asks for a choice once a book loads
 - One consistent control language: a green ring on hover and keyboard focus, a red ring on any
   disabled control, everywhere including dialogs
+- Every picture button names what it does in a tooltip, which shows on hover even while another
+  program has focus, in the main window, its dialogs and the setup program alike
 - Full keyboard reachability as one explicit focus ring: Tab and Right step forward, Shift+Tab and
   Left step back, the ring wraps and follows the visual order, Enter activates like Space,
   dropdowns open on Down and commit on Space or Tab and nothing is focused on launch
@@ -98,7 +100,7 @@ Kindle formats (via optional Calibre conversion to EPUB):
 
 | Concern | Choice |
 | --- | --- |
-| Language | Python 3.10 to 3.12 (the macOS dependency set pins 3.13) |
+| Language | Python 3.10 to 3.12 (the macOS build environment pins 3.13) |
 | User interface | PySide6 widgets, with a controller bridging UI events to application services |
 | Speech synthesis | Kokoro, running on-device, with an espeak-ng phonemizer for out-of-dictionary words |
 | Audio output | `sounddevice` over PortAudio, with an `afplay` path on macOS |
@@ -140,9 +142,10 @@ python app.py
 ```
 
 Linux needs its system audio libraries first; see [LINUX-INSTALLATION.md](LINUX-INSTALLATION.md).
-macOS uses `requirements-mac.txt` and a Python 3.13 virtual environment.
+macOS builds its disk image from a Python 3.13 virtual environment with `requirements-mac.txt`; see
+[DEVELOPMENT-README.md](DEVELOPMENT-README.md) for why `python app.py` itself needs 3.10 to 3.12.
 
-On first run NarrateX downloads the Kokoro model weights (around 300 MB) from HuggingFace Hub.
+On first run NarrateX downloads the Kokoro model weights (around 330 MB) from HuggingFace Hub.
 After that the reading path is entirely offline; the one recurring network request is a daily
 check of this project's GitHub releases for a newer version, which carries nothing about you or
 your books and fails silently without a connection.

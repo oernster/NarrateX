@@ -24,6 +24,7 @@ description; this section is the contract.
 | **The interface draws no emoji, nor does the setup program.** Every picture is shipped artwork, built through one factory ([`_icon_buttons.py`](voice_reader/ui/_icon_buttons.py)) that gives each button the same box, the same rounded-square interaction ring and a tooltip naming what it does. | An emoji renders differently on every platform (the flags came out as boxed letters on Windows) and sits at the emoji font's own baseline rather than the button's centre. One factory is what keeps the buttons matched by construction rather than by care. | [`tests/structural/test_no_emoji.py`](tests/structural/test_no_emoji.py), [`tests/ui/test_artwork_controls.py`](tests/ui/test_artwork_controls.py) |
 | **A pane is never a stop and never wears a ring.** Panels, frames and picture labels are `NoFocus` at construction ([`as_pane()`](voice_reader/ui/pane_focus.py)); a text view is reachable only by Tab and only while it overflows ([`follow_overflow()`](voice_reader/ui/pane_focus.py)); no stylesheet rule rings a text view, an item view or a container; and a dialog holding a text view opens on its first control ([`FirstStopDialog`](voice_reader/ui/first_stop_dialog.py)). | A ring round a whole page tells the reader nothing they can act on. Tab alone must reach a long text, since otherwise the keyboard could not scroll it; neither a click nor a dialog merely opening may outline it. | [`tests/ui/test_panes_are_not_stops.py`](tests/ui/test_panes_are_not_stops.py), [`tests/structural/test_focus_ring_selectors.py`](tests/structural/test_focus_ring_selectors.py) |
 | **Read-through text reads itself at one pace.** The Guide and the licence texts wear one [`AutoScroller`](voice_reader/ui/auto_scroller.py) whose constants belong to the class, never to a dialog; it refuses a `QPlainTextEdit`, whose scrollbar counts lines rather than pixels. The book in the reading pane never wears it. | A surface with its own pace means the pace is wrong everywhere. A line-counted scrollbar turned one reading step into a whole line and the licences raced. | [`tests/ui/test_help_guide_and_panes.py`](tests/ui/test_help_guide_and_panes.py) |
+| **Tooltips show over an inactive window.** One application-wide filter ([`inactive_tooltips.py`](voice_reader/ui/inactive_tooltips.py)) sets `WA_AlwaysShowToolTips` on every top-level window as it is shown, dialogs and message boxes included; both composition roots, [`app.py`](app.py) and [`installer/app.py`](installer/app.py), install it straight after creating the `QApplication`. | Qt Widgets shows a tooltip only over the active window unless that window carries the attribute, so hovering a button while another program had focus showed nothing. A filter marks each window as it appears, so no window has to remember to opt in. | [`tests/ui/test_inactive_tooltips.py`](tests/ui/test_inactive_tooltips.py), [`tests/test_app_main.py`](tests/test_app_main.py) |
 | **Muted is the volume at zero, not a second state.** The speaker button ([`volume_mute.py`](voice_reader/ui/volume_mute.py)) drops the slider to zero and puts the last audible level back; its picture follows the level wherever the level came from. | The audio, the saved preference and the slider already share one number. A separate mute flag would be a second answer to "is it audible" that could disagree with the first. | [`tests/ui/test_volume_mute.py`](tests/ui/test_volume_mute.py) |
 
 ### Document model invariants
@@ -176,22 +177,25 @@ The runtime is driven by UI events handled by [`UiController`](voice_reader/ui/u
 
 Startup is in [`main()`](app.py):
 
-1. Load config + ensure directories via [`Config.from_project_root()`](voice_reader/shared/config.py) and [`Config.ensure_directories()`](voice_reader/shared/config.py)
-2. Cache policy: clear `cache/` on launch unless `NARRATEX_PRESERVE_CACHE=1` (see [`main()`](app.py))
-2.5. Packaged runtime support: before importing heavy deps, call [`configure_packaged_runtime()`](voice_reader/shared/external_runtime.py) to:
+1. Packaged runtime support: before importing heavy deps, call [`configure_packaged_runtime()`](voice_reader/shared/external_runtime.py) to:
    - add a sibling `ext/` folder to `sys.path` (optional distribution strategy)
    - point HuggingFace/Transformers caches at a sibling `hf-cache/` (optional)
-2.6. Model preflight: before the main window is built, [`maybe_download_model()`](voice_reader/ui/model_download_dialog.py) returns at once when the Kokoro weights are already cached; otherwise it downloads them behind a progress dialog. A failed download ends startup with a message rather than opening a window that cannot narrate.
-3. Instantiate infrastructure adapters:
+2. Create the `QApplication`, install the inactive-window tooltip filter ([`inactive_tooltips.install()`](voice_reader/ui/inactive_tooltips.py)) on it and apply the application identity and icon
+3. Single-instance guard via [`setup_single_instance()`](voice_reader/shared/startup_ui.py), unless `NARRATEX_ALLOW_MULTIINSTANCE=1`: a second launch asks the running instance to raise its window, then exits
+4. Show the splash via [`maybe_show_splash()`](voice_reader/shared/startup_ui.py), unless `NARRATEX_DISABLE_SPLASH=1`
+5. Model preflight: before the main window is built, [`maybe_download_model()`](voice_reader/ui/model_download_dialog.py) returns at once when the Kokoro weights are already cached; otherwise it downloads them behind a progress dialog. A failed download ends startup with a message rather than opening a window that cannot narrate.
+6. Resolve the heavy wiring imports via [`resolve_app_wiring()`](voice_reader/bootstrap.py), then load config and ensure directories via [`Config.from_project_root()`](voice_reader/shared/config.py) and [`Config.ensure_directories()`](voice_reader/shared/config.py)
+7. Cache policy: clear `cache/` on launch unless `NARRATEX_PRESERVE_CACHE=1`
+8. Instantiate infrastructure adapters:
    - books: [`CalibreConverter`](voice_reader/infrastructure/books/converter.py), [`BookParser`](voice_reader/infrastructure/books/parser.py), [`LocalBookRepository`](voice_reader/infrastructure/books/repository.py)
    - cache: [`FilesystemCacheRepository`](voice_reader/infrastructure/cache/filesystem_cache.py)
-- voices: Kokoro built-in voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py) + [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py)
-- tts: Kokoro engine via [`TTSEngineFactory.create()`](voice_reader/infrastructure/tts/tts_engine_factory.py)
-- audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/sounddevice_streamer.py)
-4. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py)
-5. Create UI: [`MainWindow`](voice_reader/ui/main_window.py) + [`UiController`](voice_reader/ui/ui_controller.py)
-6. Show window via `window.show()`, then center it on the primary screen via [`center_window_on_screen()`](voice_reader/shared/startup_ui.py). Centering is best-effort (swallows exceptions so fakes/tests are unaffected).
-7. Pre-warm the TTS model on a background thread via [`NarrationService.startup_warmup()`](voice_reader/application/services/narration_service.py) (see [`main()`](app.py)). This synthesises a single token to load the model into memory, emitting `SYNTHESIZING` state so the progress bar animates, so the first Play does not pay the model-load cost. Best-effort: failures are swallowed.
+   - voices: Kokoro built-in voice IDs via [`KokoroVoiceProfileRepository`](voice_reader/infrastructure/tts/voice_profile_repository.py) + [`VoiceProfileService`](voice_reader/application/services/voice_profile_service.py)
+   - tts: Kokoro engine via [`TTSEngineFactory.create()`](voice_reader/infrastructure/tts/tts_engine_factory.py)
+   - audio: [`SoundDeviceAudioStreamer`](voice_reader/infrastructure/audio/sounddevice_streamer.py)
+9. Create the application orchestrator [`NarrationService`](voice_reader/application/services/narration_service.py)
+10. Create UI: [`MainWindow`](voice_reader/ui/main_window.py), the update check ([`install_update_check()`](voice_reader/ui/update_check.py)) and [`UiController`](voice_reader/ui/ui_controller.py)
+11. Show window via `window.show()`, then center it on the primary screen via [`center_window_on_screen()`](voice_reader/shared/startup_ui.py). Centering is best-effort (swallows exceptions so fakes/tests are unaffected). The splash hands over to the window.
+12. Pre-warm the TTS model on a background thread via [`start_tts_warmup()`](voice_reader/shared/startup_lifecycle.py), which calls [`NarrationService.startup_warmup()`](voice_reader/application/services/narration_service.py). This synthesises a single token to load the model into memory, emitting `SYNTHESIZING` state so the progress bar animates, so the first Play does not pay the model-load cost. Best-effort: failures are swallowed.
 
 ### 2) Book selection and cover handling
 

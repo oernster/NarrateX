@@ -11,6 +11,10 @@ For a codebase overview (layers, runtime flow and test mapping), see
   - **Windows** (`requirements.txt`): Python 3.10, 3.11 or 3.12 (`kokoro` requires `Python<3.13`)
   - **macOS** (`requirements-mac.txt`): **Python 3.13 only** (3.13.x). This is the sole supported version for the macOS venv: the pinned wheels (e.g. `tokenizers==0.20.3`) target CPython 3.13 and have no 3.14 wheels, so Python 3.14+ fails to build from source. Earlier 3.x are not supported for this pin set either.
   - **Linux** (`requirements-linux.txt`): Python 3.12
+- Running from source: `app.py` checks the interpreter before anything else and exits with a message
+  on anything outside 3.10 to 3.12. The check stands down only inside a packaged build (PyInstaller
+  or Flatpak), which ships its own wheels. So the macOS 3.13 venv builds the disk image
+  (`builddmg.py`); `python app.py` run in that venv exits at the check.
 - spaCy `en_core_web_sm` model: installed automatically via the requirements file using the PEP 440 URL format (no separate download step needed)
 
 Optional:
@@ -34,7 +38,9 @@ python -m pip install -r requirements.txt
 
 The macOS venv **must** be created with **Python 3.13** (3.13.x). It is the only
 supported interpreter for `requirements-mac.txt`: newer versions (3.14+) fail to
-build `tokenizers` from source and the pinned wheels target CPython 3.13.
+build `tokenizers` from source and the pinned wheels target CPython 3.13. This venv
+is the build environment for [`builddmg.py`](builddmg.py); the interpreter check
+described under Requirements stops `python app.py` from running in it.
 
 ```bash
 # Install Python 3.13 if needed:  brew install python@3.13
