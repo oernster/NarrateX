@@ -30,8 +30,10 @@ GUIDE_MIN_HEIGHT = 560
 
 # Pictures that are not controls of their own, so the Guide does not list them:
 # the pin marks a row inside a dialog; the muted speaker is the volume button
-# showing its other state and is named in that button's row.
-NOT_LISTED = frozenset({Artwork.PIN, Artwork.VOLUME_MUTED})
+# showing its other state and is named in that button's row. The bookshelf is
+# here for a different reason: its artwork has arrived ahead of the control it
+# belongs to, so it leaves this set on the day the shelf gains a button.
+NOT_LISTED = frozenset({Artwork.BOOKSHELF, Artwork.PIN, Artwork.VOLUME_MUTED})
 
 
 def _img(name: Artwork) -> str:

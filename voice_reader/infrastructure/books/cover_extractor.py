@@ -16,6 +16,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from voice_reader.domain.shelf import formats
 from voice_reader.infrastructure.books.cover.epub import extract_epub_cover
 from voice_reader.infrastructure.books.cover.kindle import extract_kindle_via_conversion
 from voice_reader.infrastructure.books.cover.pdf import extract_pdf_cover
@@ -25,7 +26,6 @@ from voice_reader.infrastructure.books.cover.sidecar import (
 )
 from voice_reader.infrastructure.books.cover._io_utils import safe_read_image_bytes
 
-_KINDLE_EXTS = {".mobi", ".azw", ".azw3", ".prc", ".kfx"}
 _MAX_SIDECAR_BYTES = 12 * 1024 * 1024  # 12MB: avoid accidentally reading huge files
 
 
@@ -154,7 +154,7 @@ class CoverExtractor:
                 f"hit bytes={len(data)}" if data else "miss",
             )
             return data
-        if ext in _KINDLE_EXTS:
+        if ext in formats.KINDLE:
             data = extract_kindle_via_conversion(
                 source_path, extract_epub_cover=extract_epub_cover
             )

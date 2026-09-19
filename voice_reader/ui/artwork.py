@@ -22,6 +22,7 @@ class Artwork(str, Enum):
 
     BACKEND_LICENCE = "backend-licence"
     BOOKMARKS = "bookmarks"
+    BOOKSHELF = "bookshelf"
     DONATE = "donate"
     FEMALE = "female"
     HELP = "help"

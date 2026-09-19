@@ -29,6 +29,7 @@ from voice_reader.application.services.navigation_chunk_service import (
 from voice_reader.application.services.voice_profile_service import VoiceProfileService
 from voice_reader.domain.entities.chapter import Chapter
 from voice_reader.domain.entities.voice_profile import VoiceProfile
+from voice_reader.domain.shelf import formats as book_formats
 from voice_reader.application.interfaces.cover_extractor import CoverExtractor
 from voice_reader.ui._ui_controller_bookmarks import open_bookmarks_dialog
 from voice_reader.ui._ui_controller_ideas import open_ideas_dialog
@@ -42,6 +43,7 @@ from voice_reader.ui._ui_controller_playback import (
     stop,
     toggle_play_pause,
 )
+from voice_reader.ui._ui_controller_shutdown import on_app_exit, run_ui_callable
 from voice_reader.ui._ui_controller_state import apply_state, on_state
 from voice_reader.ui.main_window import MainWindow
 
@@ -218,49 +220,12 @@ class UiController(QObject):
     def _run_ui_callable(self, fn: object) -> None:
         """Execute a callable on the Qt UI thread (best-effort)."""
 
-        try:
-            if callable(fn):
-                fn()
-        except Exception:
-            return
+        return run_ui_callable(fn)
 
     def on_app_exit(self) -> None:
-        """Best-effort cleanup for background tasks.
+        """Best-effort cleanup for background tasks."""
 
-        NarrationService owns resume persistence; this only handles Ideas indexing
-        so we don't leave a worker process running when the app exits.
-        """
-
-        # Sections feature owns no background work; only close the dialog.
-        try:
-            dlg = getattr(self, "_sections_dialog", None)  # noqa: SLF001
-            if dlg is not None:
-                dlg.close()
-        except Exception:
-            pass
-
-        # Cancel any in-flight launcher orchestration.
-        try:
-            if self._ideas_launch_cancel is not None:
-                self._ideas_launch_cancel.set()
-        except Exception:  # pragma: no cover
-            pass
-
-        book_id = getattr(self, "_ideas_index_job_book_id", None)
-        if not book_id:
-            return
-        mgr = getattr(self, "idea_indexing_manager", None)
-        if mgr is not None:
-            try:
-                mgr.cancel(book_id=str(book_id))
-            except Exception:  # pragma: no cover
-                pass
-        self._ideas_index_job_book_id = None
-        try:
-            if self._ideas_index_timer is not None:
-                self._ideas_index_timer.stop()
-        except Exception:  # pragma: no cover
-            pass
+        return on_app_exit(self)
 
     def on_state(self, state: NarrationState) -> None:
         """Receive narration state updates (may be called from a background thread)."""
@@ -344,7 +309,7 @@ class UiController(QObject):
             self.window,
             "Select Book",
             str(Path.cwd()),
-            "Books (*.epub *.pdf *.txt *.md *.markdown *.mobi *.azw *.azw3 *.prc *.kfx);;All Files (*)",
+            book_formats.dialog_filter(),
         )
         if not path_str:
             return
