@@ -7,6 +7,7 @@ from voice_reader.domain.document.block_kind import BlockKind
 from voice_reader.infrastructure.books.epub_documents import (
     epub_title,
     item_html,
+    navigation_names,
     without_page_furniture,
 )
 
@@ -124,3 +125,65 @@ def test_a_document_with_no_blocks_still_offers_its_text() -> None:
 
     assert texts == ["Prologue", "The wind rose."]
     assert drafts == []
+
+
+# What the book's navigation states -----------------------------------------
+
+
+class _Link:
+    def __init__(self, title) -> None:
+        self.title = title
+
+
+class _Navigated:
+    def __init__(self, toc) -> None:
+        self.toc = toc
+
+
+def test_the_navigation_names_are_read_in_reading_order() -> None:
+    book = _Navigated([_Link("Prologue"), _Link("Chapter 1")])
+
+    assert navigation_names(book) == ("Prologue", "Chapter 1")
+
+
+def test_a_nested_navigation_is_flattened() -> None:
+    """Depth expresses a part within a book; a list of names need not."""
+
+    book = _Navigated([_Link("Book One"), [_Link("Chapter 1"), _Link("Chapter 2")]])
+
+    assert navigation_names(book) == ("Book One", "Chapter 1", "Chapter 2")
+
+
+def test_entries_with_no_usable_name_are_passed_over() -> None:
+    book = _Navigated([_Link("Chapter 1"), _Link("  "), _Link(None), object()])
+
+    assert navigation_names(book) == ("Chapter 1",)
+
+
+def test_a_book_with_no_navigation_states_no_names() -> None:
+    assert navigation_names(_Navigated(None)) == ()
+    assert navigation_names(object()) == ()
+
+
+def test_a_navigation_that_cannot_be_read_states_no_names() -> None:
+    class _Broken:
+        @property
+        def toc(self):
+            raise RuntimeError("no navigation here")
+
+    assert navigation_names(_Broken()) == ()
+
+
+def test_the_navigation_reaches_the_blocks_it_names() -> None:
+    """The whole spine at once: the fallback needs every document first."""
+
+    documents = [
+        ("Chapter 1", (_draft("Chapter 1"),)),
+        ("Chapter 2", (_draft("Chapter 2"),)),
+    ]
+
+    _texts, drafts = without_page_furniture(
+        documents, title=TITLE, navigation=("Chapter 1", "Chapter 2")
+    )
+
+    assert [d.kind for d in drafts] == [BlockKind.HEADING, BlockKind.HEADING]

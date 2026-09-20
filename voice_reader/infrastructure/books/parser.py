@@ -273,7 +273,9 @@ class BookParser:
                     documents.append(parsed)
 
             texts, drafts = epub_documents.without_page_furniture(
-                documents, title=epub_documents.epub_title(book)
+                documents,
+                title=epub_documents.epub_title(book),
+                navigation=epub_documents.navigation_names(book),
             )
 
             raw = "\n\n".join(texts)

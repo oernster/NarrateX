@@ -8,7 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from voice_reader.domain.document import running_headers, structural_quotes
+from voice_reader.domain.document import (
+    running_headers,
+    stated_headings,
+    structural_quotes,
+)
 from voice_reader.domain.document.anchoring import BlockDraft
 
 
@@ -45,6 +49,7 @@ def without_page_furniture(
     documents: Sequence[tuple[str, tuple[BlockDraft, ...]]],
     *,
     title: str | None,
+    navigation: Sequence[str] = (),
 ) -> tuple[list[str], list[BlockDraft]]:
     """Drop the running header a Kindle conversion left in the body text.
 
@@ -55,6 +60,10 @@ def without_page_furniture(
     A book-wide blockquote is settled here for the same reason: whether the
     tag means quotation or indentation is a fact about the whole book and is
     invisible from any one document of it. See `structural_quotes`.
+
+    So is whether the book marked up any headings at all. Where it marked up
+    none, the names it states in `navigation` say which blocks are chapter
+    headings; see `stated_headings`.
     """
 
     leads = [drafts[0].text for _, drafts in documents if drafts]
@@ -68,4 +77,29 @@ def without_page_furniture(
         if joined:
             texts.append(joined)
         kept.extend(d for d in drafts if header is None or d.text.strip() != header)
-    return texts, structural_quotes.as_ordinary_paragraphs(kept)
+    body = structural_quotes.as_ordinary_paragraphs(kept)
+    return texts, stated_headings.as_stated_headings(body, names=navigation)
+
+
+def navigation_names(book) -> tuple[str, ...]:
+    """The chapter names the book's own navigation states, in reading order.
+
+    Nested entries are flattened: depth is how a navigation expresses a part
+    within a book, which is not a question a list of names has to answer.
+    """
+
+    def walk(entries) -> list[str]:
+        found: list[str] = []
+        for entry in entries or ():
+            if isinstance(entry, (list, tuple)):
+                found.extend(walk(entry))
+                continue
+            title = getattr(entry, "title", None)
+            if isinstance(title, str) and title.strip():
+                found.append(title.strip())
+        return found
+
+    try:
+        return tuple(walk(book.toc))
+    except Exception:
+        return ()
