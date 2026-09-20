@@ -860,3 +860,34 @@ into works, so a query costs about 37 ms at 793 works and would cost roughly fou
 that at 3000. That still meets NFR-BS-003 with headroom to spare, so nothing is done
 about it now; the fix, if the measurement ever says otherwise, is to hold the folded
 works in the service and drop them when the index is saved.
+
+**A4, 2026-09-20: the figures re-measured through the committed infrastructure.** Every
+number above it was taken with throwaway probe infrastructure, before the four ports had
+real implementations. Driving `bootstrap.build_shelf` over `H:\Books` gives the table
+below. The library was measured unchanged first (2819 book files, none modified since
+2026-09-19), so nothing here is the disk moving.
+
+| Measurement | Committed wiring | Recorded in A3 | Against |
+|---|---|---|---|
+| Book files found | 2819 | 2819 | FR-BS-002 |
+| Cold scan | 1.1 s to 6.0 s, see below | 23.2 s | NFR-BS-002, 60 s |
+| Rescan | 0.2 s, 2819 kept, nothing re-read | same | FR-BS-005 |
+| Works after folding | 791 | 793 | FR-BS-012 |
+| Works carrying a cover | 646 | 640 | FR-BS-034 |
+| Works reaching a genre | 390 | 390 | FR-BS-039 |
+| Three queries | 166 ms in total, 75 ms the slowest | 111 ms | NFR-BS-003, 200 ms each |
+
+**The cold-scan figure is dominated by the operating system's file cache, not by the
+scan.** The first run of a session measured 6.0 s and an immediate repeat into a fresh
+index measured 1.1 s, against 23.2 s recorded on a machine that had not touched the drive.
+The honest reading is that the requirement holds by a wide margin on every reading taken
+and that a single cold-scan number is not a stable thing to quote.
+
+**Where the two-work difference lives, measured rather than assumed.** Folding the same
+2819 entries with the metadata ignored gives 863 works, which is exactly the figure A2
+recorded for the domain alone, so the fold is unchanged. 396 entries take their title and
+229 take their author from a sidecar or an embedded header; that is what carries 863 down
+to 791. The difference against A3's 793 is therefore in the metadata reader; the
+probe reader that produced 793 was a scratch file and is gone, so which two files read
+differently cannot be recovered. The committed reader also finds six more covers. Both
+runs of the committed wiring agreed exactly, so the result is deterministic.

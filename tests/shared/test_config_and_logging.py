@@ -15,6 +15,23 @@ def test_config_creates_directories(tmp_path: Path) -> None:
     assert cfg.paths.ideas_work_dir.exists()
     assert cfg.paths.temp_books_dir.exists()
     assert cfg.paths.bookmarks_dir.exists()
+    assert cfg.paths.shelf_index_dir.exists()
+    assert cfg.paths.shelf_thumbnails_dir.exists()
+
+
+def test_the_shelf_index_survives_a_cache_clear(tmp_path: Path) -> None:
+    """DATA-BS-002: the index holds reader statements, so it is not cache.
+
+    The entrypoint empties `cache_dir` on every launch. An index inside it
+    would take the reader's corrected genres with it; the thumbnails would be
+    redrawn every launch for nothing. Neither sits under that directory.
+    """
+
+    cfg = Config.from_project_root(tmp_path)
+
+    assert cfg.paths.cache_dir not in cfg.paths.shelf_index_dir.parents
+    assert cfg.paths.cache_dir not in cfg.paths.shelf_thumbnails_dir.parents
+    assert cfg.paths.shelf_index_dir.parent == cfg.paths.bookmarks_dir.parent
 
 
 def test_configure_logging_does_not_crash() -> None:

@@ -24,6 +24,15 @@ class AppPaths:
     temp_books_dir: Path
     bookmarks_dir: Path
     preferences_path: Path
+    # The shelf keeps two directories rather than one because they answer to
+    # different rules. The index holds what the reader stated, so it lives
+    # beside bookmarks under the data root and survives a cache clear
+    # (DATA-BS-002). The thumbnails are wholly derived (FR-BS-035), so they sit
+    # under the cache root, outside `cache_dir` only because the entrypoint
+    # empties that directory on every launch and a cover redrawn every launch
+    # is work nobody asked for.
+    shelf_index_dir: Path
+    shelf_thumbnails_dir: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +64,8 @@ class Config:
             ideas_work_dir = cache_dir / "ideas_work"
             bookmarks_dir = data_root / "bookmarks"
             preferences_path = data_root / "preferences.json"
+            shelf_index_dir = data_root / "shelf"
+            shelf_thumbnails_dir = cache_root / "shelf_thumbnails"
         else:
             voices_dir = project_root / "voices"
             cache_dir = project_root / "cache"
@@ -62,6 +73,8 @@ class Config:
             temp_books_dir = project_root / "temp_books"
             bookmarks_dir = project_root / "bookmarks"
             preferences_path = project_root / "preferences.json"
+            shelf_index_dir = project_root / "shelf"
+            shelf_thumbnails_dir = project_root / "shelf_thumbnails"
 
         paths = AppPaths(
             project_root=project_root,
@@ -71,6 +84,8 @@ class Config:
             temp_books_dir=temp_books_dir,
             bookmarks_dir=bookmarks_dir,
             preferences_path=preferences_path,
+            shelf_index_dir=shelf_index_dir,
+            shelf_thumbnails_dir=shelf_thumbnails_dir,
         )
         return Config(paths=paths)
 
@@ -80,3 +95,5 @@ class Config:
         self.paths.ideas_work_dir.mkdir(parents=True, exist_ok=True)
         self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
         self.paths.bookmarks_dir.mkdir(parents=True, exist_ok=True)
+        self.paths.shelf_index_dir.mkdir(parents=True, exist_ok=True)
+        self.paths.shelf_thumbnails_dir.mkdir(parents=True, exist_ok=True)

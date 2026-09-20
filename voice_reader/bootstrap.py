@@ -11,6 +11,8 @@ Hard rule enforced by structural tests:
 from __future__ import annotations
 
 import importlib
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Callable, Mapping
 
 _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
@@ -30,6 +32,14 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
     "IdeaIndexingManager": (
         "voice_reader.application.services.idea_indexing_manager",
         "IdeaIndexingManager",
+    ),
+    "ShelfScanner": (
+        "voice_reader.application.services.shelf.scanning",
+        "ShelfScanner",
+    ),
+    "ShelfLibrary": (
+        "voice_reader.application.services.shelf.library",
+        "ShelfLibrary",
     ),
     "StructuralBookmarkService": (
         "voice_reader.application.services.structural_bookmark_service",
@@ -98,6 +108,22 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
         "voice_reader.infrastructure.tts.voice_profile_repository",
         "KokoroVoiceProfileRepository",
     ),
+    "FileSystemWalker": (
+        "voice_reader.infrastructure.shelf.walker",
+        "FileSystemWalker",
+    ),
+    "ShelfMetadataReader": (
+        "voice_reader.infrastructure.shelf.metadata_reader",
+        "ShelfMetadataReader",
+    ),
+    "SqliteShelfIndex": (
+        "voice_reader.infrastructure.shelf.index_store",
+        "SqliteShelfIndex",
+    ),
+    "FileThumbnailStore": (
+        "voice_reader.infrastructure.shelf.thumbnails",
+        "FileThumbnailStore",
+    ),
     # UI layer
     "MainWindow": ("voice_reader.ui.main_window", "MainWindow"),
     "UiController": ("voice_reader.ui.ui_controller", "UiController"),
@@ -114,8 +140,8 @@ def install_wiring_placeholders(target_globals: dict[str, object]) -> None:
     """Define every wiring name up front, set to None.
 
     Unit tests monkeypatch these names on the entrypoint module to avoid the
-    heavy imports, and monkeypatching is only stable if the name already
-    exists. The real imports still happen lazily inside `main()`.
+    heavy imports; monkeypatching is only stable if the name already exists.
+    The real imports still happen lazily inside `main()`.
 
     The names come from the same table `resolve_app_wiring` fills, so the
     placeholders cannot drift away from the wiring they stand in for.
@@ -152,6 +178,49 @@ def resolve_app_wiring(
                 tick_fn()
             except Exception:
                 pass
+
+
+@dataclass(frozen=True, slots=True)
+class Shelf:
+    """The three shelf collaborators an entrypoint hands to the UI.
+
+    They are returned together because they are one feature and are always
+    wired together; returning a tuple of three would let a caller put them in
+    the wrong order without the interpreter noticing.
+    """
+
+    scanner: object
+    library: object
+    thumbnails: object
+
+
+def build_shelf(
+    resolve: Callable[[str], object],
+    *,
+    index_dir: Path,
+    thumbnails_dir: Path,
+    bookmark_repo: object,
+) -> Shelf:
+    """Wire the shelf's real infrastructure behind its four ports.
+
+    `resolve` answers a wiring name from the table above, so this helper holds
+    no import of its own and the infrastructure classes stay lazy exactly as
+    the rest of the wiring does.
+
+    The two directories arrive rather than being derived here: where the index
+    and the thumbnails live is the configuration's statement (DATA-BS-003); a
+    second derivation here could disagree with it.
+    """
+
+    index = resolve("SqliteShelfIndex")(directory=index_dir)
+    scanner = resolve("ShelfScanner")(
+        walker=resolve("FileSystemWalker")(),
+        metadata=resolve("ShelfMetadataReader")(),
+        index=index,
+    )
+    library = resolve("ShelfLibrary")(index=index, bookmarks=bookmark_repo)
+    thumbnails = resolve("FileThumbnailStore")(directory=thumbnails_dir)
+    return Shelf(scanner=scanner, library=library, thumbnails=thumbnails)
 
 
 def wiring_module_names() -> tuple[str, ...]:
