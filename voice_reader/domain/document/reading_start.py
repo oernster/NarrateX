@@ -14,9 +14,9 @@ after the last contents entry is what avoids landing in the table itself.
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 
+from voice_reader.domain.document import divisions
 from voice_reader.domain.document.block_kind import BlockKind
 from voice_reader.domain.document.model import Document
 
@@ -29,36 +29,24 @@ class ReadingStart:
     reason: str
 
 
-# Sections that open the body proper. Matches the long-standing behaviour of
-# the reading-start detector these rules replace.
-_BODY_OPENINGS = frozenset(
-    {
-        "prologue",
-        "introduction",
-        "foreword",
-        "preface",
-        "acknowledgements",
-        "acknowledgments",
-    }
-)
-
 # Section titles that mark the contents itself.
 _CONTENTS_TITLES = frozenset({"contents", "table of contents"})
 
-# A numbered division also opens the body: "Chapter 1", "Part Two", "Book III".
-_NUMBERED_DIVISION = re.compile(
-    r"^(chapter|part|book|section|volume)\b[\s.:-]*\S",
-    re.IGNORECASE,
-)
-
 
 def _is_body_opening(title: str) -> bool:
+    """Whether a section with this title opens the body proper.
+
+    The words themselves live in `divisions`, which is the one home for them:
+    recognising a heading in a book that marked none up asks about the same
+    vocabulary and must not carry a second copy of it.
+    """
+
     stripped = str(title or "").strip()
     if not stripped:
         return False
-    if stripped.rstrip(".").casefold() in _BODY_OPENINGS:
+    if divisions.is_named_division(stripped, words=divisions.FRONT_OPENINGS):
         return True
-    return bool(_NUMBERED_DIVISION.match(stripped))
+    return divisions.is_numbered_division(stripped)
 
 
 def _has_prose(section) -> bool:

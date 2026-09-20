@@ -12,6 +12,7 @@ from voice_reader.domain.document import (
     running_headers,
     stated_headings,
     structural_quotes,
+    text_headings,
 )
 from voice_reader.domain.document.anchoring import BlockDraft
 
@@ -63,7 +64,8 @@ def without_page_furniture(
 
     So is whether the book marked up any headings at all. Where it marked up
     none, the names it states in `navigation` say which blocks are chapter
-    headings; see `stated_headings`.
+    headings; see `stated_headings`. Where it carries no navigation either,
+    `text_headings` recognises a numbered division from the words alone.
     """
 
     leads = [drafts[0].text for _, drafts in documents if drafts]
@@ -78,7 +80,8 @@ def without_page_furniture(
             texts.append(joined)
         kept.extend(d for d in drafts if header is None or d.text.strip() != header)
     body = structural_quotes.as_ordinary_paragraphs(kept)
-    return texts, stated_headings.as_stated_headings(body, names=navigation)
+    named = stated_headings.as_stated_headings(body, names=navigation)
+    return texts, text_headings.as_text_headings(named)
 
 
 def navigation_names(book) -> tuple[str, ...]:
