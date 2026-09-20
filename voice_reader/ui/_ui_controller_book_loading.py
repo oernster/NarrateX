@@ -3,10 +3,30 @@ from __future__ import annotations
 from pathlib import Path
 import threading
 
-from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
+from voice_reader.application.dto.narration_state import (
+    NarrationState,
+    NarrationStatus,
+    book_switch_locked,
+)
 
 from voice_reader.ui._book_load_compute import LoadedBook, compute_loaded_book
 from voice_reader.ui._ui_controller_chapters import apply_chapter_controls
+
+
+def narration_holds_the_book(controller) -> bool:
+    """Whether the engine is busy with the loaded book, so no other may open.
+
+    Every door to opening a book asks this, so it is asked in one place.
+    Absence is an answer rather than a fault. A build with no narration service
+    wired is narrating nothing; so is a test controller standing in for one, so
+    both may open a book.
+    """
+
+    service = getattr(controller, "narration_service", None)
+    state = getattr(service, "state", None)
+    if not isinstance(state, NarrationState):
+        return False
+    return book_switch_locked(state.status)
 
 
 def prepare_for_book_switch(controller) -> None:
@@ -309,20 +329,10 @@ def load_selected_book(controller, *, path: Path) -> None:
     """
 
     # Prevent book switching during playback/preparation. The UI should already
-    # disable the button; keep this as a safety net (signals/tests can call
-    # the handler directly).
-    try:
-        st = getattr(controller.narration_service, "state", None)
-        if isinstance(st, NarrationState) and st.status in {
-            NarrationStatus.LOADING,
-            NarrationStatus.CHUNKING,
-            NarrationStatus.SYNTHESIZING,
-            NarrationStatus.PLAYING,
-        }:
-            return
-    except Exception:
-        # Never block book selection due to an introspection error.
-        pass
+    # disable the button and ring the shelf red; keep this as a safety net
+    # (signals/tests can call the handler directly).
+    if narration_holds_the_book(controller):
+        return
 
     # One load at a time. The LOADING status lands asynchronously once the
     # load reaches the service, so this flag covers the gap in between.

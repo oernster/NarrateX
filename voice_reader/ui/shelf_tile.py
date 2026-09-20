@@ -8,6 +8,11 @@ stylesheet fills; the ring under the pointer is the same green every other
 control in the window wears, read from where that green is declared. A delegate
 naming its own colours would be a second theme able to drift from the first.
 
+**A locked shelf rings red** (FR-BS-055a). While the engine is narrating, no
+other book can be opened, so a green ring under the pointer would offer a click
+that is going to be refused. Red is what this window already puts on a control
+that is shut, so the shelf says the same thing the open control beside it says.
+
 A work with no picture is not a gap: it draws its title and author in the cover's
 place and stays selectable (FR-BS-033).
 """
@@ -20,7 +25,7 @@ from PySide6.QtWidgets import QStyle, QStyledItemDelegate
 
 from voice_reader.domain.shelf.progress import ReadingState
 from voice_reader.ui.shelf_model import TILE_ROLE, TileData
-from voice_reader.ui.window_helpers import RING_GREEN
+from voice_reader.ui.window_helpers import RING_GREEN, RING_RED
 
 TILE_WIDTH = 176
 TILE_HEIGHT = 310
@@ -55,6 +60,15 @@ _STATE_WORDS = {
 
 class ShelfTileDelegate(QStyledItemDelegate):
     """Draws a work as a tile: picture, title, author, progress."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._locked = False
+
+    def set_locked(self, locked: bool) -> None:
+        """Say whether a book can be opened at all; the ring follows."""
+
+        self._locked = locked
 
     def sizeHint(self, option, index) -> QSize:  # noqa: N802 (Qt naming)
         del option, index
@@ -99,7 +113,8 @@ class ShelfTileDelegate(QStyledItemDelegate):
         marked = QStyle.StateFlag.State_Selected | QStyle.StateFlag.State_MouseOver
         if option.state & marked:
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(QPen(QColor(RING_GREEN), _RING_WIDTH))
+            ring = RING_RED if self._locked else RING_GREEN
+            painter.setPen(QPen(QColor(ring), _RING_WIDTH))
             painter.drawRoundedRect(body, _CORNER_RADIUS, _CORNER_RADIUS)
 
     def _cover(self, painter: QPainter, option, cover: QRect, tile: TileData) -> None:

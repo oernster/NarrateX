@@ -11,26 +11,12 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from voice_reader.domain.shelf.identity import ShelfEntry, ShelfKey
 from voice_reader.domain.shelf.works import Work
 from voice_reader.ui import _ui_controller_shelf as shelf_helpers
 from voice_reader.ui.main_window import MainWindow
 from voice_reader.ui.shelf_cover_loader import ShelfCoverLoader
 
-
-def _work(name: str = "Dune - Frank Herbert.epub", *, root: Path | None = None) -> Work:
-    """A work named by its file, so two files are two works.
-
-    The title and the author are read off the stem rather than fixed: a work is
-    keyed on those, so a helper that hardcoded them would hand back the same work
-    under two filenames and quietly defeat any test about two of them.
-    """
-
-    path = (root or Path("H:/Books")) / name
-    title, _, author = path.stem.partition(" - ")
-    key = ShelfKey(path=path, size_bytes=1, modified_ns=1)
-    entry = ShelfEntry(key=key, title=title, author=author)
-    return Work(title=title, author=author, entries=(entry,))
+from tests.ui._fakes_shelf import Controller, Library, Shelf, a_work
 
 
 class _Covers:
@@ -65,7 +51,7 @@ def test_a_wanted_picture_is_read_on_a_worker_and_announced(qapp) -> None:
     loader = ShelfCoverLoader(covers)
     announced: list[str] = []
     loader.picture_ready.connect(announced.append)
-    work = _work()
+    work = a_work()
 
     loader.want(work)
     assert covers.done.wait(timeout=5.0)
@@ -90,7 +76,7 @@ def test_asking_twice_while_it_waits_reads_once(qapp) -> None:
 
     covers = _Slow()
     loader = ShelfCoverLoader(covers)
-    work = _work()
+    work = a_work()
 
     loader.want(work)
     assert seen.wait(timeout=5.0)
@@ -109,7 +95,7 @@ def test_a_read_that_explodes_is_still_announced(qapp) -> None:
     loader = ShelfCoverLoader(covers)
     announced: list[str] = []
     loader.picture_ready.connect(announced.append)
-    work = _work()
+    work = a_work()
 
     loader.want(work)
     assert covers.done.wait(timeout=5.0)
@@ -123,7 +109,7 @@ def test_a_loader_with_no_service_asks_nothing(qapp) -> None:
     del qapp
     loader = ShelfCoverLoader(None)
 
-    loader.want(_work())
+    loader.want(a_work())
     loader.stop()
 
 
@@ -133,7 +119,7 @@ def test_nothing_is_asked_for_after_it_is_stopped(qapp) -> None:
     loader = ShelfCoverLoader(covers)
     loader.stop()
 
-    loader.want(_work())
+    loader.want(a_work())
 
     assert covers.asked == []
 
@@ -144,13 +130,13 @@ def test_a_second_want_after_the_worker_ended_starts_another(qapp) -> None:
     del qapp
     covers = _Covers()
     loader = ShelfCoverLoader(covers)
-    first = _work("Dune - Frank Herbert.epub")
+    first = a_work("Dune - Frank Herbert.epub")
     loader.want(first)
     assert covers.done.wait(timeout=5.0)
     loader._thread.join(timeout=5.0)  # noqa: SLF001
     covers.done.clear()
 
-    loader.want(_work("Emma - Jane Austen.epub"))
+    loader.want(a_work("Emma - Jane Austen.epub"))
     assert covers.done.wait(timeout=5.0)
     loader.stop()
 
@@ -173,9 +159,9 @@ def test_a_second_work_wanted_while_the_worker_runs_joins_the_queue(qapp) -> Non
     covers = _Slow()
     loader = ShelfCoverLoader(covers)
 
-    loader.want(_work("Dune - Frank Herbert.epub"))
+    loader.want(a_work("Dune - Frank Herbert.epub"))
     assert first_seen.wait(timeout=5.0)
-    loader.want(_work("Emma - Jane Austen.epub"))
+    loader.want(a_work("Emma - Jane Austen.epub"))
     release.set()
     loader._thread.join(timeout=5.0)  # noqa: SLF001
     loader.stop()
@@ -188,37 +174,6 @@ def test_a_second_work_wanted_while_the_worker_runs_joins_the_queue(qapp) -> Non
 # Opening a work ----------------------------------------------------------
 
 
-class _Library:
-    def __init__(self, path: Path) -> None:
-        self._path = path
-        self.recorded: list[tuple[str, int]] = []
-
-    def path_to_open(self, work: Work) -> Path:
-        return self._path
-
-
-class _Shelf:
-    def __init__(self, library) -> None:
-        self.library = library
-        self.scanner = None
-        self.covers = None
-        self.thumbnails = None
-
-
-class _Controller:
-    def __init__(self, window, shelf) -> None:
-        self.window = window
-        self.shelf = shelf
-        self._shelf_scan_thread = None
-        self.prepared = 0
-        self.loaded: list[Path] = []
-
-
-class _Log:
-    def exception(self, *args, **kwargs) -> None:
-        del args, kwargs
-
-
 def test_opening_a_work_loads_its_file_and_shows_the_reader(
     qapp, tmp_path, monkeypatch
 ) -> None:
@@ -227,7 +182,7 @@ def test_opening_a_work_loads_its_file_and_shows_the_reader(
     del qapp
     book = tmp_path / "Dune - Frank Herbert.epub"
     book.write_bytes(b"content")
-    controller = _Controller(MainWindow(), _Shelf(_Library(book)))
+    controller = Controller(MainWindow(), Shelf(Library(book)))
     controller.window.show_shelf_view()
     monkeypatch.setattr(
         shelf_helpers,
@@ -240,7 +195,7 @@ def test_opening_a_work_loads_its_file_and_shows_the_reader(
         lambda c, *, path: c.loaded.append(path),
     )
 
-    shelf_helpers.open_work(controller, _work(root=tmp_path))
+    shelf_helpers.open_work(controller, a_work(root=tmp_path))
 
     assert controller.loaded == [book]
     assert controller.prepared == 1
@@ -254,14 +209,14 @@ def test_a_missing_file_names_the_path_and_loads_nothing(
 
     del qapp
     gone = tmp_path / "Gone - Nobody.epub"
-    controller = _Controller(MainWindow(), _Shelf(_Library(gone)))
+    controller = Controller(MainWindow(), Shelf(Library(gone)))
     monkeypatch.setattr(
         shelf_helpers,
         "load_selected_book",
         lambda c, *, path: c.loaded.append(path),
     )
 
-    shelf_helpers.open_work(controller, _work(root=tmp_path))
+    shelf_helpers.open_work(controller, a_work(root=tmp_path))
 
     assert controller.loaded == []
     assert str(gone) in controller.window.lbl_status.text()
@@ -269,9 +224,9 @@ def test_a_missing_file_names_the_path_and_loads_nothing(
 
 def test_opening_with_no_shelf_wired_does_nothing(qapp) -> None:
     del qapp
-    controller = _Controller(MainWindow(), None)
+    controller = Controller(MainWindow(), None)
 
-    shelf_helpers.open_work(controller, _work())
+    shelf_helpers.open_work(controller, a_work())
 
     assert controller.loaded == []
 
@@ -284,7 +239,7 @@ def test_the_folder_dialog_opens_in_the_downloads_folder(
     del qapp
     (tmp_path / "Downloads").mkdir()
     monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
-    controller = _Controller(MainWindow(), _Shelf(_Library(tmp_path)))
+    controller = Controller(MainWindow(), Shelf(Library(tmp_path)))
     shown: list[str] = []
 
     def _dialog(_parent, _title, start):

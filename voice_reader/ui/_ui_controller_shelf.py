@@ -21,6 +21,7 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 from voice_reader.ui._message_box_utils import _in_tests
 from voice_reader.ui._ui_controller_book_loading import (
     load_selected_book,
+    narration_holds_the_book,
     prepare_for_book_switch,
 )
 from voice_reader.ui.shelf_grid import ShelfGrid
@@ -37,6 +38,10 @@ MISSING_CLOSE = "Close"
 
 SCAN_FAILED_TEXT = "Your folders could not be read"
 SCAN_FAILED_HINT = "See the log for what went wrong, then try again."
+
+# FR-BS-055a. A refusal names what can be done about it, so this says which
+# two controls end the narration rather than only that the shelf will not act.
+LOCKED_TEXT = "Pause or stop the narration to open another book"
 
 
 def toggle_shelf(controller) -> None:
@@ -78,6 +83,7 @@ def refresh_shelf(controller) -> None:
     """
 
     view = controller.window.shelf_view
+    apply_shelf_lock(controller)
     library = controller.shelf.library if controller.shelf is not None else None
     if library is None or not library.roots():
         view.show_no_root()
@@ -87,6 +93,22 @@ def refresh_shelf(controller) -> None:
         view.show_no_books()
         return
     view.show_works(works)
+
+
+def apply_shelf_lock(controller, *, locked: bool | None = None) -> None:
+    """Tell the grid whether a book can be opened, so its rings read true.
+
+    The state stream calls this on every change; the shelf calls it on its way
+    open, because a shelf shown between two state updates would otherwise draw
+    itself green over a book that is being read aloud.
+    """
+
+    view = getattr(controller.window, "shelf_view", None)
+    grid = getattr(view, "grid", None)
+    if grid is None:
+        return
+    held = narration_holds_the_book(controller) if locked is None else locked
+    grid.set_locked(held)
 
 
 def choose_shelf_root(controller) -> None:
@@ -191,9 +213,18 @@ def open_work(controller, work) -> None:
     FR-BS-055. The reader is put back on the reading view, because a book opened
     with the shelf still covering it would leave them looking at the shelf while
     the words they asked for loaded behind it.
+
+    FR-BS-055a: while the engine is narrating, the refusal happens HERE, before
+    anything is undone. The loader further down refuses too; by then this
+    function has already cancelled the current book's indexing and its
+    pre-synthesis and moved the reader off the shelf, all to arrive at a load
+    that never runs.
     """
 
     if controller.shelf is None:
+        return
+    if narration_holds_the_book(controller):
+        controller.window.lbl_status.setText(LOCKED_TEXT)
         return
     path = controller.shelf.library.path_to_open(work)
     if not path.is_file():

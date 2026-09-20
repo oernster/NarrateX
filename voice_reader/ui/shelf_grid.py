@@ -9,6 +9,11 @@ every other control in the window wears; a single left click on it opens the
 work, because there is nothing a reader can do with a selected tile that would justify
 asking for a second click.
 
+**Except while the engine is narrating** (FR-BS-055a), when the ring turns red
+and the click is refused by the controller, which is what can say so and can
+read the narration state. The grid holds the fact and paints it; it does not
+decide it.
+
 **A pane is not a keyboard stop, yet a grid is.** The rule the shelf follows is
 that a container holding controls takes no focus and paints no ring; this view is
 not a container, it is the control; a reader has to be able to reach the works
@@ -49,6 +54,7 @@ class ShelfGrid(QListView):
     ) -> None:
         super().__init__(parent)
         self._loader = ShelfCoverLoader(covers, parent=self) if covers else None
+        self._delegate = ShelfTileDelegate(self)
         self._model = ShelfModel(
             held_picture=covers.held_for if covers else _no_picture,
             progress_of=progress_of,
@@ -56,7 +62,7 @@ class ShelfGrid(QListView):
             parent=self,
         )
         self.setModel(self._model)
-        self.setItemDelegate(ShelfTileDelegate(self))
+        self.setItemDelegate(self._delegate)
         self._configure()
         if self._loader is not None:
             # A bound method of a QObject living on this thread, so Qt queues
@@ -91,6 +97,17 @@ class ShelfGrid(QListView):
 
     def show_works(self, works: tuple[Work, ...]) -> None:
         self._model.set_works(works)
+
+    def set_locked(self, locked: bool) -> None:
+        """FR-BS-055a: no book can be opened, so every ring reads red.
+
+        The viewport is repainted rather than left to the next hover, because
+        the lock arrives while the pointer is already resting on a tile and
+        that tile is exactly the one making the promise.
+        """
+
+        self._delegate.set_locked(locked)
+        self.viewport().update()
 
     def works(self) -> tuple[Work, ...]:
         return self._model.works()

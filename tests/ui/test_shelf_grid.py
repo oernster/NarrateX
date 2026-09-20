@@ -185,3 +185,17 @@ def test_a_grid_with_no_cover_service_draws_placeholders(qapp) -> None:
 
     assert grid.model().data(grid.model().index(0, 0), TILE_ROLE).picture is None
     grid.release()
+
+
+def test_locking_the_grid_reaches_the_delegate_that_draws_the_ring(qapp) -> None:
+    """FR-BS-055a: the grid holds the fact; the delegate paints it."""
+
+    del qapp
+    grid = ShelfGrid()
+    grid.show_works((_work(),))
+
+    grid.set_locked(True)
+    assert grid.itemDelegate()._locked is True
+
+    grid.set_locked(False)
+    assert grid.itemDelegate()._locked is False

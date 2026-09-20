@@ -581,6 +581,15 @@ the state reads as reading and the bar is half filled.
 When the reader activates a tile or a row, the shelf shall load that work's preferred
 entry into the reader exactly as the existing file dialog does today.
 *Acceptance:* Given a tile, when it is activated, then the same book loads as choosing that file through the open control would.
+**FR-BS-055a No work opens while the engine is narrating** (Must)
+While narration is loading, chunking, synthesising or playing, the shelf shall refuse to
+open a work, shall say that the narration is paused or stopped first and shall draw the
+ring under the pointer in the colour this window already gives a control that is shut.
+*Acceptance:* Given narration is playing, when a tile is activated, then no book is
+loaded, nothing belonging to the current book is cancelled, the reader stays on the shelf
+and the shelf states what to do; when narration is then paused, the same tile opens.
+*Rationale:* the open control beside the shelf has been locked during narration since
+before the shelf existed; the shelf is the second door to one act and takes the same lock.
 **FR-BS-056 A missing file** (Must)
 If the file behind a work no longer exists when the reader activates it, then the shelf
 shall say so, name the path and offer a rescan.
@@ -921,3 +930,15 @@ bearing the title and author (FR-BS-033).
 **Still open from 3.6, stated rather than claimed:** FR-BS-036, the shelf filling while the scan runs,
 is not built. The scanner already reports each entry as it settles and the grid can be
 handed works at any time, so what is missing is the wiring between them.
+
+**A6, 2026-09-20: the shelf is the second door to a locked act.** Oliver reported that a
+tile rings green under the pointer while a book is being read aloud, offering a click that
+cannot be honoured. Reading the code for it found worse than a colour: activating a tile
+ran the book-switch preparation, which cancels the current book's Ideas indexing and its
+pre-synthesis, then moved the reader off the shelf to the reading view, then reached a
+loader whose own safety net declined to load anything and said nothing. The reader lost
+background work and their place on the shelf in exchange for silence. The rule itself was
+not new: the open control beside the shelf has been disabled during narration since before
+the shelf existed; a disabled control in this window already wears a red ring. What
+was missing was the shelf being held to it. FR-BS-055a added; the four statuses are now
+declared once beside `NarrationStatus` rather than copied into each door that asks.

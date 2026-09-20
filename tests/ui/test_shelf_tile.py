@@ -17,6 +17,7 @@ from voice_reader.domain.shelf.progress import Progress, ReadingState
 from voice_reader.domain.shelf.works import Work
 from voice_reader.ui.shelf_model import TILE_ROLE, TileData
 from voice_reader.ui.shelf_tile import TILE_HEIGHT, TILE_WIDTH, ShelfTileDelegate
+from voice_reader.ui.window_helpers import RING_GREEN, RING_RED
 
 
 def _png(width: int = 60, height: int = 90, colour: int = 0xFF8800) -> bytes:
@@ -228,3 +229,66 @@ def test_the_ring_under_the_pointer_is_the_house_green(qapp) -> None:
 
     assert _count(ringed) > 0, "a marked tile draws the green ring"
     assert _count(plain) == 0, "an unmarked tile draws no ring at all"
+
+
+# The locked ring (FR-BS-055a) ---------------------------------------------
+
+
+def _ring_pixels(canvas: QImage, colour: str) -> int:
+    """How many pixels of the tile were drawn in one ring colour."""
+
+    from PySide6.QtGui import QColor
+
+    wanted = QColor(colour).rgb()
+    return sum(
+        1
+        for y in range(canvas.height())
+        for x in range(canvas.width())
+        if canvas.pixelColor(x, y).rgb() == wanted
+    )
+
+
+def _painted_marked(tile, *, locked: bool) -> QImage:
+    """A tile drawn with the pointer on it, locked or not."""
+
+    canvas = QImage(TILE_WIDTH, TILE_HEIGHT, QImage.Format.Format_ARGB32)
+    canvas.fill(0)
+    model = _TileModel(tile)
+    option = QStyleOptionViewItem()
+    option.rect = QRect(0, 0, TILE_WIDTH, TILE_HEIGHT)
+    option.state |= QStyle.StateFlag.State_MouseOver
+    delegate = ShelfTileDelegate()
+    delegate.set_locked(locked)
+    painter = QPainter(canvas)
+    try:
+        delegate.paint(painter, option, model.index(0, 0))
+    finally:
+        painter.end()
+    return canvas
+
+
+def _plain_tile() -> TileData:
+    return TileData(
+        title="Dune",
+        author="Frank Herbert",
+        picture=None,
+        progress=Progress(state=ReadingState.UNREAD, fraction=0.0),
+    )
+
+
+def test_the_pointer_rings_a_tile_green_while_a_book_can_be_opened(qapp) -> None:
+    del qapp
+    canvas = _painted_marked(_plain_tile(), locked=False)
+
+    assert _ring_pixels(canvas, RING_GREEN) > 0
+    assert _ring_pixels(canvas, RING_RED) == 0
+
+
+def test_the_pointer_rings_a_tile_red_while_the_engine_is_narrating(qapp) -> None:
+    """FR-BS-055a: no green ring offering a click that will be refused."""
+
+    del qapp
+    canvas = _painted_marked(_plain_tile(), locked=True)
+
+    assert _ring_pixels(canvas, RING_RED) > 0
+    assert _ring_pixels(canvas, RING_GREEN) == 0

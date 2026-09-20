@@ -137,3 +137,34 @@ def test_ui_controller_apply_state_updates_widgets(qapp) -> None:
         )
         assert w.btn_select_book.isEnabled() is True
         assert w.btn_select_book.property("selectBookLocked") is False
+
+
+def test_apply_state_locks_and_unlocks_the_shelf_with_the_open_control(qapp) -> None:
+    """FR-BS-055a: the shelf is the second door, so it moves with the first."""
+
+    del qapp
+    from voice_reader.ui.shelf_grid import ShelfGrid
+
+    w = MainWindow()
+    w.shelf_view.install_grid(ShelfGrid())
+    c = UiController(
+        window=w,
+        narration_service=FakeNarration(listeners=[]),  # type: ignore[arg-type]
+        bookmark_service=BookmarkService(repo=FakeBookmarks()),  # type: ignore[arg-type]
+        idea_map_service=IdeaMapService(repo=FakeIdeasRepo()),  # type: ignore[arg-type]
+        voice_service=VoiceProfileService(repo=FakeVoiceRepo()),
+        device="cpu",
+        engine_name="engine",
+        cover_extractor=None,
+    )
+
+    def _state(status: NarrationStatus) -> NarrationState:
+        return NarrationState(
+            status=status, current_chunk_id=0, total_chunks=10, progress=0.5
+        )
+
+    c._apply_state(_state(NarrationStatus.PLAYING))  # noqa: SLF001
+    assert w.shelf_view.grid.itemDelegate()._locked is True
+
+    c._apply_state(_state(NarrationStatus.PAUSED))  # noqa: SLF001
+    assert w.shelf_view.grid.itemDelegate()._locked is False

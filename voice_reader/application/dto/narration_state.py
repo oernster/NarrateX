@@ -17,6 +17,29 @@ class NarrationStatus(str, Enum):
     ERROR = "error"
 
 
+#: The statuses in which the engine is working with the book already loaded, so
+#: another book cannot be put under it. One declaration because three doors ask
+#: the same question: the open control, the shelf and the loader's own net.
+BOOK_SWITCH_LOCKED: frozenset[NarrationStatus] = frozenset(
+    {
+        NarrationStatus.LOADING,
+        NarrationStatus.CHUNKING,
+        NarrationStatus.SYNTHESIZING,
+        NarrationStatus.PLAYING,
+    }
+)
+
+
+def book_switch_locked(status: NarrationStatus | None) -> bool:
+    """Whether a different book may be opened right now.
+
+    Absence is an answer: no status at all means nothing is narrating, so
+    nothing is in the way.
+    """
+
+    return status in BOOK_SWITCH_LOCKED
+
+
 @dataclass(frozen=True, slots=True)
 class NarrationState:
     status: NarrationStatus

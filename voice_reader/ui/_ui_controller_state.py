@@ -5,8 +5,13 @@ Separated to keep the main controller file small.
 
 from __future__ import annotations
 
-from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
+from voice_reader.application.dto.narration_state import (
+    BOOK_SWITCH_LOCKED,
+    NarrationState,
+    NarrationStatus,
+)
 from voice_reader.application.services.chapter_progress import chapter_progress_label
+from voice_reader.ui._ui_controller_shelf import apply_shelf_lock
 from voice_reader.ui._ui_controller_chapters import (
     apply_chapter_controls,
     refresh_chapter_availability,
@@ -75,14 +80,9 @@ def apply_state(controller, state: object) -> None:
         pass
 
     # Book switching must be disabled during active playback/preparation.
-    # Re-enable on PAUSED/STOPPED/IDLE/ERROR.
-    book_select_locked_statuses = {
-        NarrationStatus.LOADING,
-        NarrationStatus.CHUNKING,
-        NarrationStatus.SYNTHESIZING,
-        NarrationStatus.PLAYING,
-    }
-    select_book_locked = state.status in book_select_locked_statuses
+    # Re-enable on PAUSED/STOPPED/IDLE/ERROR. The statuses are declared beside
+    # the enum, because the shelf and the loader ask the same question.
+    select_book_locked = state.status in BOOK_SWITCH_LOCKED
     try:
         btn = getattr(controller.window, "btn_select_book", None)
         if btn is not None:
@@ -92,6 +92,10 @@ def apply_state(controller, state: object) -> None:
             btn.style().polish(btn)
     except Exception:
         pass
+
+    # FR-BS-055a: the shelf is the second door to the same act, so it wears
+    # the same lock. A red ring instead of a green one under the pointer.
+    apply_shelf_lock(controller, locked=select_book_locked)
 
     _apply_progress_label(controller, state)
 
