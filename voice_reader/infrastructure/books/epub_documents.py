@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from voice_reader.domain.document import running_headers
+from voice_reader.domain.document import running_headers, structural_quotes
 from voice_reader.domain.document.anchoring import BlockDraft
 
 
@@ -51,6 +51,10 @@ def without_page_furniture(
     The header cannot be recognised from one document, which is why this reads
     the whole spine at once; `running_headers` holds what makes a repeated line
     furniture rather than prose.
+
+    A book-wide blockquote is settled here for the same reason: whether the
+    tag means quotation or indentation is a fact about the whole book and is
+    invisible from any one document of it. See `structural_quotes`.
     """
 
     leads = [drafts[0].text for _, drafts in documents if drafts]
@@ -64,4 +68,4 @@ def without_page_furniture(
         if joined:
             texts.append(joined)
         kept.extend(d for d in drafts if header is None or d.text.strip() != header)
-    return texts, kept
+    return texts, structural_quotes.as_ordinary_paragraphs(kept)
