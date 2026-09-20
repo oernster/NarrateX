@@ -1,10 +1,9 @@
 """The shelf a reader looks at: works, the filter over them and what they open.
 
 FR-BS-011, FR-BS-036, FR-BS-042 to FR-BS-047, FR-BS-053 to FR-BS-055 and
-FR-BS-060. Every
-rule is the domain's; this service holds the collaborators and the order of the
-steps, so each reader-visible action has one named entry point that runs with
-no window open.
+FR-BS-060. Every rule is the domain's; this service holds the collaborators and
+the order of the steps, so each reader-visible action has one named entry point
+that runs with no window open.
 
 **Progress is read, never stored.** NarrateX already keeps a resume position
 per book id; a second store of "finished" would be a second truth able to
@@ -101,17 +100,14 @@ class ShelfLibrary:
 
         return self._folded(corpus.resolve_author_first(entries))
 
-    def view(self, query: ShelfQuery) -> tuple[Work, ...]:
-        """The works this query admits, in the order it asks for."""
-
-        return self.view_of(self.works(), query)
-
     def view_of(self, works: tuple[Work, ...], query: ShelfQuery) -> tuple[Work, ...]:
-        """The same question asked of works already in hand.
+        """The works this query admits, in the order it asks for.
 
-        A shelf filling in front of the reader has its works already and must
-        not go back to the index for them, while the filter and the order it is
-        shown under are the ones every other shelf obeys.
+        It takes the works rather than fetching them, because every caller
+        already holds them: a shelf says how many of how many it is showing, so
+        it has the whole set in hand before it asks for the part. An entry point
+        that fetched as well would fold the library twice to answer one
+        question; a shelf filling mid-scan has no saved index to fetch from.
         """
 
         recency = (

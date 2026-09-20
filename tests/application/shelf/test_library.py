@@ -96,13 +96,15 @@ def test_the_shelf_folds_entries_into_works() -> None:
 
 def test_a_filter_narrows_the_shelf() -> None:
     shelf, _, _ = library(entries=(SHINING, RAMA))
-    shown = shelf.view(ShelfQuery(genres=frozenset({"Horror"})))
+    shown = shelf.view_of(shelf.works(), ShelfQuery(genres=frozenset({"Horror"})))
     assert [work.title for work in shown] == ["The Shining"]
 
 
 def test_a_search_narrows_the_shelf() -> None:
     shelf, _, _ = library(entries=(SHINING, RAMA))
-    assert [w.title for w in shelf.view(ShelfQuery(text="clarke"))] == ["Rama"]
+    assert [
+        w.title for w in shelf.view_of(shelf.works(), ShelfQuery(text="clarke"))
+    ] == ["Rama"]
 
 
 def test_the_filter_dialog_is_told_what_each_genre_holds() -> None:
@@ -234,7 +236,7 @@ def test_ordering_by_most_recently_read_uses_the_resume_times() -> None:
         }
     )
     shelf = ShelfLibrary(index=index, bookmarks=bookmarks)
-    shown = shelf.view(ShelfQuery(order=Order.RECENTLY_READ))
+    shown = shelf.view_of(shelf.works(), ShelfQuery(order=Order.RECENTLY_READ))
     assert [work.title for work in shown] == ["Bbb", "Aaa"]
 
 
@@ -244,7 +246,7 @@ def test_a_work_never_resumed_sorts_after_the_ones_that_were() -> None:
     index = FakeIndex(entries=(read, unread))
     bookmarks = FakeBookmarks({"one": resume_at(10)})
     shelf = ShelfLibrary(index=index, bookmarks=bookmarks)
-    shown = shelf.view(ShelfQuery(order=Order.RECENTLY_READ))
+    shown = shelf.view_of(shelf.works(), ShelfQuery(order=Order.RECENTLY_READ))
     assert [work.title for work in shown] == ["Zzz", "Aaa"]
 
 
@@ -260,7 +262,7 @@ def test_a_work_opened_but_never_resumed_sorts_with_the_unread() -> None:
     index = FakeIndex(entries=(opened, resumed))
     bookmarks = FakeBookmarks({"two": resume_at(10)})
     shelf = ShelfLibrary(index=index, bookmarks=bookmarks)
-    shown = shelf.view(ShelfQuery(order=Order.RECENTLY_READ))
+    shown = shelf.view_of(shelf.works(), ShelfQuery(order=Order.RECENTLY_READ))
     assert [work.title for work in shown] == ["Aaa", "Zzz"]
 
 

@@ -76,10 +76,12 @@ def test_a_query_narrows_works_already_in_hand() -> None:
     assert [work.title for work in shown] == ["The Shining"]
 
 
-def test_the_saved_shelf_asks_the_same_question_of_the_index() -> None:
-    """`view` is `view_of` over what the index holds; one path, not two."""
+def test_the_same_question_is_asked_of_a_saved_shelf() -> None:
+    """One way to apply a query, whether the works were saved or just walked."""
 
     shelf, _, _ = library(entries=(SHINING, RAMA))
 
     query = ShelfQuery(genres=("Horror",))
-    assert shelf.view(query) == shelf.view_of(shelf.works(), query)
+    assert shelf.view_of(shelf.works(), query) == shelf.view_of(
+        shelf.works_so_far((SHINING, RAMA)), query
+    )

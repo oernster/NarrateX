@@ -986,3 +986,31 @@ running, wearing the same three-state ring as every other control. What the read
 is held on the query rather than read back off the widget, so a redraw cannot move the
 caret in a word being typed. A search matching nothing leaves the field live: that is
 exactly the moment somebody needs to edit what they typed.
+
+**A9, 2026-09-20: the ordering controls; the shortcut that would have swallowed them.**
+FR-BS-053a is the third requirement running whose rule was already written: `Order` has
+named all three layouts since the query rules were laid down and the recency map has been
+built by the library for as long. What was missing was the control, which is a combo
+rather than three buttons. The three orderings are one choice; the keyboard model
+already knows how to walk a combo on the ring whether its popup is open or shut.
+
+It very nearly went nowhere. The shelf asked the library for an ordered view only when
+the query was narrowing something, which was a sound saving while a query could only
+filter: there was no point folding the library twice to get back the order it already
+had. With an ordering on the query that same shortcut means choosing "Title alone" on an
+unfiltered shelf does nothing at all, silently. The shelf now asks unconditionally and
+hands over the works it already holds, so the fold happens once rather than twice and the
+shortcut is not needed to avoid it.
+
+That removed the last caller of `ShelfLibrary.view`, which fetched the works and then
+applied the query. It is deleted rather than kept: every caller holds the works already,
+because a shelf that says how many of how many has the whole set in hand before it asks
+for the part; a shelf filling mid-scan has no saved index to fetch from either. `view_of` is
+now the one way to apply a query to works. Two test stand-ins that had restated the genre
+rule by hand now call the real one, since a fake that repeats a rule passes while the rule
+it stands for is wrong.
+
+The order rides on the same `ShelfQuery` the filter and the search ride on, so choosing
+one never drops the other two. The filling shelf obeys the ordering for the same
+reason it obeys the filter: a reader who chose a layout should not watch their books
+arrive in a different one.

@@ -31,6 +31,12 @@ class _FakeLibrary:
     def works(self):
         return self.works_to_answer
 
+    def view_of(self, works, query):
+        """This stand-in narrows nothing; the tests using it are not about that."""
+
+        del query
+        return tuple(works)
+
     def add_root(self, candidate: Path):
         self.added.append(candidate)
         self._roots = self._roots + (candidate,)

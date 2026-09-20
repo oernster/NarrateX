@@ -10,6 +10,7 @@ from pathlib import Path
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.domain.shelf.identity import ShelfEntry, ShelfKey
+from voice_reader.domain.shelf import query as query_rules
 from voice_reader.domain.shelf.works import Work
 
 
@@ -47,6 +48,11 @@ class Library:
 
     def works(self) -> tuple[Work, ...]:
         return self._works
+
+    def view_of(self, works: tuple[Work, ...], query) -> tuple[Work, ...]:
+        """The real rule, so this fake cannot pass while the rule is wrong."""
+
+        return query_rules.apply(works, query)
 
 
 class Shelf:

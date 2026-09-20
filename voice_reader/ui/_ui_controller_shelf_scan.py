@@ -83,9 +83,10 @@ def rescan_shelf(controller) -> None:
 def _fill_shelf(controller, entries) -> None:
     """Runs on the Qt thread. FR-BS-036: the shelf as far as the walk has got.
 
-    The filter and the search are applied to the batch, because a reader who
-    narrowed their shelf then pressed Rescan would read their whole library
-    flashing past as the narrowing having been forgotten.
+    The whole query is applied to the batch: a reader who narrowed their
+    shelf then pressed Rescan would read their whole library flashing past
+    as the narrowing having been forgotten. One who chose an ordering would
+    watch it arrive in a different one.
 
     A batch with nothing left to show leaves the words about reading the
     folders where they are, since they say more than an empty grid under them
@@ -100,7 +101,7 @@ def _fill_shelf(controller, entries) -> None:
     library = controller.shelf.library
     held = library.works_so_far(entries)
     query = shelf_query(controller)
-    shown = library.view_of(held, query) if query.narrows else held
+    shown = library.view_of(held, query)
     if not shown:
         return
     apply_shelf_lock(controller)

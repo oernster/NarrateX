@@ -28,6 +28,12 @@ class _FakeLibrary:
     def works(self):
         return self._works
 
+    def view_of(self, works, query):
+        """This stand-in narrows nothing; the tests using it are not about that."""
+
+        del query
+        return tuple(works)
+
 
 class _FakeController:
     """Only what the shelf helpers reach for."""

@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from voice_reader.domain.shelf.identity import ShelfEntry, ShelfKey
+from voice_reader.domain.shelf import query as query_rules
 from voice_reader.domain.shelf.query import ShelfQuery
 from voice_reader.domain.shelf.works import Work
 from voice_reader.ui.main_window import MainWindow
@@ -43,13 +44,14 @@ class Library:
     def works(self) -> tuple[Work, ...]:
         return self._works
 
-    def view(self, query: ShelfQuery) -> tuple[Work, ...]:
-        return tuple(
-            work
-            for work in self._works
-            if (work.genres and set(work.genres) & query.genres)
-            or (not work.genres and query.include_ungenred)
-        )
+    def view_of(self, works: tuple[Work, ...], query: ShelfQuery) -> tuple[Work, ...]:
+        """The real rule, not a second copy of it.
+
+        A fake that restated the filter would pass while the rule it stands
+        for was wrong, which is the one thing a fake must not do.
+        """
+
+        return query_rules.apply(works, query)
 
     def state_genres(self, works, genres) -> None:
         self.stated.append((tuple(w.title for w in works), genres))

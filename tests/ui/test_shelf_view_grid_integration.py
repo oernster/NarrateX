@@ -49,6 +49,12 @@ class _Library:
     def works(self):
         return self._works
 
+    def view_of(self, works, query):
+        """This stand-in narrows nothing; the tests using it are not about that."""
+
+        del query
+        return tuple(works)
+
     def progress_of(self, work: Work):
         del work
         return UNREAD
@@ -130,10 +136,10 @@ def test_the_grid_joins_the_ring_once_installed(qapp) -> None:
     del qapp
     view = ShelfView()
 
-    # Choose a folder, Rescan, Filter and the search field, before the works
-    # arrive.
-    assert len(view.ring_stops()) == 4
-    assert view.ring_stops()[-1] is view.txt_search
+    # Choose a folder, Rescan, Filter, the search field and the ordering,
+    # before the works arrive.
+    assert len(view.ring_stops()) == 5
+    assert view.ring_stops()[-1] is view.cmb_order
 
     grid = ShelfGrid(covers=_Covers(), parent=view)
     view.install_grid(grid)

@@ -102,7 +102,10 @@ def refresh_shelf(controller) -> None:
         view.show_no_books()
         return
     query = shelf_query(controller)
-    shown = library.view(query) if query.narrows else held
+    # Asked unconditionally: a query that narrows nothing still says what
+    # order the shelf is in, so skipping this when nothing is filtered out
+    # would silently ignore the reader's choice of ordering (FR-BS-053a).
+    shown = library.view_of(held, query)
     view.show_works(shown)
     if query.narrows:
         view.lbl_count.setText(FILTERED_TEXT.format(shown=len(shown), held=len(held)))
@@ -148,6 +151,16 @@ def filter_shelf(controller) -> None:
         return
     if dialog.exec():  # pragma: no cover (modal; exercised interactively)
         apply_shelf_query(controller, dialog.query())
+
+
+def order_shelf(controller, order) -> None:
+    """FR-BS-053a: lay the shelf out the way the reader asked for.
+
+    The order rides on the same query the filter and the search ride on, so
+    choosing one never quietly drops the other two.
+    """
+
+    apply_shelf_query(controller, replace(shelf_query(controller), order=order))
 
 
 def search_shelf(controller, typed: str) -> None:

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -28,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from voice_reader.domain.shelf import formats
+from voice_reader.domain.shelf.query import Order
 from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui.artwork import ICON_BUTTON_PX, ICON_PX, Artwork
 from voice_reader.ui.pane_focus import as_pane
@@ -39,6 +41,17 @@ RESCAN_TEXT = "Rescan"
 FILTER_TEXT = "Filter by genre"
 FILTER_TOOLTIP = "Show only the genres you choose"
 SEARCH_PLACEHOLDER = "Search by title or author"
+ORDER_TOOLTIP = "Choose how the shelf is laid out"
+
+# FR-BS-053 and FR-BS-053a: the three orderings, in the words the reader
+# reads and paired with the rule each one names. The default is first,
+# because a combo opens on its first entry and that is the one the shelf
+# draws itself in before anybody chooses.
+ORDERINGS = (
+    ("Author then title", Order.AUTHOR_THEN_TITLE),
+    ("Title alone", Order.TITLE),
+    ("Most recently read", Order.RECENTLY_READ),
+)
 
 NO_ROOT_TEXT = "No folder has been chosen yet"
 NO_BOOKS_TEXT = "That folder holds nothing NarrateX can read"
@@ -75,6 +88,8 @@ class ShelfView(QWidget):
     filter_clicked = Signal()
     #: FR-BS-047: the reader typed; the shelf narrows to what they typed.
     search_changed = Signal(str)
+    #: FR-BS-053a: the reader chose an ordering, carried as the rule itself.
+    order_changed = Signal(object)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -110,10 +125,19 @@ class ShelfView(QWidget):
         self.txt_search.setClearButtonEnabled(True)
         self.txt_search.setFixedWidth(SEARCH_BOX_PX)
         self.txt_search.setEnabled(False)
+        # FR-BS-053a. A combo rather than three buttons. The three orderings
+        # are one choice; the keyboard model already knows how to walk a
+        # combo on the ring, open or closed.
+        self.cmb_order = QComboBox(self)
+        self.cmb_order.setToolTip(ORDER_TOOLTIP)
+        for words, order in ORDERINGS:
+            self.cmb_order.addItem(words, order)
+        self.cmb_order.setEnabled(False)
         controls.addWidget(self.btn_choose_root)
         controls.addWidget(self.btn_rescan)
         controls.addWidget(self.btn_filter)
         controls.addWidget(self.txt_search)
+        controls.addWidget(self.cmb_order)
         controls.addStretch(1)
         self.lbl_count = SentenceCaseLabel("")
         controls.addWidget(self.lbl_count)
@@ -152,6 +176,12 @@ class ShelfView(QWidget):
         self.btn_rescan.clicked.connect(self.rescan_clicked.emit)
         self.btn_filter.clicked.connect(self.filter_clicked.emit)
         self.txt_search.textChanged.connect(self.search_changed.emit)
+        self.cmb_order.currentIndexChanged.connect(self._order_chosen)
+
+    def _order_chosen(self, row: int) -> None:
+        """Say which rule was chosen, rather than which row holds it."""
+
+        self.order_changed.emit(self.cmb_order.itemData(row))
 
     # What the controller says ----------------------------------------------
 
@@ -162,9 +192,9 @@ class ShelfView(QWidget):
         self._root.addWidget(grid, stretch=1)
         grid.setVisible(False)
         # The window set its ring before the grid existed, so the grid takes its
-        # place in the chain here: directly after the search field, which is the
-        # last of the controls above it.
-        QWidget.setTabOrder(self.txt_search, grid)
+        # place in the chain here: directly after the ordering combo, which is
+        # the last of the controls above it.
+        QWidget.setTabOrder(self.cmb_order, grid)
 
     def show_no_root(self) -> None:
         """FR-BS-057: no folder chosen; the control that chooses one is live."""
@@ -222,6 +252,7 @@ class ShelfView(QWidget):
         self.btn_rescan.setEnabled(live)
         self.btn_filter.setEnabled(live)
         self.txt_search.setEnabled(live)
+        self.cmb_order.setEnabled(live)
 
     def _draw(self, works) -> None:
         """The grid, holding these works, in the empty block's place."""
@@ -247,6 +278,7 @@ class ShelfView(QWidget):
         # search that found nothing is exactly when they want to see it.
         self.btn_filter.setEnabled(False)
         self.txt_search.setEnabled(False)
+        self.cmb_order.setEnabled(False)
         self.lbl_count.setText("")
         if self.grid is not None:
             self.grid.setVisible(False)
@@ -285,6 +317,7 @@ class ShelfView(QWidget):
             self.btn_rescan,
             self.btn_filter,
             self.txt_search,
+            self.cmb_order,
         )
         if self.grid is None:
             return stops
