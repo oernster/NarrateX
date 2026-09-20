@@ -97,3 +97,18 @@ def test_an_entry_built_from_a_filename_reads_title_and_author() -> None:
 def test_an_entry_built_from_a_bare_filename_has_no_author() -> None:
     entry = entry_from_filename(key(path="H:/Books/book1.azw3"))
     assert entry.author == text.UNKNOWN_AUTHOR
+
+
+def test_a_length_that_is_not_positive_is_refused() -> None:
+    entry = ShelfEntry(key=key(), title="A", author="B")
+    for impossible in (0, -1):
+        try:
+            entry.with_book_id("abc", total_chars=impossible)
+        except ValueError:
+            continue
+        raise AssertionError(f"{impossible} should not be a length")
+
+
+def test_a_book_id_without_a_length_leaves_the_length_alone() -> None:
+    entry = ShelfEntry(key=key(), title="A", author="B", total_chars=42)
+    assert entry.with_book_id("abc").total_chars == 42

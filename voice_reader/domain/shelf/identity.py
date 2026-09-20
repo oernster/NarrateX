@@ -62,6 +62,10 @@ class ShelfEntry:
     """One book file on disk, as the shelf knows it.
 
     `book_id` is None until the book has been opened once (FR-BS-011).
+    `total_chars` arrives at the same moment: a progress bar needs a length;
+    the length costs the full parse that only opening the book pays for. Until
+    then a tile shows a state with no bar.
+
     `subjects` holds the raw strings the sources stated, kept so a later change
     to the alias table re-files an entry without another scan.
     """
@@ -71,6 +75,7 @@ class ShelfEntry:
     author: str
     subjects: tuple[str, ...] = ()
     book_id: str | None = None
+    total_chars: int | None = None
     has_cover: bool = False
 
     def __post_init__(self) -> None:
@@ -100,12 +105,25 @@ class ShelfEntry:
 
         return (text.title_key(self.title), text.name_core(self.author))
 
-    def with_book_id(self, book_id: str) -> "ShelfEntry":
-        """The same entry, now knowing its narration identity."""
+    def with_book_id(
+        self, book_id: str, *, total_chars: int | None = None
+    ) -> "ShelfEntry":
+        """The same entry, now knowing its narration identity.
+
+        The length comes with the id because the same parse answers both.
+        An id without a length leaves a tile able to say "reading" with
+        nothing to say how far.
+        """
 
         if not book_id.strip():
             raise ValueError("book id cannot be empty")
-        return replace(self, book_id=book_id)
+        if total_chars is not None and total_chars <= 0:
+            raise ValueError("a book's length must be positive")
+        return replace(
+            self,
+            book_id=book_id,
+            total_chars=self.total_chars if total_chars is None else total_chars,
+        )
 
     def with_metadata(
         self,

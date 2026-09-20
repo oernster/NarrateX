@@ -65,6 +65,17 @@ def _folded(value: str) -> str:
     return _WHITESPACE.sub(" ", without_punctuation).strip()
 
 
+def fold_for_search(value: str) -> str:
+    """The form a search compares against: no accents, no case, no punctuation.
+
+    Searching for "clarke" must find "Arthur C. Clarke" and searching for
+    "emile" must find "Émile Zola", so the text typed and the text stored are
+    folded the same way before either is looked at.
+    """
+
+    return _folded(value)
+
+
 def display_title(raw: str) -> str:
     """The title as a reader would write it.
 

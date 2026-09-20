@@ -103,6 +103,16 @@ class Work:
     def sort_key(self) -> tuple[str, str]:
         return text.sort_key(self.title, self.author)
 
+    @property
+    def token(self) -> str:
+        """A stable string naming this work, for a store to key on.
+
+        Built from the comparison forms rather than from a path, so a book
+        moved on disk keeps whatever the reader stated about it.
+        """
+
+        return f"{self.key[1]}|{self.key[0]}"
+
 
 def gather(entries: tuple[ShelfEntry, ...]) -> tuple[Work, ...]:
     """Every entry folded into the works they belong to.
@@ -147,13 +157,9 @@ def possible_duplicates(works: tuple[Work, ...]) -> frozenset[tuple[str, str]]:
         for index, first in enumerate(author_works):
             for second in author_works[index + 1 :]:
                 if _one_opens_the_other(first, second):
-                    left, right = _token(first), _token(second)
+                    left, right = first.token, second.token
                     pairs.add((left, right) if left <= right else (right, left))
     return frozenset(pairs)
-
-
-def _token(work: Work) -> str:
-    return f"{work.key[1]}|{work.key[0]}"
 
 
 def _one_opens_the_other(first: Work, second: Work) -> bool:

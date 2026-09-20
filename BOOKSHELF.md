@@ -2,8 +2,9 @@
 
 Status: **BASELINED 1.0, 2026-09-19.** Every question in appendix B is ruled and the
 genre vocabulary in appendix D is closed. Changes from here arrive as numbered amendments
-carrying a reason, never as silent edits. Amendments A1 and A2 are recorded in appendix E;
-both came from building the domain layer against the real library.
+carrying a reason, never as silent edits. Amendments A1 to A3 are recorded in appendix E;
+each came from building against the real library rather than from rereading the
+document.
 
 ## 1. Introduction
 
@@ -303,6 +304,18 @@ against that entry.
 *Acceptance:* Given an entry never opened, when its tile is drawn, then no progress is
 shown; given the same entry after it has been opened once, when its tile is drawn, then
 its progress is read from the existing bookmark store under its book id.
+
+**FR-BS-011a The book's length arrives with its identity** (Must)
+*Added by amendment A3.*
+When a book is opened from the shelf, the shelf shall record the book's length in
+characters alongside its book id.
+*Rationale:* the resume position NarrateX already keeps is a character offset; an offset
+without a length is not a fraction, so a tile could say "reading" with no way to say how
+far. The length costs the full parse that opening the book has already paid for,
+so recording it then costs nothing and recording it at scan time is impossible (C-5).
+*Acceptance:* Given a work opened once, when its resume position is halfway through its
+length, then the tile reads as reading at 50%.
+*Verified by:* tests/application/shelf/test_library.py
 
 **FR-BS-012 Grouping entries into works** (Must)
 The shelf shall group entries that share a normalised title and author into one work.
@@ -826,3 +839,24 @@ every file is written this way cannot be learned, because there is nothing to le
 
 **Measured after both amendments**, driving the domain headlessly over `H:\Books`: 2819
 files fold to 863 works in under a second, 84% carry a cover and 51% reach a genre.
+
+**A3, 2026-09-20: a length recorded with the book id.** FR-BS-054 asks a tile for a bar
+as well as a state; a bar needs a fraction. NarrateX stores a character offset, not a
+fraction, so the length has to come from somewhere; the only moment it is free is the
+parse that opening the book already performs. FR-BS-011a added.
+
+**Measured after the application layer, driving it headlessly over `H:\Books`:**
+
+| Measurement | Value | Against |
+|---|---|---|
+| Cold scan of 2819 files | 23.2 seconds | NFR-BS-002, 60 seconds |
+| Rescan of the same tree | 0.2 seconds, 2819 kept, nothing re-read | FR-BS-005 |
+| Works after folding | 793 | FR-BS-012 |
+| Works drawn as the scan ran | 2819 entries reported | FR-BS-036 |
+| Three queries over 793 works | 111 ms in total | NFR-BS-003, 200 ms each |
+
+**One thing worth watching rather than fixing yet.** Each query re-folds the whole index
+into works, so a query costs about 37 ms at 793 works and would cost roughly four times
+that at 3000. That still meets NFR-BS-003 with headroom to spare, so nothing is done
+about it now; the fix, if the measurement ever says otherwise, is to hold the folded
+works in the service and drop them when the index is saved.
