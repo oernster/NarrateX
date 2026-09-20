@@ -25,6 +25,7 @@ class Artwork(str, Enum):
     BOOKSHELF = "bookshelf"
     DONATE = "donate"
     FEMALE = "female"
+    FILTER = "filter"
     HELP = "help"
     MALE = "male"
     NEXT_CHAPTER = "next-chapter"

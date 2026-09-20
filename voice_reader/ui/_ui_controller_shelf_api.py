@@ -45,3 +45,13 @@ class ShelfApi:
         from voice_reader.ui._ui_controller_shelf import refresh_shelf
 
         return refresh_shelf(self)
+
+    def filter_shelf(self) -> None:
+        from voice_reader.ui._ui_controller_shelf import filter_shelf
+
+        return filter_shelf(self)
+
+    def tag_work(self, work) -> None:
+        from voice_reader.ui._ui_controller_shelf import tag_work
+
+        return tag_work(self, work)

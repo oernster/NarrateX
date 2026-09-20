@@ -58,6 +58,10 @@ def guide_html() -> str:
 
 <h3>Choosing what to hear</h3>
 {_row(Artwork.SELECT_BOOK, "Select book", "open an EPUB, PDF, text or Markdown file.")}
+{_row(Artwork.FILTER, "Filter by genre",
+      "on the bookshelf, show only the genres you tick. Books that state no "
+      "genre have a box of their own. Right click a book to file it under a "
+      "genre yourself, which outranks whatever its file says.")}
 {_row(Artwork.REMOVE_CURRENT_BOOK, "Remove current book",
       "forget the bookmarks, resume point, ideas map and cached audio for "
       "this book. The file on disk is never touched.")}

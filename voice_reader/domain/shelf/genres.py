@@ -129,11 +129,17 @@ def read(subjects: tuple[str, ...]) -> GenreReading:
                 continue
             found.add(name)
     complete = with_mains(frozenset(found))
-    ordered = tuple(name for name in _catalogue_order() if name in complete)
+    ordered = tuple(name for name in catalogue_order() if name in complete)
     return GenreReading(genres=ordered, unmatched=tuple(dict.fromkeys(unmatched)))
 
 
-def _catalogue_order() -> tuple[str, ...]:
+def catalogue_order() -> tuple[str, ...]:
+    """Every genre name, mains first with their own styles behind each.
+
+    Public because the filter grid walks it too: the order a reader is offered
+    the catalogue in and the order a book's genres read in are one fact.
+    """
+
     order: list[str] = []
     for main in MAINS:
         order.append(main)

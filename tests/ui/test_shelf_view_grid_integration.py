@@ -76,6 +76,7 @@ class _Controller:
 
     install_shelf_grid = ShelfApi.install_shelf_grid
     refresh_shelf = ShelfApi.refresh_shelf
+    tag_work = ShelfApi.tag_work
     toggle_shelf = ShelfApi.toggle_shelf
     open_work = ShelfApi.open_work
 
@@ -129,7 +130,8 @@ def test_the_grid_joins_the_ring_once_installed(qapp) -> None:
     del qapp
     view = ShelfView()
 
-    assert len(view.ring_stops()) == 2
+    # Choose a folder, Rescan and Filter, before the works arrive.
+    assert len(view.ring_stops()) == 3
 
     grid = ShelfGrid(covers=_Covers(), parent=view)
     view.install_grid(grid)

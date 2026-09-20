@@ -24,6 +24,8 @@ from voice_reader.ui._ui_controller_book_loading import (
     narration_holds_the_book,
     prepare_for_book_switch,
 )
+from voice_reader.domain.shelf.query import ShelfQuery
+from voice_reader.ui.genre_dialogs import GenreFilterDialog, GenreTagDialog
 from voice_reader.ui.shelf_grid import ShelfGrid
 
 CHOOSE_ROOT_TITLE = "Choose the folder holding your books"
@@ -42,6 +44,10 @@ SCAN_FAILED_HINT = "See the log for what went wrong, then try again."
 # FR-BS-055a. A refusal names what can be done about it, so this says which
 # two controls end the narration rather than only that the shelf will not act.
 LOCKED_TEXT = "Pause or stop the narration to open another book"
+
+# What the count reads while a filter is narrowing the shelf, so a reader
+# who has forgotten the filter is not left wondering where their books went.
+FILTERED_TEXT = "{shown} of {held} works"
 
 
 def toggle_shelf(controller) -> None:
@@ -72,6 +78,7 @@ def install_shelf_grid(controller) -> None:
         parent=view,
     )
     grid.work_activated.connect(controller.open_work)
+    grid.tag_requested.connect(controller.tag_work)
     view.install_grid(grid)
 
 
@@ -88,11 +95,15 @@ def refresh_shelf(controller) -> None:
     if library is None or not library.roots():
         view.show_no_root()
         return
-    works = library.works()
-    if not works:
+    held = library.works()
+    if not held:
         view.show_no_books()
         return
-    view.show_works(works)
+    query = shelf_query(controller)
+    shown = library.view(query) if query.filters_by_genre else held
+    view.show_works(shown)
+    if query.filters_by_genre:
+        view.lbl_count.setText(FILTERED_TEXT.format(shown=len(shown), held=len(held)))
 
 
 def apply_shelf_lock(controller, *, locked: bool | None = None) -> None:
@@ -109,6 +120,61 @@ def apply_shelf_lock(controller, *, locked: bool | None = None) -> None:
         return
     held = narration_holds_the_book(controller) if locked is None else locked
     grid.set_locked(held)
+
+
+def shelf_query(controller) -> ShelfQuery:
+    """What the shelf is currently being asked for; everything by default."""
+
+    asked = getattr(controller, "_shelf_query", None)  # noqa: SLF001
+    return asked if isinstance(asked, ShelfQuery) else ShelfQuery()
+
+
+def filter_shelf(controller) -> None:
+    """FR-BS-042: ask which genres to show, then show them.
+
+    The dialog opens holding what is already being asked for, so a filter is
+    adjusted rather than rebuilt. Cancelling changes nothing, which is what
+    makes opening it to look at the catalogue a safe thing to do.
+    """
+
+    if controller.shelf is None:
+        return
+    dialog = GenreFilterDialog(shelf_query(controller), controller.window)
+    if _in_tests():
+        # A modal exec would hang the suite. What the dialog answers with is
+        # driven through `apply_shelf_query`, which is tested directly.
+        return
+    if dialog.exec():  # pragma: no cover (modal; exercised interactively)
+        apply_shelf_query(controller, dialog.query())
+
+
+def apply_shelf_query(controller, query: ShelfQuery) -> None:
+    """Remember what was asked for and redraw the shelf to match it."""
+
+    controller._shelf_query = query  # noqa: SLF001
+    refresh_shelf(controller)
+
+
+def tag_work(controller, work) -> None:
+    """FR-BS-046: the reader says what a work is, outranking its file."""
+
+    if controller.shelf is None:
+        return
+    dialog = GenreTagDialog(work.genres, controller.window, subject=work.title)
+    if _in_tests():
+        # As above: the outcome is driven through `state_work_genres`.
+        return
+    if dialog.exec():  # pragma: no cover (modal; exercised interactively)
+        state_work_genres(controller, work, dialog.genres())
+
+
+def state_work_genres(controller, work, genres: tuple[str, ...]) -> None:
+    """Record the reader's statement, then redraw the shelf around it."""
+
+    if controller.shelf is None:
+        return
+    controller.shelf.library.state_genres((work,), genres)
+    refresh_shelf(controller)
 
 
 def choose_shelf_root(controller) -> None:

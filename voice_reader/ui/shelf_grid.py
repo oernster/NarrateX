@@ -14,6 +14,11 @@ and the click is refused by the controller, which is what can say so and can
 read the narration state. The grid holds the fact and paints it; it does not
 decide it.
 
+**The right button says what a book is** (FR-BS-046). A book the files say
+nothing about is filed by the reader instead, the tile being where they are
+looking when they decide; measured, 1251 of 2784 Kindle files state no subject
+at all. The menu names the work so a mis-aimed click is visible before it acts.
+
 **A pane is not a keyboard stop, yet a grid is.** The rule the shelf follows is
 that a container holding controls takes no focus and paints no ring; this view is
 not a container, it is the control; a reader has to be able to reach the works
@@ -26,10 +31,11 @@ from __future__ import annotations
 from typing import Callable
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtWidgets import QListView, QWidget
+from PySide6.QtWidgets import QListView, QMenu, QWidget
 
 from voice_reader.domain.shelf.progress import Progress
 from voice_reader.domain.shelf.works import Work
+from voice_reader.ui._message_box_utils import _in_tests
 from voice_reader.ui.shelf_cover_loader import ShelfCoverLoader
 from voice_reader.ui.shelf_model import ShelfModel
 from voice_reader.ui.shelf_tile import (
@@ -39,11 +45,17 @@ from voice_reader.ui.shelf_tile import (
     ShelfTileDelegate,
 )
 
+# Named after the work so a right click on the wrong tile is visible before
+# it does anything.
+TAG_TEXT = "File {title} under a genre"
+
 
 class ShelfGrid(QListView):
     """Every work as a tile, drawn by the delegate, filled in the background."""
 
     work_activated = Signal(object)
+    #: The reader asked to say what a work is (FR-BS-046).
+    tag_requested = Signal(object)
 
     def __init__(
         self,
@@ -139,6 +151,30 @@ class ShelfGrid(QListView):
                 self.work_activated.emit(work)
                 return
         super().keyPressEvent(event)
+
+    def menu_for(self, work: Work) -> QMenu:
+        """The menu offered over one tile, built but not shown.
+
+        Built apart from being shown because showing it is modal: a suite that
+        called it would stop there and wait for a press that never comes.
+        """
+
+        menu = QMenu(self)
+        action = menu.addAction(TAG_TEXT.format(title=work.title))
+        action.triggered.connect(lambda: self.tag_requested.emit(work))
+        return menu
+
+    def contextMenuEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        """The right button over a tile offers to file that work."""
+
+        work = self._model.work_at(self.indexAt(event.pos()))
+        if work is None:
+            super().contextMenuEvent(event)
+            return
+        menu = self.menu_for(work)
+        if _in_tests():
+            return
+        menu.exec(event.globalPos())  # pragma: no cover (modal)
 
     def _on_activated(self, index) -> None:
         work = self._model.work_at(index)

@@ -31,6 +31,7 @@ def _make_window(**extras):
         "shelf_view": SimpleNamespace(
             choose_root_clicked=_SilentSignal(),
             rescan_clicked=_SilentSignal(),
+            filter_clicked=_SilentSignal(),
         ),
         # Optional: inside try/except, intentionally raise to cover except branches.
         "remove_book_clicked": _ExplodingSignal(),
@@ -57,6 +58,7 @@ def _make_controller(window):
         toggle_shelf=lambda: None,
         choose_shelf_root=lambda: None,
         rescan_shelf=lambda: None,
+        filter_shelf=lambda: None,
         remove_current_book=lambda **_: None,
         toggle_voice_sex=lambda: None,
         cycle_voice_region=lambda: None,
@@ -86,6 +88,7 @@ def test_connect_signals_skips_optional_signals_when_absent() -> None:
         shelf_view=SimpleNamespace(
             choose_root_clicked=_SilentSignal(),
             rescan_clicked=_SilentSignal(),
+            filter_clicked=_SilentSignal(),
         ),
     )
     controller = _make_controller(window)

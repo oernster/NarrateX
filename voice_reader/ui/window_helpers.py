@@ -204,6 +204,22 @@ def apply_main_window_theme(window) -> None:
                 color: {disabled_text};
             }}
 
+            /* A tick box wears its ring round the SQUARE, not round the
+               words: the square is what a checkbox is read as. It cannot be
+               drawn from here, because naming ::indicator makes Qt take the
+               whole subcontrol over and the tick goes with it, while a rule
+               scoped to :focus alone changes nothing. So `ringed_check.py`
+               paints it and reads its two colours from the properties below;
+               the padding is what leaves room for it. */
+            QCheckBox {{
+                border: 2px solid transparent;
+                border-radius: {control_radius};
+                padding: 3px 6px;
+                qproperty-ringColour: {ring_green};
+                qproperty-dangerColour: {ring_red};
+            }}
+            QCheckBox:disabled {{ color: {disabled_text}; }}
+
             /* The foot strip's divider between donate and the licences. */
             QFrame#bottomTraySeparator {{
                 border: none;

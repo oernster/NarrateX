@@ -17,7 +17,7 @@ itself arrives from the controller, which is what holds the cover service.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -27,12 +27,16 @@ from PySide6.QtWidgets import (
 )
 
 from voice_reader.domain.shelf import formats
+from voice_reader.ui._icon_buttons import icon_button
+from voice_reader.ui.artwork import ICON_BUTTON_PX, ICON_PX, Artwork
 from voice_reader.ui.pane_focus import as_pane
 from voice_reader.ui.sentence_case_label import SentenceCaseLabel
 from voice_reader.ui.shelf_grid import ShelfGrid
 
 CHOOSE_ROOT_TEXT = "Choose a folder"
 RESCAN_TEXT = "Rescan"
+FILTER_TEXT = "Filter by genre"
+FILTER_TOOLTIP = "Show only the genres you choose"
 
 NO_ROOT_TEXT = "No folder has been chosen yet"
 NO_BOOKS_TEXT = "That folder holds nothing NarrateX can read"
@@ -53,6 +57,7 @@ class ShelfView(QWidget):
 
     choose_root_clicked = Signal()
     rescan_clicked = Signal()
+    filter_clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -68,8 +73,20 @@ class ShelfView(QWidget):
         self.btn_choose_root = QPushButton(CHOOSE_ROOT_TEXT)
         self.btn_rescan = QPushButton(RESCAN_TEXT)
         self.btn_rescan.setEnabled(False)
+        # A picture button beside two worded ones. Its box is taken from the
+        # buttons it stands next to rather than from a number of its own, so
+        # the row stays level whatever the font does to the words; see
+        # `_match_the_row`, which does the measuring once the sheet is on.
+        self.btn_filter = icon_button(
+            artwork=Artwork.FILTER,
+            text=FILTER_TEXT,
+            tooltip=FILTER_TOOLTIP,
+            parent=self,
+        )
+        self.btn_filter.setEnabled(False)
         controls.addWidget(self.btn_choose_root)
         controls.addWidget(self.btn_rescan)
+        controls.addWidget(self.btn_filter)
         controls.addStretch(1)
         self.lbl_count = SentenceCaseLabel("")
         controls.addWidget(self.lbl_count)
@@ -106,6 +123,7 @@ class ShelfView(QWidget):
 
         self.btn_choose_root.clicked.connect(self.choose_root_clicked.emit)
         self.btn_rescan.clicked.connect(self.rescan_clicked.emit)
+        self.btn_filter.clicked.connect(self.filter_clicked.emit)
 
     # What the controller says ----------------------------------------------
 
@@ -117,7 +135,7 @@ class ShelfView(QWidget):
         grid.setVisible(False)
         # The window set its ring before the grid existed, so the grid takes its
         # place in the chain here: directly after the two controls above it.
-        QWidget.setTabOrder(self.btn_rescan, grid)
+        QWidget.setTabOrder(self.btn_filter, grid)
 
     def show_no_root(self) -> None:
         """FR-BS-057: no folder chosen; the control that chooses one is live."""
@@ -149,6 +167,7 @@ class ShelfView(QWidget):
         self.empty_panel.setVisible(False)
         self.btn_choose_root.setEnabled(True)
         self.btn_rescan.setEnabled(True)
+        self.btn_filter.setEnabled(True)
         count = len(works)
         self.lbl_count.setText(f"{count} work" if count == 1 else f"{count} works")
         if self.grid is not None:
@@ -165,9 +184,33 @@ class ShelfView(QWidget):
         self.empty_panel.setVisible(True)
         self.btn_choose_root.setEnabled(can_choose)
         self.btn_rescan.setEnabled(can_rescan)
+        # Nothing on the shelf is nothing to narrow, so the filter shuts with
+        # the rest rather than opening on an empty catalogue.
+        self.btn_filter.setEnabled(False)
         self.lbl_count.setText("")
         if self.grid is not None:
             self.grid.setVisible(False)
+
+    def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
+        """Match the picture button to the worded ones beside it.
+
+        Done here rather than while building. A widget built before the
+        application's stylesheet reaches it carries the fallback font and none
+        of the sheet's padding, so the height it reports then is not the
+        height it settles at: measured offscreen, 20 pixels against 28.
+        """
+
+        super().showEvent(event)
+        self._match_the_row()
+
+    def _match_the_row(self) -> None:
+        """Square the filter button on the height its neighbours actually have."""
+
+        self.btn_rescan.ensurePolished()
+        side = max(self.btn_rescan.height(), self.btn_rescan.sizeHint().height())
+        self.btn_filter.setFixedSize(side, side)
+        inner = round(side * ICON_PX / ICON_BUTTON_PX)
+        self.btn_filter.setIconSize(QSize(inner, inner))
 
     def ring_stops(self) -> tuple[QWidget, ...]:
         """The controls that take a keyboard stop, in visual order.
@@ -178,5 +221,5 @@ class ShelfView(QWidget):
         """
 
         if self.grid is None:
-            return (self.btn_choose_root, self.btn_rescan)
-        return (self.btn_choose_root, self.btn_rescan, self.grid)
+            return (self.btn_choose_root, self.btn_rescan, self.btn_filter)
+        return (self.btn_choose_root, self.btn_rescan, self.btn_filter, self.grid)
