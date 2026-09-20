@@ -13,6 +13,7 @@ from pathlib import Path
 
 from voice_reader.application.services.shelf.scanning import ScanReport
 from voice_reader.ui import _ui_controller_shelf as shelf_helpers
+from voice_reader.ui import _ui_controller_shelf_scan as scan_helpers
 from voice_reader.ui.main_window import MainWindow
 from voice_reader.ui.shelf_view import NO_BOOKS_TEXT
 
@@ -104,7 +105,7 @@ class _Log:
 def _drive(controller) -> None:
     """Start the scan, wait for the worker, then run what it posted back."""
 
-    shelf_helpers.rescan_shelf(controller)
+    scan_helpers.rescan_shelf(controller)
     thread = controller._shelf_scan_thread  # noqa: SLF001
     if thread is not None:
         thread.join(timeout=5.0)
@@ -166,7 +167,7 @@ def test_a_failed_scan_reaches_the_screen_and_the_log(qapp) -> None:
 
     assert log.exceptions == 1
     view = controller.window.shelf_view
-    assert view.lbl_state.text() == shelf_helpers.SCAN_FAILED_TEXT
+    assert view.lbl_state.text() == scan_helpers.SCAN_FAILED_TEXT
     assert view.btn_rescan.isEnabled(), "the reader must be able to try again"
 
 
@@ -186,9 +187,9 @@ def test_a_second_scan_is_refused_while_one_runs(qapp) -> None:
     scanner = _BlockingScanner()
     controller = _Controller(MainWindow(), _FakeShelf(_FakeLibrary(), scanner), _Log())
 
-    shelf_helpers.rescan_shelf(controller)
+    scan_helpers.rescan_shelf(controller)
     assert started.wait(timeout=5.0), "the first scan never started"
-    shelf_helpers.rescan_shelf(controller)
+    scan_helpers.rescan_shelf(controller)
     release.set()
     controller._shelf_scan_thread.join(timeout=5.0)  # noqa: SLF001
     controller.run_posted()
@@ -200,7 +201,7 @@ def test_a_scan_with_no_shelf_wired_does_nothing(qapp) -> None:
     del qapp
     controller = _Controller(MainWindow(), None, _Log())
 
-    shelf_helpers.rescan_shelf(controller)
+    scan_helpers.rescan_shelf(controller)
 
     assert controller._shelf_scan_thread is None  # noqa: SLF001
 

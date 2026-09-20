@@ -927,10 +927,6 @@ reaches an EPUB's own cover and a PDF's first page. `has_cover` is therefore a h
 grid does not gate on: a work is asked, then the answer is the picture or a placeholder
 bearing the title and author (FR-BS-033).
 
-**Still open from 3.6, stated rather than claimed:** FR-BS-036, the shelf filling while the scan runs,
-is not built. The scanner already reports each entry as it settles and the grid can be
-handed works at any time, so what is missing is the wiring between them.
-
 **A6, 2026-09-20: the shelf is the second door to a locked act.** Oliver reported that a
 tile rings green under the pointer while a book is being read aloud, offering a click that
 cannot be honoured. Reading the code for it found worse than a colour: activating a tile
@@ -942,3 +938,26 @@ not new: the open control beside the shelf has been disabled during narration si
 the shelf existed; a disabled control in this window already wears a red ring. What
 was missing was the shelf being held to it. FR-BS-055a added; the four statuses are now
 declared once beside `NarrationStatus` rather than copied into each door that asks.
+
+**A7, 2026-09-20: the shelf fills while the scan runs.** FR-BS-036 was the last of 3.6
+left unbuilt; the two halves it needed were already there, so what was written is the
+pacing between them. The scanner's `on_entry` settles one entry at a time while the shelf
+is drawn from all of them at once; neither a count nor a clock paces that alone. A
+hundred entries between redraws floods a cached walk, which settles 2819 of them in as
+little as 1.1 seconds, while a quarter of a second between redraws leaves a walk over a
+sleeping drive motionless. Both gates now have to open, except for the first handover,
+which answers to the count alone because it is the one that puts books where the words
+about reading the folders were.
+
+Two rulings came out of building it. The corpus rule that puts an author-first filename
+right is applied to a part-walked library as well, so a tile does not read "Kurt Vonnegut
+by Bluebeard" until the scan ends; it reads a smaller corpus, so a name it has not seen
+three times yet is not yet an author and the tile settles when the shelf is redrawn from
+the index. And a filter stays in force while the shelf fills, since a reader who narrowed
+their shelf then pressed Rescan would read their whole library flashing past as the filter
+having been forgotten; a batch the filter empties leaves the words alone rather than
+standing an empty grid where they were.
+
+The three controls above the shelf stay shut throughout, exactly as the scanning state
+left them; the count says how many works there are "so far", because a number about to
+change is one a reader would otherwise take for the size of their library.

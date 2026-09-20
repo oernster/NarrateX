@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from voice_reader.ui import _ui_controller_transport_api as transport
 from voice_reader.ui import _ui_controller_shelf as shelf_helpers
+from voice_reader.ui import _ui_controller_shelf_scan as scan_helpers
 from voice_reader.ui._ui_controller_shelf_api import ShelfApi
 from voice_reader.ui._ui_controller_transport_api import TransportApi
 
@@ -25,11 +26,14 @@ def test_every_shelf_entry_point_reaches_its_helper(monkeypatch) -> None:
     for name in (
         "toggle_shelf",
         "choose_shelf_root",
-        "rescan_shelf",
         "install_shelf_grid",
         "refresh_shelf",
     ):
         monkeypatch.setattr(shelf_helpers, name, lambda _c, _n=name: reached.append(_n))
+    # The scan lives in its own module, so it is patched where it is defined.
+    monkeypatch.setattr(
+        scan_helpers, "rescan_shelf", lambda _c: reached.append("rescan_shelf")
+    )
     monkeypatch.setattr(
         shelf_helpers, "open_work", lambda _c, given: reached.append(f"open:{given}")
     )

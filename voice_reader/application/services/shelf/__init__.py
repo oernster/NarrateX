@@ -6,12 +6,14 @@ action cannot be driven headlessly, the feature does not exist yet and the UI
 is not the missing piece.
 """
 
+from voice_reader.application.services.shelf.filling import ShelfFilling
 from voice_reader.application.services.shelf.library import RootOutcome, ShelfLibrary
 from voice_reader.application.services.shelf.scanning import ScanReport, ShelfScanner
 
 __all__ = [
     "RootOutcome",
     "ScanReport",
+    "ShelfFilling",
     "ShelfLibrary",
     "ShelfScanner",
 ]

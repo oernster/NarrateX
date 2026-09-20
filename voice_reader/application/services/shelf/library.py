@@ -1,6 +1,7 @@
 """The shelf a reader looks at: works, the filter over them and what they open.
 
-FR-BS-011, FR-BS-042 to FR-BS-047, FR-BS-053 to FR-BS-055 and FR-BS-060. Every
+FR-BS-011, FR-BS-036, FR-BS-042 to FR-BS-047, FR-BS-053 to FR-BS-055 and
+FR-BS-060. Every
 rule is the domain's; this service holds the collaborators and the order of the
 steps, so each reader-visible action has one named entry point that runs with
 no window open.
@@ -20,6 +21,7 @@ from pathlib import Path
 
 from voice_reader.domain.interfaces.bookmark_repository import BookmarkRepository
 from voice_reader.domain.interfaces.shelf_ports import ShelfIndexRepository
+from voice_reader.domain.shelf import corpus
 from voice_reader.domain.shelf import progress as progress_rules
 from voice_reader.domain.shelf import query as query_rules
 from voice_reader.domain.shelf import roots as root_rules
@@ -81,25 +83,37 @@ class ShelfLibrary:
     def works(self) -> tuple[Work, ...]:
         """Every work the index holds, carrying what the reader has stated."""
 
-        entries = self.index.load_entries()
-        stated = self.index.load_stated_genres()
-        folded = gather(entries)
-        if not stated:
-            return folded
-        return tuple(
-            Work(
-                title=work.title,
-                author=work.author,
-                entries=work.entries,
-                stated_genres=stated.get(work.token, ()),
-            )
-            for work in folded
-        )
+        return self._folded(self.index.load_entries())
+
+    def works_so_far(self, entries: tuple[ShelfEntry, ...]) -> tuple[Work, ...]:
+        """The shelf a scan still running can already draw (FR-BS-036).
+
+        The corpus rule is applied here rather than left to the scanner,
+        because these entries have not reached the save that normally applies
+        it. It reads a part of the library, so a name standing behind three
+        books the walk has not come to yet is not an author yet; the tile
+        settles when the scan ends and the shelf is drawn from the index.
+
+        It is applied here and nowhere else for the same reason: `works` reads
+        entries the scanner already resolved; resolving a resolved corpus
+        swaps the pair back.
+        """
+
+        return self._folded(corpus.resolve_author_first(entries))
 
     def view(self, query: ShelfQuery) -> tuple[Work, ...]:
         """The works this query admits, in the order it asks for."""
 
-        works = self.works()
+        return self.view_of(self.works(), query)
+
+    def view_of(self, works: tuple[Work, ...], query: ShelfQuery) -> tuple[Work, ...]:
+        """The same question asked of works already in hand.
+
+        A shelf filling in front of the reader has its works already and must
+        not go back to the index for them, while the filter and the order it is
+        shown under are the ones every other shelf obeys.
+        """
+
         recency = (
             self._recency(works)
             if query.order is query_rules.Order.RECENTLY_READ
@@ -204,6 +218,27 @@ class ShelfLibrary:
         self.index.save_entries(cleared)
 
     # Internals -------------------------------------------------------------
+
+    def _folded(self, entries: tuple[ShelfEntry, ...]) -> tuple[Work, ...]:
+        """Entries as works, carrying what the reader has said about them.
+
+        One home for the fold, so a shelf drawn mid-scan and a shelf drawn from
+        the index cannot come out looking like two different libraries.
+        """
+
+        stated = self.index.load_stated_genres()
+        folded = gather(entries)
+        if not stated:
+            return folded
+        return tuple(
+            Work(
+                title=work.title,
+                author=work.author,
+                entries=work.entries,
+                stated_genres=stated.get(work.token, ()),
+            )
+            for work in folded
+        )
 
     @staticmethod
     def _total_chars(work: Work) -> int | None:

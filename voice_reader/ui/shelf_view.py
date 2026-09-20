@@ -49,7 +49,16 @@ SCANNING_HINT = "This takes a few seconds the first time."
 NO_ROOT_HINT = "Choose the folder holding your books and NarrateX will read it."
 NO_BOOKS_HINT = f"It looks for {', '.join(sorted(formats.RECOGNISED))}."
 
+# What the count reads while the scan is still finding books (FR-BS-036).
+FILLING_TEXT = "{words} so far"
+
 _HEADING_POINT_SIZE = 14
+
+
+def work_count_words(count: int) -> str:
+    """How many works, worded so it still reads correctly at one."""
+
+    return f"{count} work" if count == 1 else f"{count} works"
 
 
 class ShelfView(QWidget):
@@ -164,12 +173,35 @@ class ShelfView(QWidget):
     def show_works(self, works) -> None:
         """The shelf itself: the grid takes the empty block's place."""
 
-        self.empty_panel.setVisible(False)
+        self._draw(works)
         self.btn_choose_root.setEnabled(True)
         self.btn_rescan.setEnabled(True)
         self.btn_filter.setEnabled(True)
-        count = len(works)
-        self.lbl_count.setText(f"{count} work" if count == 1 else f"{count} works")
+        self.lbl_count.setText(work_count_words(len(works)))
+
+    def show_filling(self, works) -> None:
+        """FR-BS-036: the shelf as the scan fills it.
+
+        The grid replaces the words the moment there are books to stand in
+        their place, while the three controls stay shut exactly as
+        `show_scanning` left them: the scan is still running, so a second one
+        would only fight it and a filter would narrow a shelf still arriving.
+
+        The count says "so far" rather than a bare number, because a number
+        that is about to change is a number a reader would otherwise read as
+        the size of their library.
+        """
+
+        self._draw(works)
+        self.btn_choose_root.setEnabled(False)
+        self.btn_rescan.setEnabled(False)
+        self.btn_filter.setEnabled(False)
+        self.lbl_count.setText(FILLING_TEXT.format(words=work_count_words(len(works))))
+
+    def _draw(self, works) -> None:
+        """The grid, holding these works, in the empty block's place."""
+
+        self.empty_panel.setVisible(False)
         if self.grid is not None:
             self.grid.show_works(tuple(works))
             self.grid.setVisible(True)

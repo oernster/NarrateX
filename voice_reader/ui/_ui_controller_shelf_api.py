@@ -27,7 +27,7 @@ class ShelfApi:
         return choose_shelf_root(self)
 
     def rescan_shelf(self) -> None:
-        from voice_reader.ui._ui_controller_shelf import rescan_shelf
+        from voice_reader.ui._ui_controller_shelf_scan import rescan_shelf
 
         return rescan_shelf(self)
 

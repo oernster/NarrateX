@@ -12,7 +12,6 @@ second.
 
 from __future__ import annotations
 
-import threading
 from pathlib import Path
 
 from PySide6.QtCore import Qt
@@ -25,6 +24,7 @@ from voice_reader.ui._ui_controller_book_loading import (
     prepare_for_book_switch,
 )
 from voice_reader.domain.shelf.query import ShelfQuery
+from voice_reader.ui._ui_controller_shelf_scan import rescan_shelf
 from voice_reader.ui.genre_dialogs import GenreFilterDialog, GenreTagDialog
 from voice_reader.ui.shelf_grid import ShelfGrid
 
@@ -37,9 +37,6 @@ DOWNLOADS_FOLDER = "Downloads"
 MISSING_TITLE = "Book not found"
 MISSING_RESCAN = "Rescan"
 MISSING_CLOSE = "Close"
-
-SCAN_FAILED_TEXT = "Your folders could not be read"
-SCAN_FAILED_HINT = "See the log for what went wrong, then try again."
 
 # FR-BS-055a. A refusal names what can be done about it, so this says which
 # two controls end the narration rather than only that the shelf will not act.
@@ -239,66 +236,6 @@ def _first_folder_to_show() -> Path:
 
     downloads = Path.home() / DOWNLOADS_FOLDER
     return downloads if downloads.is_dir() else Path.home()
-
-
-def rescan_shelf(controller) -> None:
-    """Walk every watched root on a worker thread, then say what came back.
-
-    The scan reads thousands of files, so it cannot run on the Qt thread. The
-    worker touches no widget: it hands the finished report back through
-    `ui_call_requested`, which is the one marshal the controller already owns.
-
-    A second scan while one is running is refused rather than queued. Two scans
-    over one tree can only race each other to save the same index.
-    """
-
-    if controller.shelf is None:
-        return
-    running = controller._shelf_scan_thread  # noqa: SLF001
-    if running is not None and running.is_alive():
-        return
-
-    controller.window.shelf_view.show_scanning()
-    scanner = controller.shelf.scanner
-
-    def _worker() -> None:
-        try:
-            report = scanner.scan()
-        except Exception as caught:  # noqa: BLE001
-            # Deliberately broad. A scan reaches whatever the reader nominated,
-            # so it can fail in ways no list of exception types will cover; the
-            # one thing that must not happen is a worker dying quietly behind a
-            # view that says it is still reading.
-            #
-            # The failure is bound to its own name and handed in as a default
-            # argument: Python unbinds an `except ... as` name when the block
-            # ends, so a lambda closing over it reads nothing by the time the Qt
-            # thread runs it.
-            controller.ui_call_requested.emit(
-                lambda failure=caught: _scan_failed(controller, failure)
-            )
-            return
-        controller.ui_call_requested.emit(lambda: _scan_finished(controller, report))
-
-    thread = threading.Thread(target=_worker, name="shelf-scan", daemon=True)
-    controller._shelf_scan_thread = thread  # noqa: SLF001
-    thread.start()
-
-
-def _scan_finished(controller, report) -> None:
-    """Runs on the Qt thread. Says what the scan found and what it could not."""
-
-    refresh_shelf(controller)
-    if report.unreachable_roots:
-        named = ", ".join(str(root) for root in report.unreachable_roots)
-        controller.window.lbl_status.setText(f"Could not reach {named}")
-
-
-def _scan_failed(controller, error: Exception) -> None:
-    """Runs on the Qt thread. A failure the reader can see and act on."""
-
-    controller._log.exception("Shelf scan failed", exc_info=error)
-    controller.window.shelf_view.show_problem(SCAN_FAILED_TEXT, SCAN_FAILED_HINT)
 
 
 def open_work(controller, work) -> None:
