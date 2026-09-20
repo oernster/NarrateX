@@ -35,6 +35,10 @@ _KIND_BY_TAG = {
 
 _LIST_CONTAINER_TAGS = {"ul", "ol"}
 
+# A link out of the book is a reference; a link inside it is navigation. Only
+# the second can be a contents entry.
+_EXTERNAL_LINK_MARKS = ("://", "mailto:", "tel:")
+
 _BLOCK_TAGS = sorted(set(_HEADING_LEVEL_BY_TAG) | set(_KIND_BY_TAG))
 
 # Separator used when flattening an element to text. Matches the separator the
@@ -62,6 +66,28 @@ def _list_level(element) -> int:
     return max(1, depth)
 
 
+def _is_contents_entry(element, *, text: str) -> bool:
+    """Whether this block is one line of a table of contents.
+
+    The evidence is structural rather than textual: the whole block is a single
+    link to somewhere else inside the book. That is what a contents entry is;
+    prose is not written that way.
+
+    It matters because a Kindle file converted to EPUB states no headings at
+    all. Its contents page is a run of ordinary paragraphs, so without this the
+    contents reads as body text: the pane shows a list of chapter names and the
+    narrator reads them out one after another before reaching chapter one.
+    """
+
+    links = element.find_all("a")
+    if len(links) != 1:
+        return False
+    href = str(links[0].get("href") or "").strip()
+    if not href or any(mark in href.lower() for mark in _EXTERNAL_LINK_MARKS):
+        return False
+    return links[0].get_text(_TEXT_SEPARATOR, strip=True) == text
+
+
 def _draft_for(element, *, text: str) -> BlockDraft:
     tag = str(element.name).lower()
 
@@ -70,6 +96,8 @@ def _draft_for(element, *, text: str) -> BlockDraft:
         return BlockDraft(kind=BlockKind.HEADING, text=text, level=level)
 
     kind = _KIND_BY_TAG[tag]
+    if _is_contents_entry(element, text=text):
+        return BlockDraft(kind=BlockKind.TOC_ENTRY, text=text)
     if kind is BlockKind.LIST_ITEM:
         return BlockDraft(kind=kind, text=text, level=_list_level(element))
     return BlockDraft(kind=kind, text=text)
@@ -101,9 +129,9 @@ def drafts_from_soup(soup) -> tuple[BlockDraft, ...]:
 
 
 def parse_html(html_bytes: bytes) -> tuple[str, tuple[BlockDraft, ...]] | None:
-    """Return `(text, drafts)` for one EPUB document, or None if unavailable.
+    """Return `(text, drafts)` for one EPUB document; None if unavailable.
 
-    Returning None means BeautifulSoup could not be used at all, and the caller
+    Returning None means BeautifulSoup could not be used at all, so the caller
     should fall back to its own text-only extraction. The text returned here is
     byte-identical to what the previous flattening produced.
     """
@@ -112,7 +140,7 @@ def parse_html(html_bytes: bytes) -> tuple[str, tuple[BlockDraft, ...]] | None:
         from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 
         # Many EPUB documents are XHTML, which makes BeautifulSoup warn when it
-        # is handed to an HTML parser. Expected here, and noisy in user logs.
+        # is handed to an HTML parser. Expected here; noisy in user logs.
         warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
         try:

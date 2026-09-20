@@ -1,6 +1,19 @@
+"""A Kindle cover recovered by converting the book, as a last resort.
+
+The shelf never comes here: it reads a Kindle cover straight out of the file's
+own header in about a millisecond. This is the reader's path, for the one book
+already being opened, where the conversion is being paid for anyway.
+
+The conversion runs through `ebook_convert`, which is what keeps Calibre out of
+our Qt environment and its console window off the screen.
+"""
+
 from __future__ import annotations
 
+import tempfile
 from pathlib import Path
+
+from voice_reader.infrastructure.books.ebook_convert import run_ebook_convert
 
 
 def extract_kindle_via_conversion(
@@ -11,19 +24,10 @@ def extract_kindle_via_conversion(
     """Convert Kindle formats to a temporary EPUB and reuse EPUB extraction."""
 
     try:
-        import subprocess
-        import tempfile
-
         with tempfile.TemporaryDirectory(prefix="narratex-cover-") as tmp:
             out_path = Path(tmp) / f"{path.stem}.epub"
-            cmd = ["ebook-convert", str(path), str(out_path)]
             try:
-                completed = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
+                completed = run_ebook_convert(path, out_path)
             except FileNotFoundError:
                 return None
 

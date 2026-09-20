@@ -177,7 +177,7 @@ def test_cover_extractor_kindle_convert_to_epub_fallback(
     book = tmp_path / "Book.azw3"
     book.write_bytes(b"dummy")
 
-    def fake_run(cmd, capture_output: bool, text: bool, check: bool):
+    def fake_run(cmd, **kwargs):
         assert cmd[0] == "ebook-convert"
         out_path = Path(cmd[2])
         # Produce a minimal EPUB with a cover doc pointing at an image.
@@ -201,6 +201,20 @@ def test_cover_extractor_kindle_convert_missing_ebook_convert_returns_none(
 
     def fake_run(*a, **k):
         raise FileNotFoundError("ebook-convert")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    assert CoverExtractor().extract_cover_bytes(book) is None
+
+
+def test_cover_extractor_kindle_convert_failing_exit_returns_none(
+    monkeypatch, tmp_path: Path
+) -> None:
+    # Calibre ran and refused the book: no picture, never an error to the reader.
+    book = tmp_path / "Book.azw3"
+    book.write_bytes(b"dummy")
+
+    def fake_run(cmd, **kwargs):
+        return SimpleNamespace(returncode=1, stdout="", stderr="unsupported")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
     assert CoverExtractor().extract_cover_bytes(book) is None

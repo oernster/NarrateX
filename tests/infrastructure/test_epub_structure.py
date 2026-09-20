@@ -147,3 +147,37 @@ class TestParseHtml:
         assert calls == ["lxml", "html.parser"]
         assert result is not None
         assert result[0] == "Body."
+
+
+class TestContentsEntries:
+    """A Kindle conversion states no headings, so its contents page is prose.
+
+    The structural mark is a block that is nothing but one link into the book.
+    """
+
+    def test_a_block_that_is_one_internal_link_is_a_contents_entry(self) -> None:
+        drafts = _drafts('<p><a href="part0002.html#c1">Chapter 1</a></p>')
+
+        assert drafts[0].kind is BlockKind.TOC_ENTRY
+        assert drafts[0].text == "Chapter 1"
+
+    def test_an_external_link_is_ordinary_prose(self) -> None:
+        drafts = _drafts('<p><a href="https://example.test/x">Chapter 1</a></p>')
+
+        assert drafts[0].kind is BlockKind.PARAGRAPH
+
+    def test_a_link_without_a_destination_is_ordinary_prose(self) -> None:
+        drafts = _drafts("<p><a>Chapter 1</a></p>")
+
+        assert drafts[0].kind is BlockKind.PARAGRAPH
+
+    def test_several_links_in_one_block_are_ordinary_prose(self) -> None:
+        html = '<p><a href="a.html">One</a> <a href="b.html">Two</a></p>'
+        drafts = _drafts(html)
+
+        assert drafts[0].kind is BlockKind.PARAGRAPH
+
+    def test_a_link_with_prose_beside_it_is_ordinary_prose(self) -> None:
+        drafts = _drafts('<p><a href="a.html">Chapter 1</a> begins here.</p>')
+
+        assert drafts[0].kind is BlockKind.PARAGRAPH

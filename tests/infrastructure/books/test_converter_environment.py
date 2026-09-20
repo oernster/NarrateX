@@ -1,7 +1,7 @@
 """Calibre is handed an environment that is not NarrateX's.
 
 `ebook-convert` is a Qt program. A packaged NarrateX tells Qt where ITS plugins
-live through the environment, and a child that inherits that reads our plugins
+live through the environment; a child that inherits that reads our plugins
 with Calibre's own Qt. Measured on 2026-09-20 against the installed build's
 plugin directory: the same file and the same command convert in full with a clean
 environment and die at Calibre's cover step with `QT_PLUGIN_PATH` set to ours, so
@@ -15,8 +15,9 @@ from pathlib import Path
 
 import pytest
 
-from voice_reader.infrastructure.books.converter import (
-    CalibreConverter,
+from voice_reader.infrastructure.books.converter import CalibreConverter
+from voice_reader.infrastructure.books.ebook_convert import (
+    NO_WINDOW,
     child_environment,
 )
 from voice_reader.shared.errors import BookConversionError
@@ -30,10 +31,12 @@ class _Runner:
         self.writes = writes
         self.env: dict[str, str] | None = None
         self.cmd: list[str] | None = None
+        self.flags: int | None = None
 
     def __call__(self, cmd, **kwargs):
         self.cmd = list(cmd)
         self.env = kwargs.get("env")
+        self.flags = kwargs.get("creationflags")
         if self.writes and self.returncode == 0:
             Path(cmd[-1]).write_bytes(b"an epub")
         return subprocess.CompletedProcess(
@@ -76,6 +79,17 @@ def test_everything_else_reaches_the_child(tmp_path, monkeypatch) -> None:
 
     assert runner.env["PATH"] == r"C:\Program Files\Calibre2"
     assert runner.env["CALIBRE_CONFIG_DIRECTORY"] == r"C:\Users\Someone\calibre"
+
+
+def test_no_console_window_is_asked_for(tmp_path) -> None:
+    """Windows gives a console program a console; the reader sees it flash."""
+
+    runner = _Runner()
+    converter = CalibreConverter(temp_books_dir=tmp_path / "temp", runner=runner)
+
+    converter.convert_to_epub_if_needed(_kindle(tmp_path))
+
+    assert runner.flags == NO_WINDOW
 
 
 def test_the_filter_is_read_off_a_mapping_rather_than_the_process() -> None:
