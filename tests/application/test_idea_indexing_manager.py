@@ -40,6 +40,39 @@ def test_manager_start_raises_on_empty_book_id() -> None:
         pass
 
 
+# The worker is a spawned process, so waiting for it costs the price of
+# starting a Python interpreter. Measured on the reference machine on
+# 2026-09-20: about 180 ms median and 205 ms worst when the machine is idle,
+# but well past half a second when it is busy. The original wait was 50 polls
+# of 10 ms, which is 500 ms; under load it failed 8 runs in 10 with
+# "assert 'running' == 'completed'": the loop gave up in silence and the
+# assertion then read the running marker that start_indexing had written.
+#
+# A deadline this generous is not a timing assumption. It is a limit on how
+# long a wedged worker may hold the suite up; it is checked explicitly so a
+# worker that never answers says so instead of failing as something else.
+_RESULT_DEADLINE_SECONDS = 30.0
+_RESULT_POLL_SECONDS = 0.01
+
+
+def _await_result(mgr: IdeaIndexingManager, *, book_id: str) -> None:
+    """Poll until the worker delivers its result; else say what did not happen."""
+
+    deadline = time.monotonic() + _RESULT_DEADLINE_SECONDS
+    while time.monotonic() < deadline:
+        events = mgr.poll(book_id=book_id)
+        if any(ev.get("type") == "result" for ev in events if isinstance(ev, dict)):
+            return
+        time.sleep(_RESULT_POLL_SECONDS)
+
+    raise AssertionError(
+        f"The indexing worker for {book_id!r} delivered no result within "
+        f"{_RESULT_DEADLINE_SECONDS:.0f}s. That is long enough that a slow "
+        "machine is not the explanation: the worker process either failed to "
+        "start or is wedged."
+    )
+
+
 def test_manager_poll_persists_result_doc() -> None:
     repo = _Repo(docs={})
     mgr = IdeaIndexingManager(repo=repo)  # type: ignore[arg-type]
@@ -51,13 +84,7 @@ def test_manager_poll_persists_result_doc() -> None:
     p.write_text("hi", encoding="utf-8")
 
     mgr.start_indexing(book_id="b1", book_title="T", text_path=str(p))
-
-    # Give the worker a moment to run and emit events.
-    for _ in range(50):
-        events = mgr.poll(book_id="b1")
-        if any(ev.get("type") == "result" for ev in events if isinstance(ev, dict)):
-            break
-        time.sleep(0.01)
+    _await_result(mgr, book_id="b1")
 
     doc = repo.docs["b1"]
     assert doc["status"]["state"] == "completed"
@@ -73,7 +100,7 @@ def test_manager_start_is_noop_when_job_running(monkeypatch) -> None:
             return True
 
     job = mgr.start_indexing(book_id="b1", book_title=None, text_path="x.txt")
-    # Force the stored job to appear alive, and ensure second start returns it.
+    # Force the stored job to appear alive; the second start must return it.
     job.process = _P()
     mgr._jobs["b1"] = job  # noqa: SLF001
 
