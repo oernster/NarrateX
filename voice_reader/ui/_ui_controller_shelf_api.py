@@ -51,6 +51,11 @@ class ShelfApi:
 
         return filter_shelf(self)
 
+    def search_shelf(self, typed: str) -> None:
+        from voice_reader.ui._ui_controller_shelf import search_shelf
+
+        return search_shelf(self, typed)
+
     def tag_work(self, work) -> None:
         from voice_reader.ui._ui_controller_shelf import tag_work
 

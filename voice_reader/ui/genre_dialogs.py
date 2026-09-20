@@ -17,6 +17,7 @@ somebody.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from dataclasses import replace
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -95,6 +96,7 @@ class GenreFilterDialog(FirstStopDialog):
     def __init__(self, query: ShelfQuery | None = None, parent=None) -> None:
         super().__init__(parent)
         asked = query or ShelfQuery()
+        self._asked = asked
         root = _titled(self, FILTER_TITLE)
 
         # Opened holding what is already being asked for, so a filter is
@@ -132,9 +134,15 @@ class GenreFilterDialog(FirstStopDialog):
         self.ungenred_box.setChecked(False)
 
     def query(self) -> ShelfQuery:
-        """What has been asked for, as the shelf takes it."""
+        """What has been asked for, as the shelf takes it.
 
-        return ShelfQuery(
+        Built onto the query the dialog opened with rather than from nothing,
+        so what this dialog does not ask about survives it: the words in the
+        search field and the order the shelf is shown in.
+        """
+
+        return replace(
+            self._asked,
             genres=frozenset(self.grid.chosen()),
             include_ungenred=self.ungenred_box.isChecked(),
         )

@@ -127,6 +127,23 @@ def apply_main_window_theme(window) -> None:
                 background: {panel};
                 color: {disabled_text};
             }}
+            /* A typed field is a control, so it wears the same three-state
+               ring every other control wears. Ported from Stellody's search
+               box, down to the :enabled gating: the red must be the plain
+               :disabled form to stay on rather than wait for a hover. */
+            QLineEdit {{
+                background: {panel};
+                border: 2px solid #1f2937;
+                padding: 4px 8px;
+                border-radius: {control_radius};
+            }}
+            QLineEdit:enabled:hover {{ border-color: {ring_green}; }}
+            QLineEdit:enabled:focus {{ border-color: {ring_green}; }}
+            QLineEdit:disabled {{
+                border: 2px solid {ring_red};
+                background: {panel};
+                color: {disabled_text};
+            }}
             QComboBox QAbstractItemView {{
                 background: {panel};
                 color: {text};

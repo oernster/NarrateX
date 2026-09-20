@@ -961,3 +961,28 @@ standing an empty grid where they were.
 The three controls above the shelf stay shut throughout, exactly as the scanning state
 left them; the count says how many works there are "so far", because a number about to
 change is one a reader would otherwise take for the size of their library.
+
+**A8, 2026-09-20: the search field; the dialog that would have emptied it.** FR-BS-047
+was another requirement whose rule was already written and tested: `matches_text` has
+folded the title and the author together since the query rules were first laid down, so
+what was built is the field that reaches it. It is ported from Stellody's search box,
+without the button that summons it: that button exists because a tray of pictures has no
+room for a field, while the shelf's control row has a stretch in it doing nothing.
+
+Building it turned up a defect in code that was already shipped. `GenreFilterDialog.query`
+built a fresh `ShelfQuery` from the ticked boxes, so it answered with empty defaults for
+everything the dialog does not ask about. With only a genre filter in the world that was
+invisible; with a search field it means opening the filter and pressing Show silently
+throws away what the reader typed; it would have thrown away the shelf order too once
+FR-BS-053a lands. The dialog now builds its answer onto the query it opened with.
+
+`ShelfQuery.narrows` was added beside `filters_by_genre` so the two ways of showing less
+than the whole shelf are asked about in one place. A shelf cut down by a search owes the
+reader the same "so many of so many" sentence as one cut down by a tick; the filling shelf
+obeys both for the same reason it obeyed the filter alone.
+
+The field is shut whenever there is nothing drawn to narrow and whenever a scan is
+running, wearing the same three-state ring as every other control. What the reader typed
+is held on the query rather than read back off the widget, so a redraw cannot move the
+caret in a word being typed. A search matching nothing leaves the field live: that is
+exactly the moment somebody needs to edit what they typed.

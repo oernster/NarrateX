@@ -52,6 +52,17 @@ class ShelfQuery:
     def search(self) -> str:
         return self.text.strip().casefold()
 
+    @property
+    def narrows(self) -> bool:
+        """True when this query shows less than the whole shelf.
+
+        Asked by every caller that has to say "so many of so many", so the two
+        ways of narrowing cannot drift apart: a shelf cut down by a search
+        owes the reader the same sentence as one cut down by a tick.
+        """
+
+        return self.filters_by_genre or bool(self.search)
+
 
 def matches_genre(work: Work, query: ShelfQuery) -> bool:
     """True when the genre part of the query admits this work."""

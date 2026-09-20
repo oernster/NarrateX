@@ -130,8 +130,10 @@ def test_the_grid_joins_the_ring_once_installed(qapp) -> None:
     del qapp
     view = ShelfView()
 
-    # Choose a folder, Rescan and Filter, before the works arrive.
-    assert len(view.ring_stops()) == 3
+    # Choose a folder, Rescan, Filter and the search field, before the works
+    # arrive.
+    assert len(view.ring_stops()) == 4
+    assert view.ring_stops()[-1] is view.txt_search
 
     grid = ShelfGrid(covers=_Covers(), parent=view)
     view.install_grid(grid)

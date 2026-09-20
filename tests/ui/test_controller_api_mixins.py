@@ -37,12 +37,18 @@ def test_every_shelf_entry_point_reaches_its_helper(monkeypatch) -> None:
     monkeypatch.setattr(
         shelf_helpers, "open_work", lambda _c, given: reached.append(f"open:{given}")
     )
+    monkeypatch.setattr(
+        shelf_helpers,
+        "search_shelf",
+        lambda _c, typed: reached.append(f"search:{typed}"),
+    )
 
     controller.toggle_shelf()
     controller.choose_shelf_root()
     controller.rescan_shelf()
     controller.install_shelf_grid()
     controller.refresh_shelf()
+    controller.search_shelf("clarke")
     controller.open_work(work)
 
     assert reached == [
@@ -51,6 +57,7 @@ def test_every_shelf_entry_point_reaches_its_helper(monkeypatch) -> None:
         "rescan_shelf",
         "install_shelf_grid",
         "refresh_shelf",
+        "search:clarke",
         f"open:{work}",
     ]
 

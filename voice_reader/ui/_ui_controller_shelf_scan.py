@@ -83,14 +83,14 @@ def rescan_shelf(controller) -> None:
 def _fill_shelf(controller, entries) -> None:
     """Runs on the Qt thread. FR-BS-036: the shelf as far as the walk has got.
 
-    The filter is applied to the batch, because a reader who narrowed their
-    shelf then pressed Rescan would read their whole library flashing past as
-    the filter having been forgotten.
+    The filter and the search are applied to the batch, because a reader who
+    narrowed their shelf then pressed Rescan would read their whole library
+    flashing past as the narrowing having been forgotten.
 
     A batch with nothing left to show leaves the words about reading the
     folders where they are, since they say more than an empty grid under them
-    would. The test is made after the filter rather than before it: a hundred
-    books that the filter admits none of is exactly as empty as no books.
+    would. The test is made after the narrowing rather than before it: a
+    hundred books that the query admits none of is exactly as empty as none.
     """
 
     from voice_reader.ui._ui_controller_shelf import apply_shelf_lock, shelf_query
@@ -100,7 +100,7 @@ def _fill_shelf(controller, entries) -> None:
     library = controller.shelf.library
     held = library.works_so_far(entries)
     query = shelf_query(controller)
-    shown = library.view_of(held, query) if query.filters_by_genre else held
+    shown = library.view_of(held, query) if query.narrows else held
     if not shown:
         return
     apply_shelf_lock(controller)

@@ -21,6 +21,7 @@ from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -37,6 +38,7 @@ CHOOSE_ROOT_TEXT = "Choose a folder"
 RESCAN_TEXT = "Rescan"
 FILTER_TEXT = "Filter by genre"
 FILTER_TOOLTIP = "Show only the genres you choose"
+SEARCH_PLACEHOLDER = "Search by title or author"
 
 NO_ROOT_TEXT = "No folder has been chosen yet"
 NO_BOOKS_TEXT = "That folder holds nothing NarrateX can read"
@@ -48,6 +50,10 @@ SCANNING_HINT = "This takes a few seconds the first time."
 # scanner does not look for.
 NO_ROOT_HINT = "Choose the folder holding your books and NarrateX will read it."
 NO_BOOKS_HINT = f"It looks for {', '.join(sorted(formats.RECOGNISED))}."
+
+# How wide the search field is. Wide enough for an author's full name,
+# narrow enough to leave the count where a reader already looks for it.
+SEARCH_BOX_PX = 220
 
 # What the count reads while the scan is still finding books (FR-BS-036).
 FILLING_TEXT = "{words} so far"
@@ -67,6 +73,8 @@ class ShelfView(QWidget):
     choose_root_clicked = Signal()
     rescan_clicked = Signal()
     filter_clicked = Signal()
+    #: FR-BS-047: the reader typed; the shelf narrows to what they typed.
+    search_changed = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -93,9 +101,19 @@ class ShelfView(QWidget):
             parent=self,
         )
         self.btn_filter.setEnabled(False)
+        # FR-BS-047. Ported from Stellody's search box, minus the button that
+        # summons it: that exists because its tray has no room for a field,
+        # while this row has a stretch in it doing nothing.
+        self.txt_search = QLineEdit(self)
+        self.txt_search.setObjectName("ShelfSearch")
+        self.txt_search.setPlaceholderText(SEARCH_PLACEHOLDER)
+        self.txt_search.setClearButtonEnabled(True)
+        self.txt_search.setFixedWidth(SEARCH_BOX_PX)
+        self.txt_search.setEnabled(False)
         controls.addWidget(self.btn_choose_root)
         controls.addWidget(self.btn_rescan)
         controls.addWidget(self.btn_filter)
+        controls.addWidget(self.txt_search)
         controls.addStretch(1)
         self.lbl_count = SentenceCaseLabel("")
         controls.addWidget(self.lbl_count)
@@ -133,6 +151,7 @@ class ShelfView(QWidget):
         self.btn_choose_root.clicked.connect(self.choose_root_clicked.emit)
         self.btn_rescan.clicked.connect(self.rescan_clicked.emit)
         self.btn_filter.clicked.connect(self.filter_clicked.emit)
+        self.txt_search.textChanged.connect(self.search_changed.emit)
 
     # What the controller says ----------------------------------------------
 
@@ -143,8 +162,9 @@ class ShelfView(QWidget):
         self._root.addWidget(grid, stretch=1)
         grid.setVisible(False)
         # The window set its ring before the grid existed, so the grid takes its
-        # place in the chain here: directly after the two controls above it.
-        QWidget.setTabOrder(self.btn_filter, grid)
+        # place in the chain here: directly after the search field, which is the
+        # last of the controls above it.
+        QWidget.setTabOrder(self.txt_search, grid)
 
     def show_no_root(self) -> None:
         """FR-BS-057: no folder chosen; the control that chooses one is live."""
@@ -157,10 +177,11 @@ class ShelfView(QWidget):
         self._say(NO_BOOKS_TEXT, NO_BOOKS_HINT)
 
     def show_scanning(self) -> None:
-        """A scan is running. Both controls are shut while it does.
+        """A scan is running. Every control above the shelf is shut while it is.
 
         The rescan control is disabled rather than left live, because a second
-        scan over the same tree can only fight the first.
+        scan over the same tree can only fight the first; the filter and the
+        search shut with it, since neither can narrow a shelf that is not there.
         """
 
         self._say(SCANNING_TEXT, SCANNING_HINT, can_choose=False, can_rescan=False)
@@ -174,9 +195,7 @@ class ShelfView(QWidget):
         """The shelf itself: the grid takes the empty block's place."""
 
         self._draw(works)
-        self.btn_choose_root.setEnabled(True)
-        self.btn_rescan.setEnabled(True)
-        self.btn_filter.setEnabled(True)
+        self._controls_live(True)
         self.lbl_count.setText(work_count_words(len(works)))
 
     def show_filling(self, works) -> None:
@@ -193,10 +212,16 @@ class ShelfView(QWidget):
         """
 
         self._draw(works)
-        self.btn_choose_root.setEnabled(False)
-        self.btn_rescan.setEnabled(False)
-        self.btn_filter.setEnabled(False)
+        self._controls_live(False)
         self.lbl_count.setText(FILLING_TEXT.format(words=work_count_words(len(works))))
+
+    def _controls_live(self, live: bool) -> None:
+        """The three controls above a drawn shelf, opened or shut together."""
+
+        self.btn_choose_root.setEnabled(live)
+        self.btn_rescan.setEnabled(live)
+        self.btn_filter.setEnabled(live)
+        self.txt_search.setEnabled(live)
 
     def _draw(self, works) -> None:
         """The grid, holding these works, in the empty block's place."""
@@ -216,9 +241,12 @@ class ShelfView(QWidget):
         self.empty_panel.setVisible(True)
         self.btn_choose_root.setEnabled(can_choose)
         self.btn_rescan.setEnabled(can_rescan)
-        # Nothing on the shelf is nothing to narrow, so the filter shuts with
-        # the rest rather than opening on an empty catalogue.
+        # Nothing on the shelf is nothing to narrow, so the filter and the
+        # search shut together rather than offering to narrow an empty
+        # catalogue. The words the reader typed are left in the field: a
+        # search that found nothing is exactly when they want to see it.
         self.btn_filter.setEnabled(False)
+        self.txt_search.setEnabled(False)
         self.lbl_count.setText("")
         if self.grid is not None:
             self.grid.setVisible(False)
@@ -252,6 +280,12 @@ class ShelfView(QWidget):
         between them with the cursor keys (FR-BS-059).
         """
 
+        stops = (
+            self.btn_choose_root,
+            self.btn_rescan,
+            self.btn_filter,
+            self.txt_search,
+        )
         if self.grid is None:
-            return (self.btn_choose_root, self.btn_rescan, self.btn_filter)
-        return (self.btn_choose_root, self.btn_rescan, self.btn_filter, self.grid)
+            return stops
+        return stops + (self.grid,)
