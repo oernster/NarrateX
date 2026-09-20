@@ -58,6 +58,7 @@ class _NeutralStart(QWidget):
 
 class MainWindow(QMainWindow):
     select_book_clicked = Signal()
+    shelf_clicked = Signal()
     remove_book_clicked = Signal()
     voice_sex_toggle_clicked = Signal()
     voice_region_toggle_clicked = Signal()
@@ -95,6 +96,19 @@ class MainWindow(QMainWindow):
         except Exception:
             pass
 
+    # Which view the window is showing. Two pages of one stack, because the
+    # shelf is a view of this window rather than a window of its own
+    # (FR-BS-050a); opening a work therefore changes nothing but the page.
+
+    def show_shelf_view(self) -> None:
+        self.views.setCurrentWidget(self.shelf_view)
+
+    def show_reader_view(self) -> None:
+        self.views.setCurrentWidget(self.reader_panel)
+
+    def showing_shelf(self) -> bool:
+        return self.views.currentWidget() is self.shelf_view
+
     def showEvent(self, event) -> None:  # noqa: N802 (Qt naming)
         super().showEvent(event)
         if not self._started:
@@ -103,6 +117,7 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self) -> None:
         self.btn_select_book.clicked.connect(self.select_book_clicked.emit)
+        self.btn_shelf.clicked.connect(self.shelf_clicked.emit)
         self.btn_remove_book.clicked.connect(self.remove_book_clicked.emit)
         self.btn_voice_sex.clicked.connect(self.voice_sex_toggle_clicked.emit)
         self.btn_voice_region.clicked.connect(self.voice_region_toggle_clicked.emit)

@@ -4,7 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import app
-from tests.app_main_testkit import stub_inactive_tooltips
+from tests.app_main_testkit import patch_fake_config, stub_inactive_tooltips
 
 
 class _FakeSignal:
@@ -51,23 +51,7 @@ def test_main_sets_application_display_name_when_supported(
 ) -> None:
     monkeypatch.setattr(app, "_run_model_preflight", lambda a: True)
 
-    class _FakeConfig:
-        def __init__(self) -> None:
-            self.paths = SimpleNamespace(
-                cache_dir=tmp_path / "cache",
-                temp_books_dir=tmp_path / "temp_books",
-                bookmarks_dir=tmp_path / "bookmarks",
-            )
-            self.default_language = "en"
-
-        def ensure_directories(self) -> None:
-            self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.bookmarks_dir.mkdir(parents=True, exist_ok=True)
-
-    monkeypatch.setattr(
-        app.Config, "from_project_root", lambda project_root: _FakeConfig()
-    )
+    patch_fake_config(monkeypatch, tmp_path)
     monkeypatch.setattr(app, "QApplication", _FakeQApplication)
     stub_inactive_tooltips(monkeypatch)
     monkeypatch.setattr(
@@ -125,23 +109,7 @@ def test_main_sets_qt_desktop_file_name_to_match_appusermodelid(
 ) -> None:
     monkeypatch.setattr(app, "_run_model_preflight", lambda a: True)
 
-    class _FakeConfig:
-        def __init__(self) -> None:
-            self.paths = SimpleNamespace(
-                cache_dir=tmp_path / "cache",
-                temp_books_dir=tmp_path / "temp_books",
-                bookmarks_dir=tmp_path / "bookmarks",
-            )
-            self.default_language = "en"
-
-        def ensure_directories(self) -> None:
-            self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.bookmarks_dir.mkdir(parents=True, exist_ok=True)
-
-    monkeypatch.setattr(
-        app.Config, "from_project_root", lambda project_root: _FakeConfig()
-    )
+    patch_fake_config(monkeypatch, tmp_path)
 
     fake_qapp = _FakeQApplication([])
     monkeypatch.setattr(app, "QApplication", lambda argv: fake_qapp)

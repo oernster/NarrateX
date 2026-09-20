@@ -223,6 +223,96 @@ def build_shelf(
     return Shelf(scanner=scanner, library=library, thumbnails=thumbnails)
 
 
+# Everything the narration stack is built with. Each was a literal in the
+# entrypoint before the services moved here; they are named rather than inlined
+# so a reader can see what the number is for.
+_NARRATION_DEVICE = "cpu"
+_AUDIO_BUFFER_SECONDS = 15.0
+_CHUNK_MIN_CHARS = 120
+_CHUNK_MAX_CHARS = 220
+
+
+@dataclass(frozen=True, slots=True)
+class AppServices:
+    """The application assembled: what the window and the controller need.
+
+    One object rather than a dozen locals in the entrypoint, so the wiring can
+    be built and read in one place and the entrypoint stays short enough to
+    take in at a glance.
+    """
+
+    narration_service: object
+    bookmark_service: object
+    idea_map_service: object
+    idea_indexing_manager: object
+    structural_bookmark_service: object
+    voice_service: object
+    preferences_repo: object
+    device: str
+    engine_name: str
+    shelf: Shelf
+
+
+def build_services(resolve: Callable[[str], object], config: object) -> AppServices:
+    """Construct every service the window is driven by, in dependency order.
+
+    `resolve` answers a wiring name, which is how the entrypoint's own
+    monkeypatched names still win in a test: nothing here imports a module
+    directly.
+    """
+
+    paths = config.paths
+    converter = resolve("CalibreConverter")(temp_books_dir=paths.temp_books_dir)
+    parser = resolve("BookParser")()
+    book_repo = resolve("LocalBookRepository")(converter=converter, parser=parser)
+    cache_repo = resolve("FilesystemCacheRepository")(cache_dir=paths.cache_dir)
+
+    bookmark_repo = resolve("JSONBookmarkRepository")(bookmarks_dir=paths.bookmarks_dir)
+    bookmark_service = resolve("BookmarkService")(repo=bookmark_repo)
+
+    idea_repo = resolve("JSONIdeaIndexRepository")(bookmarks_dir=paths.bookmarks_dir)
+
+    preferences_repo = resolve("JSONPreferencesRepository")(path=paths.preferences_path)
+    voice_service = resolve("VoiceProfileService")(
+        repo=resolve("KokoroVoiceProfileRepository")()
+    )
+
+    tts_engine = resolve("TTSEngineFactory")().create()
+    narration_service = resolve("NarrationService")(
+        book_repo=book_repo,
+        cache_repo=cache_repo,
+        tts_engine=tts_engine,
+        audio_streamer=resolve("SoundDeviceAudioStreamer")(
+            target_buffer_seconds=_AUDIO_BUFFER_SECONDS
+        ),
+        chunking_service=resolve("ChunkingService")(
+            min_chars=_CHUNK_MIN_CHARS, max_chars=_CHUNK_MAX_CHARS
+        ),
+        device=_NARRATION_DEVICE,
+        language=config.default_language,
+        bookmark_service=bookmark_service,
+        preferences_repo=preferences_repo,
+    )
+
+    return AppServices(
+        narration_service=narration_service,
+        bookmark_service=bookmark_service,
+        idea_map_service=resolve("IdeaMapService")(repo=idea_repo),
+        idea_indexing_manager=resolve("IdeaIndexingManager")(repo=idea_repo),
+        structural_bookmark_service=resolve("StructuralBookmarkService")(),
+        voice_service=voice_service,
+        preferences_repo=preferences_repo,
+        device=_NARRATION_DEVICE,
+        engine_name=tts_engine.engine_name,
+        shelf=build_shelf(
+            resolve,
+            index_dir=paths.shelf_index_dir,
+            thumbnails_dir=paths.shelf_thumbnails_dir,
+            bookmark_repo=bookmark_repo,
+        ),
+    )
+
+
 def wiring_module_names() -> tuple[str, ...]:
     """Every module the entrypoint resolves dynamically, for packagers.
 

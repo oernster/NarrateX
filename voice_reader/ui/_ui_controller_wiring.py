@@ -9,6 +9,15 @@ from __future__ import annotations
 def connect_signals(controller) -> None:
     controller.window.select_book_clicked.connect(controller.select_book)
 
+    # The shelf control and the two controls on the shelf itself. Connected
+    # unconditionally: every real window carries them; a test window that does
+    # not would hide a wiring defect behind a hasattr.
+    controller.window.shelf_clicked.connect(controller.toggle_shelf)
+    controller.window.shelf_view.choose_root_clicked.connect(
+        controller.choose_shelf_root
+    )
+    controller.window.shelf_view.rescan_clicked.connect(controller.rescan_shelf)
+
     # Remove the current book from NarrateX's memory (never the file).
     if hasattr(controller.window, "remove_book_clicked"):
         try:

@@ -134,11 +134,16 @@ def test_tab_ring_follows_visual_order_and_wraps(qapp) -> None:
     qapp.processEvents()
 
     def next_stop(widget):
+        # `nextInFocusChain` is the raw chain, which holds widgets Tab would
+        # never reach. Qt skips a disabled or hidden stop, so the walk skips
+        # them too; otherwise the shelf's controls, sitting on the page that is
+        # not showing, would read as stops the reader can never tab to.
         nxt = widget.nextInFocusChain()
         while (
             not (nxt.focusPolicy() & Qt.TabFocus)
             or isinstance(nxt, _NeutralStart)
             or not nxt.isEnabled()
+            or not nxt.isVisible()
         ):
             nxt = nxt.nextInFocusChain()
         return nxt

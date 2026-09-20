@@ -87,6 +87,7 @@ class UiController(QObject):
         engine_name: str,
         cover_extractor: CoverExtractor | None = None,
         book_loader: Callable[..., dict] | None = None,
+        shelf: object | None = None,
     ) -> None:
         super().__init__()
         self._log = logging.getLogger(self.__class__.__name__)
@@ -99,6 +100,10 @@ class UiController(QObject):
             structural_bookmark_service or StructuralBookmarkService()
         )
         self.voice_service = voice_service
+        # The shelf's scanner, library and thumbnails, as the composition root
+        # built them. Optional because a test window is wired without one and
+        # the shelf then says that no folder has been chosen.
+        self.shelf = shelf
         self.device = device
         self.engine_name = engine_name
 
@@ -117,6 +122,7 @@ class UiController(QObject):
         self._ideas_launch_thread: threading.Thread | None = None
         self._book_load_inflight: bool = False
         self._book_load_thread: threading.Thread | None = None
+        self._shelf_scan_thread: threading.Thread | None = None
         # Parent-side subprocess loader, injected by the composition root.
         # None falls back to loading on the worker thread (tests, dev).
         self._book_loader = book_loader
@@ -301,6 +307,21 @@ class UiController(QObject):
         from voice_reader.ui._ui_controller_book_removal import remove_current_book
 
         return remove_current_book(self, confirmed=confirmed)
+
+    def toggle_shelf(self) -> None:
+        from voice_reader.ui._ui_controller_shelf import toggle_shelf
+
+        return toggle_shelf(self)
+
+    def choose_shelf_root(self) -> None:
+        from voice_reader.ui._ui_controller_shelf import choose_shelf_root
+
+        return choose_shelf_root(self)
+
+    def rescan_shelf(self) -> None:
+        from voice_reader.ui._ui_controller_shelf import rescan_shelf
+
+        return rescan_shelf(self)
 
     def select_book(self) -> None:
         prepare_for_book_switch(self)

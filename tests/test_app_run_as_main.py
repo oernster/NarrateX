@@ -8,7 +8,12 @@ import types
 
 import pytest
 
-from tests.app_main_testkit import FakeSignal, FakeUiController, FakeWindow
+from tests.app_main_testkit import (
+    FakeConfig,
+    FakeSignal,
+    FakeUiController,
+    FakeWindow,
+)
 
 
 def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None:
@@ -122,26 +127,16 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
         "voice_reader.infrastructure.tts.voice_profile_repository"
     ).KokoroVoiceProfileRepository = lambda **kwargs: SimpleNamespace()
 
-    class _Cfg:
+    class _Cfg(FakeConfig):
+        """The shared fake, plus the factory the entrypoint calls on it."""
+
         def __init__(self) -> None:
-            self.paths = SimpleNamespace(
-                cache_dir=tmp_path / "cache",
-                voices_dir=tmp_path / "voices",
-                temp_books_dir=tmp_path / "temp_books",
-                bookmarks_dir=tmp_path / "bookmarks",
-            )
-            self.default_language = "en"
+            super().__init__(tmp_path)
 
         @staticmethod
         def from_project_root(project_root: Path):
             del project_root
             return _Cfg()
-
-        def ensure_directories(self) -> None:
-            self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.voices_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.bookmarks_dir.mkdir(parents=True, exist_ok=True)
 
     _m("voice_reader.shared.config").Config = _Cfg
     _m("voice_reader.shared.logging_utils").configure_logging = lambda level=None: None

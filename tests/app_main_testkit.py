@@ -119,6 +119,49 @@ class FakeLogger:
         self.exception_calls += 1
 
 
+class FakeConfig:
+    """Stands in for `Config`, carrying every field the real AppPaths has.
+
+    One home for it, because five copies of this shape drifted apart: three of
+    them lacked `preferences_path` and the entrypoint grew a fallback for a
+    state only a stale fake could reach. A fake that mirrors the real object is
+    what keeps the production path honest.
+    """
+
+    def __init__(self, tmp_path: Path) -> None:
+        self.paths = SimpleNamespace(
+            project_root=tmp_path,
+            cache_dir=tmp_path / "cache",
+            voices_dir=tmp_path / "voices",
+            ideas_work_dir=tmp_path / "cache" / "ideas_work",
+            temp_books_dir=tmp_path / "temp_books",
+            bookmarks_dir=tmp_path / "bookmarks",
+            preferences_path=tmp_path / "preferences.json",
+            shelf_index_dir=tmp_path / "shelf",
+            shelf_thumbnails_dir=tmp_path / "shelf_thumbnails",
+        )
+        self.default_language = "en"
+
+    def ensure_directories(self) -> None:
+        for directory in (
+            self.paths.cache_dir,
+            self.paths.voices_dir,
+            self.paths.temp_books_dir,
+            self.paths.bookmarks_dir,
+            self.paths.shelf_index_dir,
+            self.paths.shelf_thumbnails_dir,
+        ):
+            directory.mkdir(parents=True, exist_ok=True)
+
+
+def patch_fake_config(monkeypatch, tmp_path: Path) -> None:
+    """Make `app.Config.from_project_root` answer the shared fake."""
+
+    monkeypatch.setattr(
+        app.Config, "from_project_root", lambda project_root: FakeConfig(tmp_path)
+    )
+
+
 def stub_inactive_tooltips(monkeypatch) -> list:  # noqa: ANN001
     """Record `app.main()`'s tooltip install instead of running it.
 
@@ -191,25 +234,7 @@ def patch_app_main_wiring(
     monkeypatch.setattr(app, "MainWindow", FakeWindow)
     monkeypatch.setattr(app, "UiController", FakeUiController)
 
-    class _FakeConfig:
-        def __init__(self) -> None:
-            self.paths = SimpleNamespace(
-                cache_dir=tmp_path / "cache",
-                voices_dir=tmp_path / "voices",
-                temp_books_dir=tmp_path / "temp_books",
-                bookmarks_dir=tmp_path / "bookmarks",
-            )
-            self.default_language = "en"
-
-        def ensure_directories(self) -> None:
-            self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.voices_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.bookmarks_dir.mkdir(parents=True, exist_ok=True)
-
-    monkeypatch.setattr(
-        app.Config, "from_project_root", lambda project_root: _FakeConfig()
-    )
+    patch_fake_config(monkeypatch, tmp_path)
 
     # Patch infra construction to avoid importing heavy deps.
     monkeypatch.setattr(

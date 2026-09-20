@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QProgressBar,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -18,6 +19,7 @@ from voice_reader.ui.artwork import Artwork
 from voice_reader.ui.bottom_tray import BottomTray
 from voice_reader.ui.pane_focus import as_pane, follow_overflow
 from voice_reader.ui.sentence_case_label import SentenceCaseLabel
+from voice_reader.ui.shelf_view import ShelfView
 from voice_reader.ui.window_helpers import apply_main_window_theme
 from voice_reader.version import APP_NAME
 
@@ -179,7 +181,16 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     window.cover_panel.setLayout(cover_panel)
     reader_row.addWidget(window.cover_panel, stretch=0)
 
-    root.addLayout(reader_row, stretch=3)
+    # The shelf is a view of this window, not a second window (FR-BS-050a), so
+    # the reader row and the shelf are two pages of one stack. The stack and
+    # both pages are chrome: neither takes a keyboard stop.
+    window.reader_panel = as_pane(QWidget())
+    window.reader_panel.setLayout(reader_row)
+    window.shelf_view = as_pane(ShelfView())
+    window.views = as_pane(QStackedWidget())
+    window.views.addWidget(window.reader_panel)
+    window.views.addWidget(window.shelf_view)
+    root.addWidget(window.views, stretch=3)
 
     # The strip along the foot: donate, a separator, then the two licences.
     window.bottom_tray = BottomTray()
@@ -197,6 +208,7 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     # stops are skipped by Qt natively.
     ring = [
         window.btn_select_book,
+        window.btn_shelf,
         window.btn_remove_book,
         window.btn_voice_sex,
         window.btn_voice_region,
@@ -211,6 +223,9 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
         window.btn_stop,
         window.btn_next_chapter,
         window.reader,
+        # The shelf's own controls. A hidden page's controls are skipped by Qt,
+        # so they cost nothing while the reader is the visible view.
+        *window.shelf_view.ring_stops(),
         *window.bottom_tray.ring_stops(),
     ]
     for earlier, later in zip(ring, ring[1:]):

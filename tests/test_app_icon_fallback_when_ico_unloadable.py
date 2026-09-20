@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import app
 import voice_reader.ui._app_icon as _app_icon
-from tests.app_main_testkit import stub_inactive_tooltips
+from tests.app_main_testkit import patch_fake_config, stub_inactive_tooltips
 
 
 class _FakeSignal:
@@ -67,23 +67,7 @@ def test_main_falls_back_when_ico_exists_but_qt_cant_load_it(
 ) -> None:
     monkeypatch.setattr(_app_icon, "exe_dir", lambda: tmp_path)
 
-    class _FakeConfig:
-        def __init__(self) -> None:
-            self.paths = SimpleNamespace(
-                cache_dir=tmp_path / "cache",
-                temp_books_dir=tmp_path / "temp_books",
-                bookmarks_dir=tmp_path / "bookmarks",
-            )
-            self.default_language = "en"
-
-        def ensure_directories(self) -> None:
-            self.paths.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.temp_books_dir.mkdir(parents=True, exist_ok=True)
-            self.paths.bookmarks_dir.mkdir(parents=True, exist_ok=True)
-
-    monkeypatch.setattr(
-        app.Config, "from_project_root", lambda project_root: _FakeConfig()
-    )
+    patch_fake_config(monkeypatch, tmp_path)
 
     monkeypatch.setattr(app, "_run_model_preflight", lambda a: True)
 

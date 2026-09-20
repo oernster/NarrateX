@@ -51,7 +51,11 @@ from voice_reader.shared.startup_ui import (
     default_lock_dir,
     maybe_show_splash,
 )
-from voice_reader.bootstrap import install_wiring_placeholders, resolve_app_wiring
+from voice_reader.bootstrap import (
+    build_services,
+    install_wiring_placeholders,
+    resolve_app_wiring,
+)
 from voice_reader.ui import inactive_tooltips
 from voice_reader.version import APP_APPUSERMODELID, APP_NAME
 
@@ -228,57 +232,11 @@ def main() -> int:
                 # is an application that never appears at all.
                 log.exception("Failed clearing cache")
 
-        device = "cpu"
-
-        converter = _g("CalibreConverter")(temp_books_dir=config.paths.temp_books_dir)
-        parser = _g("BookParser")()
-        book_repo = _g("LocalBookRepository")(converter=converter, parser=parser)
-
-        cache_repo = _g("FilesystemCacheRepository")(cache_dir=config.paths.cache_dir)
-
-        bookmark_repo = _g("JSONBookmarkRepository")(
-            bookmarks_dir=config.paths.bookmarks_dir
-        )
-        bookmark_service = _g("BookmarkService")(repo=bookmark_repo)
-
-        idea_repo = _g("JSONIdeaIndexRepository")(
-            bookmarks_dir=config.paths.bookmarks_dir
-        )
-        idea_map_service = _g("IdeaMapService")(repo=idea_repo)
-        idea_indexing_manager = _g("IdeaIndexingManager")(repo=idea_repo)
-
-        structural_bookmark_service = _g("StructuralBookmarkService")()
-
-        # Preferences persistence (small JSON file). Keep backwards-compatible
-        # with older test stubs that don't provide `preferences_path`.
-        try:
-            preferences_path = config.paths.preferences_path
-        except AttributeError:
-            # Narrowed: the only way this attribute is absent is an older test
-            # stub for the paths object. Degrades to the same location the real
-            # config uses, beside bookmarks_dir under the same data root.
-            preferences_path = config.paths.bookmarks_dir.parent / "preferences.json"
-
-        preferences_repo = _g("JSONPreferencesRepository")(path=preferences_path)
-        voice_repo = _g("KokoroVoiceProfileRepository")()
-        voice_service = _g("VoiceProfileService")(repo=voice_repo)
-
-        tts_engine = _g("TTSEngineFactory")().create()
-        audio_streamer = _g("SoundDeviceAudioStreamer")(target_buffer_seconds=15.0)
-
-        chunker = _g("ChunkingService")(min_chars=120, max_chars=220)
-
-        narration_service = _g("NarrationService")(
-            book_repo=book_repo,
-            cache_repo=cache_repo,
-            tts_engine=tts_engine,
-            audio_streamer=audio_streamer,
-            chunking_service=chunker,
-            device=device,
-            language=config.default_language,
-            bookmark_service=bookmark_service,
-            preferences_repo=preferences_repo,
-        )
+        # Every service the window is driven by, the shelf among them. The
+        # order they depend on each other in is the helper's business; this
+        # module's business is what happens around them.
+        services = build_services(_g, config)
+        narration_service = services.narration_service
 
         window = _g("MainWindow")()
 
@@ -290,7 +248,7 @@ def main() -> int:
         # the controller in voice_reader.ui.update_check.
         _g("install_update_check")(
             window=window,
-            preferences_repo=preferences_repo,
+            preferences_repo=services.preferences_repo,
             resolver=_g,
             sys_platform=sys.platform,
         )
@@ -298,15 +256,16 @@ def main() -> int:
         controller = _g("UiController")(
             window=window,
             narration_service=narration_service,
-            bookmark_service=bookmark_service,
-            idea_map_service=idea_map_service,
-            idea_indexing_manager=idea_indexing_manager,
-            structural_bookmark_service=structural_bookmark_service,
-            voice_service=voice_service,
-            device=device,
-            engine_name=tts_engine.engine_name,
+            bookmark_service=services.bookmark_service,
+            idea_map_service=services.idea_map_service,
+            idea_indexing_manager=services.idea_indexing_manager,
+            structural_bookmark_service=services.structural_bookmark_service,
+            voice_service=services.voice_service,
+            device=services.device,
+            engine_name=services.engine_name,
             cover_extractor=_g("CoverExtractor")(),
             book_loader=_g("load_book_in_subprocess"),
+            shelf=services.shelf,
         )
 
         try:
@@ -350,7 +309,7 @@ def main() -> int:
 
         append_startup_log("NarrateX.startup.log.txt", "window shown")
 
-        start_tts_warmup(voice_service, narration_service, log=log)
+        start_tts_warmup(services.voice_service, narration_service, log=log)
 
         return app.exec()
     except SystemExit:

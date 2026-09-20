@@ -28,6 +28,7 @@ from voice_reader.ui.volume_mute import MUTE_TEXT, VolumeMute
 # Words for each picture control: its tooltip and its accessible text.
 SELECT_BOOK_TEXT = "Select book"
 REMOVE_BOOK_TEXT = "Remove current book (the file is kept)"
+SHELF_TEXT = "Show the shelf"
 PLAY_TEXT = "Play"
 PAUSE_TEXT = "Pause"
 STOP_TEXT = "Stop"
@@ -68,6 +69,10 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     _text_button(
         window, "btn_select_book", artwork=Artwork.SELECT_BOOK, text=SELECT_BOOK_TEXT
     )
+
+    # The shelf sits beside the picker rather than replacing it: a book
+    # outside every shelf root must still be openable (FR-BS-056a).
+    _text_button(window, "btn_shelf", artwork=Artwork.BOOKSHELF, text=SHELF_TEXT)
 
     # Remove the current book from NarrateX's memory (bookmarks, resume,
     # ideas map, cached audio); the file on disk is never touched. Locked
@@ -147,6 +152,7 @@ def build_controls_rows(window: Any, *, strings) -> tuple[QHBoxLayout, QHBoxLayo
     zone_a = QHBoxLayout()
     zone_a.setSpacing(ROW_SPACING)
     zone_a.addWidget(window.btn_select_book)
+    zone_a.addWidget(window.btn_shelf)
     zone_a.addWidget(window.btn_remove_book)
     zone_a.addWidget(window.btn_voice_sex)
     zone_a.addWidget(window.btn_voice_region)
