@@ -9,9 +9,10 @@ and it draws them.
 something to act on, so none of them takes a keyboard stop or paints a ring;
 see the `noborderfocus` model. The controls inside them do both.
 
-Three states are told apart because a reader acts differently on each: no
-folder chosen yet (FR-BS-057), a folder that holds nothing readable
-(FR-BS-058), a shelf with works on it.
+Four states are told apart because a reader acts differently on each: no folder
+chosen yet (FR-BS-057), a folder that holds nothing readable (FR-BS-058), a scan
+running, a shelf with works on it. Only the last one shows the grid; the grid
+itself arrives from the controller, which is what holds the cover service.
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from PySide6.QtWidgets import (
 from voice_reader.domain.shelf import formats
 from voice_reader.ui.pane_focus import as_pane
 from voice_reader.ui.sentence_case_label import SentenceCaseLabel
+from voice_reader.ui.shelf_grid import ShelfGrid
 
 CHOOSE_ROOT_TEXT = "Choose a folder"
 RESCAN_TEXT = "Rescan"
@@ -97,30 +99,35 @@ class ShelfView(QWidget):
         self.empty_panel.setLayout(empty)
         root.addWidget(self.empty_panel, stretch=1)
 
+        # The grid arrives from the controller, which is what holds the cover
+        # service; a view with no grid installed still draws its empty states.
+        self.grid: ShelfGrid | None = None
+        self._root = root
+
         self.btn_choose_root.clicked.connect(self.choose_root_clicked.emit)
         self.btn_rescan.clicked.connect(self.rescan_clicked.emit)
 
     # What the controller says ----------------------------------------------
 
+    def install_grid(self, grid: ShelfGrid) -> None:
+        """Take the grid the controller built and keep it hidden until it holds."""
+
+        self.grid = grid
+        self._root.addWidget(grid, stretch=1)
+        grid.setVisible(False)
+        # The window set its ring before the grid existed, so the grid takes its
+        # place in the chain here: directly after the two controls above it.
+        QWidget.setTabOrder(self.btn_rescan, grid)
+
     def show_no_root(self) -> None:
         """FR-BS-057: no folder chosen; the control that chooses one is live."""
 
-        self.lbl_state.setText(NO_ROOT_TEXT)
-        self.lbl_hint.setText(NO_ROOT_HINT)
-        self.empty_panel.setVisible(True)
-        self.btn_choose_root.setEnabled(True)
-        self.btn_rescan.setEnabled(False)
-        self.lbl_count.setText("")
+        self._say(NO_ROOT_TEXT, NO_ROOT_HINT, can_rescan=False)
 
     def show_no_books(self) -> None:
         """FR-BS-058: a root that holds nothing, naming the formats."""
 
-        self.lbl_state.setText(NO_BOOKS_TEXT)
-        self.lbl_hint.setText(NO_BOOKS_HINT)
-        self.empty_panel.setVisible(True)
-        self.btn_choose_root.setEnabled(True)
-        self.btn_rescan.setEnabled(True)
-        self.lbl_count.setText("")
+        self._say(NO_BOOKS_TEXT, NO_BOOKS_HINT)
 
     def show_scanning(self) -> None:
         """A scan is running. Both controls are shut while it does.
@@ -129,32 +136,47 @@ class ShelfView(QWidget):
         scan over the same tree can only fight the first.
         """
 
-        self.lbl_state.setText(SCANNING_TEXT)
-        self.lbl_hint.setText(SCANNING_HINT)
-        self.empty_panel.setVisible(True)
-        self.btn_choose_root.setEnabled(False)
-        self.btn_rescan.setEnabled(False)
-        self.lbl_count.setText("")
+        self._say(SCANNING_TEXT, SCANNING_HINT, can_choose=False, can_rescan=False)
 
     def show_problem(self, text: str, hint: str) -> None:
         """Something went wrong, said where the reader can act on it."""
 
-        self.lbl_state.setText(text)
-        self.lbl_hint.setText(hint)
-        self.empty_panel.setVisible(True)
-        self.btn_choose_root.setEnabled(True)
-        self.btn_rescan.setEnabled(True)
-        self.lbl_count.setText("")
+        self._say(text, hint)
 
-    def show_count(self, works: int) -> None:
-        """A shelf with works on it, until the grid draws them."""
+    def show_works(self, works) -> None:
+        """The shelf itself: the grid takes the empty block's place."""
 
         self.empty_panel.setVisible(False)
         self.btn_choose_root.setEnabled(True)
         self.btn_rescan.setEnabled(True)
-        self.lbl_count.setText(f"{works} work" if works == 1 else f"{works} works")
+        count = len(works)
+        self.lbl_count.setText(f"{count} work" if count == 1 else f"{count} works")
+        if self.grid is not None:
+            self.grid.show_works(tuple(works))
+            self.grid.setVisible(True)
+
+    def _say(
+        self, text: str, hint: str, *, can_choose: bool = True, can_rescan: bool = True
+    ) -> None:
+        """One of the states with nothing to draw: the words, not the grid."""
+
+        self.lbl_state.setText(text)
+        self.lbl_hint.setText(hint)
+        self.empty_panel.setVisible(True)
+        self.btn_choose_root.setEnabled(can_choose)
+        self.btn_rescan.setEnabled(can_rescan)
+        self.lbl_count.setText("")
+        if self.grid is not None:
+            self.grid.setVisible(False)
 
     def ring_stops(self) -> tuple[QWidget, ...]:
-        """The controls that take a keyboard stop, in visual order."""
+        """The controls that take a keyboard stop, in visual order.
 
-        return (self.btn_choose_root, self.btn_rescan)
+        The grid is one of them: it is the control holding the works, not a pane
+        holding controls, so the reader reaches the books with Tab and moves
+        between them with the cursor keys (FR-BS-059).
+        """
+
+        if self.grid is None:
+            return (self.btn_choose_root, self.btn_rescan)
+        return (self.btn_choose_root, self.btn_rescan, self.grid)

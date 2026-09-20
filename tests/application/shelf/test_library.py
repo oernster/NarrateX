@@ -183,6 +183,27 @@ def test_the_work_opens_its_cheapest_format() -> None:
     assert shelf.path_to_open(shelf.works()[0]) == Path("H:/Books/a.epub")
 
 
+def test_the_work_holding_a_file_is_found_by_its_path() -> None:
+    """How a finished load knows which work to record its identity against."""
+
+    kindle = entry("H:/Books/a.mobi", "The Shining", "Stephen King")
+    native = entry("H:/Books/a.epub", "The Shining", "Stephen King")
+    shelf, _, _ = library(entries=(kindle, native))
+
+    found = shelf.work_holding(Path("H:/Books/a.mobi"))
+
+    assert found is not None
+    assert found.title == "The Shining"
+
+
+def test_a_file_outside_every_root_belongs_to_no_work() -> None:
+    """A book opened through the file dialog is an ordinary miss, not a fault."""
+
+    shelf, _, _ = library(entries=(SHINING,))
+
+    assert shelf.work_holding(Path("D:/Elsewhere/whatever.epub")) is None
+
+
 def test_opening_a_work_records_its_reading_identity() -> None:
     shelf, index, _ = library(entries=(SHINING,))
     shelf.record_reading_identity(shelf.works()[0], book_id="abc", total_chars=2000)

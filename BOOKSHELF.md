@@ -891,3 +891,33 @@ to 791. The difference against A3's 793 is therefore in the metadata reader; the
 probe reader that produced 793 was a scratch file and is gone, so which two files read
 differently cannot be recovered. The committed reader also finds six more covers. Both
 runs of the committed wiring agreed exactly, so the result is deterministic.
+
+**A5, 2026-09-20: a thumbnail is made when a tile needs it, not during a scan.**
+FR-BS-035 said a deleted thumbnail cache is rebuilt "on the next scan". Building the grid
+showed that reading is the wrong place for it: the scan records what a file states about
+itself and touches no picture at all, so covers would have to be a second pass over every
+file. Measured over `H:\Books`, that pass costs 17.5 seconds against a scan of about one; it pays for 791 works when a reader looking at the shelf sees two dozen. FR-BS-038
+already says an expensive cover waits for the tile; this makes every cover wait for the
+tile. The requirement now reads: a deleted thumbnail cache is rebuilt as tiles are drawn,
+with no loss of anything the reader stated. Nothing else in 3.4 changes; the reader sees
+no difference bar a shelf that appears sooner.
+
+**Measured with the grid over `H:\Books`:**
+
+| Measurement | Value | Against |
+|---|---|---|
+| Works with a picture | 673 of 791, 85% | FR-BS-030, FR-BS-032 |
+| First screenful of 24 tiles | 722 ms, 21 with a picture | FR-BS-038 |
+| Every cover, one pass | 17.5 s | the reason covers are not in the scan |
+| The same 673 from the cache | 0.06 s | FR-BS-034 |
+| What the cache holds | 673 files, 103 MB | DATA-BS-001 |
+
+The cover count is higher than the 646 the scan reports, because the scan only learns that
+a file states a cover where a sidecar or a Kindle header says so, while the reader also
+reaches an EPUB's own cover and a PDF's first page. `has_cover` is therefore a hint the
+grid does not gate on: a work is asked, then the answer is the picture or a placeholder
+bearing the title and author (FR-BS-033).
+
+**Still open from 3.6, stated rather than claimed:** FR-BS-036, the shelf filling while the scan runs,
+is not built. The scanner already reports each entry as it settles and the grid can be
+handed works at any time, so what is missing is the wiring between them.

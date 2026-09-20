@@ -138,6 +138,19 @@ class ShelfLibrary:
             return progress_rules.UNREAD
         return progress_rules.of(position.char_offset / total)
 
+    def work_holding(self, path: Path) -> Work | None:
+        """The work one file belongs to; None where the shelf does not hold it.
+
+        A book opened through the file dialog may sit outside every shelf root,
+        which is the whole reason that dialog stays (FR-BS-056a), so a miss here
+        is an ordinary answer rather than a fault.
+        """
+
+        for work in self.works():
+            if any(entry.key.path == path for entry in work.entries):
+                return work
+        return None
+
     def path_to_open(self, work: Work) -> Path:
         """The file this work opens: the cheapest format it holds."""
 

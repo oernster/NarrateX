@@ -40,6 +40,28 @@ class BookMetadataReader(Protocol):
         """
 
 
+class BookCoverSource(Protocol):
+    """Reads one file's cover artwork, through the precedence in FR-BS-030."""
+
+    def cover_bytes(self, key: ShelfKey) -> bytes | None:
+        """The encoded cover image this file yields; None when it yields none.
+
+        Spawns no process, ever (FR-BS-031): a Calibre conversion costs 2.3
+        seconds a book, which is not a cost a tile may impose.
+        """
+
+
+class ThumbnailMaker(Protocol):
+    """Turns a cover image into the small copy the grid draws (FR-BS-034)."""
+
+    def downscale(self, image: bytes, *, width: int, height: int) -> bytes | None:
+        """The image reduced to fit `width` by `height`; None when unreadable.
+
+        Unreadable is an answer: a file claiming to be an image and failing to
+        decode leaves the work with a placeholder rather than no shelf.
+        """
+
+
 class ThumbnailStore(Protocol):
     """Holds the downscaled cover art the grid draws (FR-BS-034)."""
 

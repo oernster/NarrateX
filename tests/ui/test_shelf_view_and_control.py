@@ -175,7 +175,7 @@ def test_a_finished_scan_reopens_the_controls(qapp) -> None:
     view = ShelfView()
     view.show_scanning()
 
-    view.show_count(2)
+    view.show_works((object(), object()))
 
     assert view.btn_choose_root.isEnabled()
     assert view.btn_rescan.isEnabled()
@@ -197,7 +197,7 @@ def test_one_work_is_not_called_works(qapp) -> None:
     del qapp
     view = ShelfView()
 
-    view.show_count(1)
+    view.show_works((object(),))
 
     assert view.lbl_count.text() == "1 work"
     assert not view.empty_panel.isVisibleTo(view)

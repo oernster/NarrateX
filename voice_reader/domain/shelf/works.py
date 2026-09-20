@@ -71,6 +71,28 @@ class Work:
         return any(entry.has_cover for entry in self.entries)
 
     @property
+    def cover_candidates(self) -> tuple[ShelfEntry, ...]:
+        """Which of this work's files to ask for a cover, in order.
+
+        A file that the scan saw state a cover comes first, then the cheapest
+        format. A work held as both an EPUB and a Kindle file is opened from the
+        EPUB (FR-BS-013) while its cover may only exist in the Kindle header, so
+        the file to read the picture from is not always the file to read the
+        book from.
+        """
+
+        return tuple(
+            sorted(
+                self.entries,
+                key=lambda entry: (
+                    not entry.has_cover,
+                    entry.preference_rank,
+                    entry.key.path.as_posix(),
+                ),
+            )
+        )
+
+    @property
     def formats(self) -> tuple[str, ...]:
         return tuple(sorted({entry.suffix for entry in self.entries}))
 

@@ -20,6 +20,9 @@ from voice_reader.domain.entities.bookmark import Bookmark, ResumePosition
 _SHELF_WIRING = (
     "FileSystemWalker",
     "FileThumbnailStore",
+    "QtThumbnailMaker",
+    "ShelfCoverReader",
+    "ShelfCovers",
     "ShelfLibrary",
     "ShelfMetadataReader",
     "ShelfScanner",

@@ -55,7 +55,7 @@ def _post_to_ui(controller, fn) -> None:
     # IMPORTANT:
     # Do not use QTimer.singleShot from a background thread. In PySide/Qt,
     # the timer is owned by the thread that creates it; a non-Qt thread
-    # typically has no event loop, and the callback may never run.
+    # typically has no event loop; the callback may never run.
     try:
         controller.ui_call_requested.emit(fn)
         return
@@ -135,6 +135,34 @@ def _apply_loaded_book(controller, *, loaded: LoadedBook) -> None:
         pass
 
     _start_presynthesis(controller)
+    _record_on_the_shelf(controller, book=book, path=loaded.path)
+
+
+def _record_on_the_shelf(controller, *, book, path: Path) -> None:
+    """Join this work to its narration identity and its length (FR-BS-011a).
+
+    The parse has just measured the only cheap moment there is to learn how long
+    a book is; a tile needs that length to draw a fraction (FR-BS-054). A
+    book opened from outside every shelf root belongs to no work, which is an
+    answer rather than a fault.
+    """
+
+    shelf = getattr(controller, "shelf", None)
+    if shelf is None:
+        return
+    try:
+        work = shelf.library.work_holding(path)
+        if work is None:
+            return
+        shelf.library.record_reading_identity(
+            work, book_id=book.id, total_chars=len(book.normalized_text)
+        )
+    except Exception:  # noqa: BLE001
+        # Deliberately broad. This is bookkeeping for a shelf tile: the book is
+        # already open and readable, so nothing here may cost the reader the
+        # load they asked for. Worth logging loudly, worth failing nothing.
+        log = controller._log  # noqa: SLF001
+        log.exception("Could not record this work on the shelf")
 
 
 def _apply_load_failure(controller, *, path: Path, exc: Exception) -> None:
@@ -184,7 +212,7 @@ def _set_loading_indicator(controller, *, active: bool, path: Path | None) -> No
     """Visible feedback while a load runs: status text, animated bar, locks.
 
     The progress bar goes indeterminate (Qt's sliding fill) so the user sees
-    motion for the whole load, and the controls that would race the load
+    motion for the whole load; the controls that would race the load
     (selecting another book, starting playback of the outgoing book) are
     disabled, which the app styles as the red inert ring.
     """
@@ -264,6 +292,7 @@ def _load_via_subprocess(controller, *, loader, path: Path) -> LoadedBook:
         chapters=tuple(result.get("chapters") or ()),
         start_char=int(result.get("start_char") or 0),
         cover=result.get("cover"),
+        path=path,
     )
 
 
@@ -275,12 +304,12 @@ def load_selected_book(controller, *, path: Path) -> None:
     heavy pipeline therefore runs in a separate process (the same isolation
     Ideas indexing uses) and this thread only waits on the result queue,
     which releases the GIL. Widget updates come back through
-    `ui_call_requested`. Without an injected loader (tests, or a platform
+    `ui_call_requested`. Without an injected loader (tests; also a platform
     where spawn fails) the compute falls back to running on this thread.
     """
 
     # Prevent book switching during playback/preparation. The UI should already
-    # disable the button, but keep this as a safety net (signals/tests can call
+    # disable the button; keep this as a safety net (signals/tests can call
     # the handler directly).
     try:
         st = getattr(controller.narration_service, "state", None)

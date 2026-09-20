@@ -1,7 +1,7 @@
 """The in-process book-load pipeline: parse, render plan, chapters, cover.
 
 This is the fallback path `load_selected_book` uses when no subprocess
-loader is injected (tests, or a platform where spawn fails). It touches no
+loader is injected (tests; also a platform where spawn fails). It touches no
 widget, so a worker thread can run all of it; the subprocess path runs the
 same shape of work inside `voice_reader.book_load_worker` instead.
 """
@@ -24,13 +24,16 @@ class LoadedBook:
     chapters: tuple
     start_char: int
     cover: bytes | None
+    # Which file this was. The shelf needs it to join the work to the book id
+    # and the length the parse just measured (FR-BS-011a).
+    path: Path
 
 
 def _compute_render_plan(controller, *, book):
-    """The book's render plan, or None when raw text should win.
+    """The book's render plan; None when raw text should win.
 
     The fallback is not decoration. A book whose extraction was too poor to
-    structure carries an unstructured document, and if rendering it would show
+    structure carries an unstructured document; if rendering it would show
     the reader less than the raw text does, the raw text wins. Displaying
     something imperfect beats displaying almost nothing.
     """
@@ -122,4 +125,5 @@ def compute_loaded_book(controller, *, path: Path) -> LoadedBook:
         chapters=tuple(chapters),
         start_char=start_char_for_ui,
         cover=cover,
+        path=path,
     )

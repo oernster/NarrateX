@@ -35,14 +35,6 @@ from voice_reader.ui._ui_controller_bookmarks import open_bookmarks_dialog
 from voice_reader.ui._ui_controller_ideas import open_ideas_dialog
 from voice_reader.ui._ui_controller_sections import open_structural_bookmarks_dialog
 from voice_reader.ui._ui_controller_chapters import next_chapter, previous_chapter
-from voice_reader.ui._ui_controller_playback import (
-    pause,
-    play,
-    set_speed,
-    set_volume,
-    stop,
-    toggle_play_pause,
-)
 from voice_reader.ui._ui_controller_shutdown import on_app_exit, run_ui_callable
 from voice_reader.ui._ui_controller_state import apply_state, on_state
 from voice_reader.ui.main_window import MainWindow
@@ -59,6 +51,8 @@ from voice_reader.ui._ui_controller_voices import (
     toggle_voice_sex,
     voice_label,
 )
+from voice_reader.ui._ui_controller_shelf_api import ShelfApi
+from voice_reader.ui._ui_controller_transport_api import TransportApi
 from voice_reader.ui._ui_controller_wiring import connect_signals
 from voice_reader.ui._ui_controller_idea_indexing import (
     can_show_idea_progress,
@@ -67,8 +61,13 @@ from voice_reader.ui._ui_controller_idea_indexing import (
 )
 
 
-class UiController(QObject):
-    """Testable controller."""
+class UiController(QObject, ShelfApi, TransportApi):
+    """Testable controller.
+
+    The shelf and the transport arrive as capability mixins: their entry points
+    have to be methods for a signal to reach them, while the behaviour sits in
+    the helper modules beside this one.
+    """
 
     state_received = Signal(object)
     ui_call_requested = Signal(object)
@@ -171,6 +170,11 @@ class UiController(QObject):
         self.narration_service.add_listener(self.on_state)
 
         self.refresh_voices()
+
+        # The shelf's grid, built here because it needs the cover service and
+        # the reading progress rather than anything the window holds.
+        self.install_shelf_grid()
+
         # The amber choose-a-voice prompt; started when a book lands.
         try:
             self._picker_attention = PickerAttention(self)
@@ -243,24 +247,6 @@ class UiController(QObject):
 
         return apply_state(self, state)
 
-    def set_speed(self, text: str) -> None:
-        return set_speed(self, text)
-
-    def set_volume(self, value: int) -> None:
-        return set_volume(self, value)
-
-    def play(self) -> None:
-        return play(self)
-
-    def pause(self) -> None:
-        return pause(self)
-
-    def stop(self) -> None:
-        return stop(self)
-
-    def toggle_play_pause(self) -> None:
-        return toggle_play_pause(self)
-
     def open_bookmarks_dialog(self) -> None:
         return open_bookmarks_dialog(self)
 
@@ -307,21 +293,6 @@ class UiController(QObject):
         from voice_reader.ui._ui_controller_book_removal import remove_current_book
 
         return remove_current_book(self, confirmed=confirmed)
-
-    def toggle_shelf(self) -> None:
-        from voice_reader.ui._ui_controller_shelf import toggle_shelf
-
-        return toggle_shelf(self)
-
-    def choose_shelf_root(self) -> None:
-        from voice_reader.ui._ui_controller_shelf import choose_shelf_root
-
-        return choose_shelf_root(self)
-
-    def rescan_shelf(self) -> None:
-        from voice_reader.ui._ui_controller_shelf import rescan_shelf
-
-        return rescan_shelf(self)
 
     def select_book(self) -> None:
         prepare_for_book_switch(self)

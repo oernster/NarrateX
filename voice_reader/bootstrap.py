@@ -41,6 +41,10 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
         "voice_reader.application.services.shelf.library",
         "ShelfLibrary",
     ),
+    "ShelfCovers": (
+        "voice_reader.application.services.shelf.covers",
+        "ShelfCovers",
+    ),
     "StructuralBookmarkService": (
         "voice_reader.application.services.structural_bookmark_service",
         "StructuralBookmarkService",
@@ -124,6 +128,14 @@ _APP_WIRING_IMPORTS: Mapping[str, tuple[str, str]] = {
         "voice_reader.infrastructure.shelf.thumbnails",
         "FileThumbnailStore",
     ),
+    "ShelfCoverReader": (
+        "voice_reader.infrastructure.shelf.cover_reader",
+        "ShelfCoverReader",
+    ),
+    "QtThumbnailMaker": (
+        "voice_reader.infrastructure.shelf.thumbnailer",
+        "QtThumbnailMaker",
+    ),
     # UI layer
     "MainWindow": ("voice_reader.ui.main_window", "MainWindow"),
     "UiController": ("voice_reader.ui.ui_controller", "UiController"),
@@ -192,6 +204,7 @@ class Shelf:
     scanner: object
     library: object
     thumbnails: object
+    covers: object
 
 
 def build_shelf(
@@ -220,7 +233,12 @@ def build_shelf(
     )
     library = resolve("ShelfLibrary")(index=index, bookmarks=bookmark_repo)
     thumbnails = resolve("FileThumbnailStore")(directory=thumbnails_dir)
-    return Shelf(scanner=scanner, library=library, thumbnails=thumbnails)
+    covers = resolve("ShelfCovers")(
+        covers=resolve("ShelfCoverReader")(),
+        thumbnails=thumbnails,
+        maker=resolve("QtThumbnailMaker")(),
+    )
+    return Shelf(scanner=scanner, library=library, thumbnails=thumbnails, covers=covers)
 
 
 # Everything the narration stack is built with. Each was a literal in the

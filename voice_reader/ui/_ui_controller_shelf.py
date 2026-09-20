@@ -15,9 +15,21 @@ from __future__ import annotations
 import threading
 from pathlib import Path
 
-from PySide6.QtWidgets import QFileDialog
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+from voice_reader.ui._message_box_utils import _in_tests
+from voice_reader.ui._ui_controller_book_loading import (
+    load_selected_book,
+    prepare_for_book_switch,
+)
+from voice_reader.ui.shelf_grid import ShelfGrid
 
 CHOOSE_ROOT_TITLE = "Choose the folder holding your books"
+
+MISSING_TITLE = "Book not found"
+MISSING_RESCAN = "Rescan"
+MISSING_CLOSE = "Close"
 
 SCAN_FAILED_TEXT = "Your folders could not be read"
 SCAN_FAILED_HINT = "See the log for what went wrong, then try again."
@@ -34,11 +46,31 @@ def toggle_shelf(controller) -> None:
     window.show_shelf_view()
 
 
-def refresh_shelf(controller) -> None:
-    """Tell the view which of its three states it is in.
+def install_shelf_grid(controller) -> None:
+    """Build the grid and give it to the view, once, at wiring time.
 
-    The counts come from the library, so a shelf reopened after a scan says
-    what the index now holds without the view keeping a copy of it.
+    The grid is built here rather than in the view because it needs the cover
+    service and the reading progress, which are the controller's collaborators
+    and not the window's.
+    """
+
+    view = controller.window.shelf_view
+    if view.grid is not None or controller.shelf is None:
+        return
+    grid = ShelfGrid(
+        covers=controller.shelf.covers,
+        progress_of=controller.shelf.library.progress_of,
+        parent=view,
+    )
+    grid.work_activated.connect(controller.open_work)
+    view.install_grid(grid)
+
+
+def refresh_shelf(controller) -> None:
+    """Tell the view which of its states it is in, then what to draw.
+
+    The works come from the library, so a shelf reopened after a scan draws what
+    the index now holds without the view keeping a copy of it.
     """
 
     view = controller.window.shelf_view
@@ -50,7 +82,7 @@ def refresh_shelf(controller) -> None:
     if not works:
         view.show_no_books()
         return
-    view.show_count(len(works))
+    view.show_works(works)
 
 
 def choose_shelf_root(controller) -> None:
@@ -133,3 +165,46 @@ def _scan_failed(controller, error: Exception) -> None:
 
     controller._log.exception("Shelf scan failed", exc_info=error)
     controller.window.shelf_view.show_problem(SCAN_FAILED_TEXT, SCAN_FAILED_HINT)
+
+
+def open_work(controller, work) -> None:
+    """Load a work's cheapest format, exactly as the file dialog would.
+
+    FR-BS-055. The reader is put back on the reading view, because a book opened
+    with the shelf still covering it would leave them looking at the shelf while
+    the words they asked for loaded behind it.
+    """
+
+    if controller.shelf is None:
+        return
+    path = controller.shelf.library.path_to_open(work)
+    if not path.is_file():
+        _missing(controller, path)
+        return
+    prepare_for_book_switch(controller)
+    controller.window.show_reader_view()
+    load_selected_book(controller, path=path)
+
+
+def _missing(controller, path: Path) -> None:
+    """FR-BS-056: the file is gone, so name it and offer a rescan."""
+
+    controller.window.lbl_status.setText(f"Not found: {path}")
+    box = QMessageBox(controller.window)
+    box.setWindowTitle(MISSING_TITLE)
+    box.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+    box.setText(
+        "That book is no longer where the shelf last saw it.\n\n"
+        f"{path}\n\n"
+        "A rescan will bring the shelf up to date with what is on disk now."
+    )
+    rescan_button = box.addButton(MISSING_RESCAN, QMessageBox.ButtonRole.AcceptRole)
+    close_button = box.addButton(MISSING_CLOSE, QMessageBox.ButtonRole.RejectRole)
+    box.setDefaultButton(rescan_button)
+    if _in_tests():
+        # A modal exec would hang the suite. The two outcomes are driven through
+        # `rescan_shelf` and the status line, both tested directly.
+        return
+    box.exec()  # pragma: no cover (modal; exercised interactively)
+    if box.clickedButton() is not close_button:  # pragma: no cover
+        rescan_shelf(controller)
