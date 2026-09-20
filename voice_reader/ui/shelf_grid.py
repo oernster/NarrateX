@@ -14,6 +14,10 @@ and the click is refused by the controller, which is what can say so and can
 read the narration state. The grid holds the fact and paints it; it does not
 decide it.
 
+**A plain click opens a book; a click holding Ctrl or Shift gathers one.**
+Both reach `clicked`, so the modifier is what tells them apart. Without that
+test, building a selection would open every book it touched.
+
 **The right button says what a book is** (FR-BS-046). A book the files say
 nothing about is filed by the reader instead, the tile being where they are
 looking when they decide; measured, 1251 of 2784 Kindle files state no subject
@@ -31,11 +35,12 @@ from __future__ import annotations
 from typing import Callable
 
 from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtWidgets import QListView, QMenu, QWidget
+from PySide6.QtWidgets import QApplication, QListView, QMenu, QWidget
 
 from voice_reader.domain.shelf.progress import Progress
 from voice_reader.domain.shelf.works import Work
 from voice_reader.ui._message_box_utils import _in_tests
+
 from voice_reader.ui.shelf_cover_loader import ShelfCoverLoader
 from voice_reader.ui.shelf_model import ShelfModel
 from voice_reader.ui.shelf_tile import (
@@ -47,7 +52,14 @@ from voice_reader.ui.shelf_tile import (
 
 # Named after the work so a right click on the wrong tile is visible before
 # it does anything.
+# The modifiers Qt itself uses to extend a selection. A click holding one of
+# them is gathering tiles, never asking for a book.
+_GATHERING = Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
+
 TAG_TEXT = "File {title} under a genre"
+# Counted rather than named, since a list of nine titles is not a menu item
+# anybody reads (FR-BS-046a).
+TAG_MANY_TEXT = "File these {count} books under a genre"
 
 
 class ShelfGrid(QListView):
@@ -93,7 +105,11 @@ class ShelfGrid(QListView):
         self.setUniformItemSizes(True)
         self.setSpacing(TILE_GAP)
         self.setGridSize(QSize(TILE_WIDTH + TILE_GAP, TILE_HEIGHT + TILE_GAP))
-        self.setSelectionMode(QListView.SelectionMode.SingleSelection)
+        # Several at once, because filing 1251 works one at a time is not a
+        # task anyone completes (FR-BS-046a). What it costs is that a click
+        # now has to say which of the two things it means; see
+        # `_on_activated`.
+        self.setSelectionMode(QListView.SelectionMode.ExtendedSelection)
         self.setEditTriggers(QListView.EditTrigger.NoEditTriggers)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
@@ -152,31 +168,64 @@ class ShelfGrid(QListView):
                 return
         super().keyPressEvent(event)
 
-    def menu_for(self, work: Work) -> QMenu:
-        """The menu offered over one tile, built but not shown.
+    def selected_works(self) -> tuple[Work, ...]:
+        """Every work gathered, in the order the shelf shows them.
+
+        Walked over the model rather than over the selection, because the
+        selection remembers the order they were clicked in and that is not the
+        order anybody sees.
+        """
+
+        picked = {index.row() for index in self.selectedIndexes()}
+        return tuple(
+            work for row, work in enumerate(self._model.works()) if row in picked
+        )
+
+    def works_to_file(self, work: Work) -> tuple[Work, ...]:
+        """The works a right click on `work` is about.
+
+        The gathered ones where it was one of them, since that is plainly what
+        the reader meant by gathering them; otherwise the single tile under the
+        pointer, so a stale selection elsewhere cannot be filed by accident.
+        """
+
+        gathered = self.selected_works()
+        return gathered if work in gathered and len(gathered) > 1 else (work,)
+
+    def menu_for(self, works: tuple[Work, ...]) -> QMenu:
+        """The menu offered over a tile, built but not shown.
 
         Built apart from being shown because showing it is modal: a suite that
         called it would stop there and wait for a press that never comes.
         """
 
         menu = QMenu(self)
-        action = menu.addAction(TAG_TEXT.format(title=work.title))
-        action.triggered.connect(lambda: self.tag_requested.emit(work))
+        words = (
+            TAG_TEXT.format(title=works[0].title)
+            if len(works) == 1
+            else TAG_MANY_TEXT.format(count=len(works))
+        )
+        action = menu.addAction(words)
+        action.triggered.connect(lambda: self.tag_requested.emit(works))
         return menu
 
     def contextMenuEvent(self, event) -> None:  # noqa: N802 (Qt naming)
-        """The right button over a tile offers to file that work."""
+        """The right button over a tile offers to file what it is about."""
 
         work = self._model.work_at(self.indexAt(event.pos()))
         if work is None:
             super().contextMenuEvent(event)
             return
-        menu = self.menu_for(work)
+        menu = self.menu_for(self.works_to_file(work))
         if _in_tests():
             return
         menu.exec(event.globalPos())  # pragma: no cover (modal)
 
     def _on_activated(self, index) -> None:
+        """A plain click opens the book; a modified one was gathering it."""
+
+        if QApplication.keyboardModifiers() & _GATHERING:
+            return
         work = self._model.work_at(index)
         if work is not None:
             self.work_activated.emit(work)

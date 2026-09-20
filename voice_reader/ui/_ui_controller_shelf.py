@@ -49,6 +49,9 @@ LOCKED_TEXT = "Pause or stop the narration to open another book"
 # who has forgotten the filter is not left wondering where their books went.
 FILTERED_TEXT = "{shown} of {held} works"
 
+# What the filing dialog says it is about when it is about several.
+FILING_MANY_TEXT = "{count} books"
+
 
 def toggle_shelf(controller) -> None:
     """Show the shelf; go back to the reader when it is already showing."""
@@ -155,25 +158,50 @@ def apply_shelf_query(controller, query: ShelfQuery) -> None:
     refresh_shelf(controller)
 
 
-def tag_work(controller, work) -> None:
-    """FR-BS-046: the reader says what a work is, outranking its file."""
+def tag_work(controller, works) -> None:
+    """FR-BS-046 and FR-BS-046a: the reader says what these works are."""
 
-    if controller.shelf is None:
+    if controller.shelf is None or not works:
         return
-    dialog = GenreTagDialog(work.genres, controller.window, subject=work.title)
+    dialog = GenreTagDialog(
+        shared_genres(works), controller.window, subject=filing_words(works)
+    )
     if _in_tests():
         # As above: the outcome is driven through `state_work_genres`.
         return
     if dialog.exec():  # pragma: no cover (modal; exercised interactively)
-        state_work_genres(controller, work, dialog.genres())
+        state_work_genres(controller, works, dialog.genres())
 
 
-def state_work_genres(controller, work, genres: tuple[str, ...]) -> None:
+def shared_genres(works) -> tuple[str, ...]:
+    """The genres every one of these works already carries.
+
+    Ticking replaces rather than adds, so opening with the genres only SOME of
+    them carry would quietly hand those to the rest. What they all agree on is
+    the only starting point that states nothing untrue.
+    """
+
+    common: set[str] | None = None
+    for work in works:
+        carried = set(work.genres)
+        common = carried if common is None else (common & carried)
+    return tuple(sorted(common or ()))
+
+
+def filing_words(works) -> str:
+    """What the dialog says it is about: the title, else how many."""
+
+    if len(works) == 1:
+        return works[0].title
+    return FILING_MANY_TEXT.format(count=len(works))
+
+
+def state_work_genres(controller, works, genres: tuple[str, ...]) -> None:
     """Record the reader's statement, then redraw the shelf around it."""
 
     if controller.shelf is None:
         return
-    controller.shelf.library.state_genres((work,), genres)
+    controller.shelf.library.state_genres(tuple(works), genres)
     refresh_shelf(controller)
 
 
