@@ -12,7 +12,11 @@ from pathlib import Path
 from voice_reader.domain.document import markdown, plain_text
 from voice_reader.domain.document.anchoring import BlockDraft
 from voice_reader.domain.document.model import Document
-from voice_reader.infrastructure.books import epub_structure, pdf_structure
+from voice_reader.infrastructure.books import (
+    epub_documents,
+    epub_structure,
+    pdf_structure,
+)
 from voice_reader.shared.errors import BookParseError
 
 log = logging.getLogger(__name__)
@@ -253,23 +257,9 @@ class BookParser:
                 len(items),
             )
 
-            texts: list[str] = []
-            drafts: list[BlockDraft] = []
+            documents: list[tuple[str, tuple[BlockDraft, ...]]] = []
             for item in items:
-                html_bytes = None
-                try:
-                    get_content = getattr(item, "get_content", None)
-                    if callable(get_content):
-                        html_bytes = get_content()
-                except Exception:
-                    html_bytes = None
-                if not html_bytes:
-                    try:
-                        get_body_content = getattr(item, "get_body_content", None)
-                        if callable(get_body_content):
-                            html_bytes = get_body_content()
-                    except Exception:
-                        html_bytes = None
+                html_bytes = epub_documents.item_html(item)
                 if not html_bytes:
                     continue
 
@@ -278,13 +268,13 @@ class BookParser:
                 # parser is unavailable.
                 parsed = epub_structure.parse_html(html_bytes)
                 if parsed is None:
-                    text = _html_to_text(html_bytes)
+                    documents.append((_html_to_text(html_bytes), ()))
                 else:
-                    text, item_drafts = parsed
-                    drafts.extend(item_drafts)
+                    documents.append(parsed)
 
-                if text:
-                    texts.append(text)
+            texts, drafts = epub_documents.without_page_furniture(
+                documents, title=epub_documents.epub_title(book)
+            )
 
             raw = "\n\n".join(texts)
             norm = normalize_text(raw)
