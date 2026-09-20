@@ -43,12 +43,18 @@ class TestContentsEnd:
         assert source.index("Chapter 1\n\nThe prose") >= end
 
     def test_a_section_titled_contents_marks_the_end(self) -> None:
-        # The EPUB shape: a contents list with no leaders at all.
+        # The EPUB shape: a contents list with no leaders at all. The body
+        # behind it is what makes the contents front matter rather than a
+        # back-of-book index, so the document carries one.
         entry = _block(BlockKind.PARAGRAPH, 10, 40, "Some listed item")
         heading = _block(BlockKind.HEADING, 0, 8, "Contents")
+        body = _block(BlockKind.PARAGRAPH, 50, 90, "The prose begins here.")
         doc = Document(
             source_length=100,
-            sections=(_section("Contents", 0, 40, (heading, entry)),),
+            sections=(
+                _section("Contents", 0, 40, (heading, entry)),
+                _section("", 50, 90, (body,)),
+            ),
         )
 
         assert contents_end_offset(doc) == 40
@@ -56,11 +62,13 @@ class TestContentsEnd:
     def test_the_latest_piece_of_evidence_wins(self) -> None:
         toc = _block(BlockKind.TOC_ENTRY, 50, 80, "Prologue ..... 2")
         heading = _block(BlockKind.HEADING, 0, 8, "Contents")
+        body = _block(BlockKind.PARAGRAPH, 100, 190, "The prose begins here.")
         doc = Document(
             source_length=200,
             sections=(
                 _section("Contents", 0, 30, (heading,)),
                 _section("", 50, 80, (toc,)),
+                _section("", 100, 190, (body,)),
             ),
         )
 
@@ -215,3 +223,48 @@ class TestReadingStart:
         # Falls through to the first spoken block past the contents rather than
         # treating the untitled run as a named opening.
         assert reading_start_offset(doc) is not None
+
+
+class TestContentsAtTheBackOfTheBook:
+    """A contents list is front matter only where the body follows it.
+
+    Measured on 2026-09-20 over a Kindle conversion of `When the Wind Blows`:
+    its contents sits in the last 0.3% of the text. Taking its end as the start
+    of the body left a render plan of nothing at all, so the reader saw flat
+    text with no structure. The guard that should have caught it needs a titled
+    section carrying prose; that book converts to one untitled section.
+    """
+
+    def test_a_contents_with_the_whole_book_behind_it_is_not_front_matter(
+        self,
+    ) -> None:
+        body = tuple(
+            _block(BlockKind.PARAGRAPH, start, start + 8, "prose")
+            for start in range(0, 800, 10)
+        )
+        contents = tuple(
+            _block(BlockKind.TOC_ENTRY, start, start + 8, "Chapter")
+            for start in range(900, 1000, 10)
+        )
+        doc = Document(
+            source_length=1000,
+            sections=(_section("", 0, 1000, body + contents),),
+        )
+
+        assert contents_end_offset(doc) == 0
+
+    def test_a_contents_with_the_book_after_it_still_marks_the_front(self) -> None:
+        contents = tuple(
+            _block(BlockKind.TOC_ENTRY, start, start + 8, "Chapter")
+            for start in range(0, 100, 10)
+        )
+        body = tuple(
+            _block(BlockKind.PARAGRAPH, start, start + 8, "prose")
+            for start in range(200, 1000, 10)
+        )
+        doc = Document(
+            source_length=1000,
+            sections=(_section("", 0, 1000, contents + body),),
+        )
+
+        assert contents_end_offset(doc) == 98

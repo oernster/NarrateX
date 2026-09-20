@@ -23,7 +23,7 @@ from voice_reader.domain.document.model import Document
 
 @dataclass(frozen=True, slots=True)
 class ReadingStart:
-    """Where narration begins, and why, for the status line to report."""
+    """Where narration begins; why, for the status line to report."""
 
     start_char: int
     reason: str
@@ -70,7 +70,7 @@ def _is_contents_title(title: str) -> bool:
 
 
 def _body_began_at(document: Document) -> int | None:
-    """Where the body demonstrably starts, or None if nothing shows it has.
+    """Where the body demonstrably starts; None if nothing shows it has.
 
     An opening section carrying actual prose is the demonstration. A contents
     page names the same sections but carries no prose under them, so it cannot
@@ -84,7 +84,7 @@ def _body_began_at(document: Document) -> int | None:
 
 
 def contents_end_offset(document: Document) -> int:
-    """Offset just past the front matter's contents, or zero if there is none.
+    """Offset just past the front matter's contents; zero where there is none.
 
     Two kinds of evidence, because formats differ. A PDF contents page leaves
     dotted-leader entries behind, so its extent is the last of those. An EPUB
@@ -94,8 +94,8 @@ def contents_end_offset(document: Document) -> int:
 
     Evidence past the point where the body started is not front matter. Books
     carry back-of-book indexes and essay indexes that leave entries looking
-    exactly like contents entries, and counting those would push the boundary
-    over real sections and hide them.
+    exactly like contents entries; counting those would push the boundary over
+    real sections and hide them.
     """
 
     limit = _body_began_at(document)
@@ -103,17 +103,56 @@ def contents_end_offset(document: Document) -> int:
     def in_front_matter(start: int) -> bool:
         return limit is None or start < limit
 
-    ends = [
-        block.source_end
+    spans = [
+        (block.source_start, block.source_end)
         for block in document.blocks
         if block.kind is BlockKind.TOC_ENTRY and in_front_matter(block.source_start)
     ]
-    ends += [
-        section.source_end
+    spans += [
+        (section.source_start, section.source_end)
         for section in document.sections
         if _is_contents_title(section.title) and in_front_matter(section.source_start)
     ]
-    return max(ends) if ends else 0
+    if not spans:
+        return 0
+
+    opens = min(start for start, _ in spans)
+    boundary = max(end for _, end in spans)
+    return boundary if _precedes_the_body(document, opens, boundary) else 0
+
+
+def _precedes_the_body(document: Document, opens: int, boundary: int) -> bool:
+    """Whether a contents list running `opens` to `boundary` is front matter.
+
+    Front matter is at the front, so most of the book follows it. A contents
+    list at the BACK of a book satisfies every other test here and is not front
+    matter at all; taking its end as the start of the body then leaves no body.
+
+    The guard above cannot catch that alone. It needs a titled section carrying
+    prose; a book whose conversion states no headings has one untitled section
+    holding everything, so it finds no body to limit against. Measured
+    on 2026-09-20 over a Kindle conversion of `When the Wind Blows`: its
+    contents sits in the last 0.3% of the text, the boundary came out as the
+    whole book and the reader was left with no structure at all.
+
+    What is weighed is the book on either SIDE of the contents, never the
+    contents itself, whose own lines are spoken blocks in some formats and
+    would otherwise count against it. It is a comparison rather than a
+    proportion, so there is no threshold to tune. Measured over the same two
+    books: the front-matter contents in `The Puppet Masters` has 1 spoken block
+    ahead of it and 2850 behind, while the back-of-book contents in `When the
+    Wind Blows` has 3576 ahead of it and none behind.
+    """
+
+    before = sum(
+        1 for block in document.blocks if block.is_spoken and block.source_end <= opens
+    )
+    after = sum(
+        1
+        for block in document.blocks
+        if block.is_spoken and block.source_start >= boundary
+    )
+    return after > before
 
 
 def _body_opening_sections(document: Document, *, after: int) -> list:
@@ -121,12 +160,12 @@ def _body_opening_sections(document: Document, *, after: int) -> list:
 
     With a contents boundary, the body opens at the first section past it
     that carries prose, whatever its title. The pane shows everything past
-    the contents, and a shown section must be spoken: an "About This
+    the contents; a shown section must be spoken: an "About This
     Edition" between the contents and Book 1 was silently skipped when
     only recognised opening names counted. A leftover contents line
     wearing a section's title carries no prose, so the prose requirement
-    still passes it over, and a stray section titled "Contents" itself is
-    never an opening.
+    still passes it over; a stray section titled "Contents" itself is never
+    an opening.
 
     Without a contents there is no boundary to anchor on, so the named
     openings remain the evidence, exactly as before: they are what stops
@@ -150,7 +189,7 @@ def _body_opening_sections(document: Document, *, after: int) -> list:
 
 
 def body_opening_offset(document: Document) -> int:
-    """Offset of the heading that opens the body, or the contents end.
+    """Offset of the heading that opens the body; else the contents end.
 
     Distinct from `reading_start_offset` on purpose. Navigation lands on the
     heading line, so it wants the heading's own offset; narration wants the
@@ -171,7 +210,7 @@ def _first_spoken_offset_at_or_after(document: Document, offset: int) -> int | N
 
 
 def reading_start_offset(document: Document) -> int | None:
-    """Offset at which narration should begin, or None when nothing is spoken.
+    """Offset at which narration should begin; None when nothing is spoken.
 
     Falls back in steps rather than failing: a named body opening if one is
     found past the contents, otherwise the first spoken block past the
