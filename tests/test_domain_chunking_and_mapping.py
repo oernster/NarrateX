@@ -57,12 +57,12 @@ def test_every_chunk_reports_offsets_that_match_its_text():
 
 
 def test_an_expanded_acronym_still_maps_every_spoken_character():
-    # The sanitizer spells all-caps words out letter by letter, so the spoken
-    # text grows and gains spaces the original never had. That drives both
-    # awkward paths at once: a spoken space has to skip forward over original
-    # letters to reach real whitespace, and the inserted letters have no
-    # counterpart left to find, so the mapper clamps instead of failing.
-    original = "ONE two"
+    # The sanitizer spells a dotted initialism out letter by letter, so the
+    # spoken text gains spaces the original never had. That drives both awkward
+    # paths at once: a spoken space has to skip forward over original letters
+    # to reach real whitespace; the inserted spaces have no counterpart left
+    # to find, so the mapper clamps instead of failing.
+    original = "U.K. two"
     mapper = SanitizedTextMapper()
 
     result = mapper.sanitize_with_mapping(original_text=original)

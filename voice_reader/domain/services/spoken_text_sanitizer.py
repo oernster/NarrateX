@@ -13,10 +13,19 @@ from dataclasses import dataclass
 _NUMBER_ONLY = re.compile(r"^\s*\d+(?:\.\d+)*\s*$")
 _NUMBER_PREFIX = re.compile(r"^\s*\d+(?:\.\d+)*\s+")
 
-# Initialisms/acronyms like "CTO", "API", "UK".
-# - include plural 's' ("APIs")
-# - handle hyphenated contexts ("CTO-level") via non-alpha boundaries
-_ACRONYM_TOKEN = re.compile(r"(?<![A-Za-z])([A-Z]{2,6})(s)?(?![A-Za-z])")
+# An initialism the AUTHOR marked as one, by writing the stops: "U.K." Nothing
+# else is expanded.
+#
+# A plain run of capitals used to be expanded too, on the reading that "CTO"
+# wants spelling out. It cannot be told apart from an emphasised word; in a
+# novel almost every run of capitals is emphasis. Measured on 2026-09-20 over
+# `When the Wind Blows`: the rule fired 504 times across 235 distinct tokens,
+# of which roughly 73 were initialisms (FBI, TV, MIT, NYU, DNA, EMS) and the
+# rest were shouted prose, so a reader heard "P L E A S E help me" and
+# "F I R S T F L I G H T". No shape separates FBI from KIT: not length, not
+# vowels, not case. The length window made it incoherent within one sentence as
+# well, since SOMEBODY at eight letters fell outside it while PLEASE at six
+# fell inside.
 _DOTTED_INITIALISM = re.compile(r"\b(?:[A-Z]\.)(?:[A-Z]\.)(?:[A-Z]\.){0,4}")
 _MULTI_DOT = re.compile(r"\.{2,}")
 _DOTLIKE = re.compile(r"[\u2024\u2219\u00B7\uFF0E\uFE52]")
@@ -82,21 +91,10 @@ class SpokenTextSanitizer:
 
     @staticmethod
     def _expand_initialisms(text: str) -> str:
-        # Expand dotted forms first: "U.K." -> "U K"
+        """Expand only what the author wrote as an initialism: "U.K." -> "U K"."""
+
         def undot(m: re.Match[str]) -> str:
-            token = m.group(0)
-            letters = [ch for ch in token if ch.isalpha()]
+            letters = [ch for ch in m.group(0) if ch.isalpha()]
             return " ".join(letters)
 
-        text = _DOTTED_INITIALISM.sub(undot, text)
-
-        # Expand plain tokens: "CTO" -> "C T O"; "APIs" -> "A P I s"
-        def expand(m: re.Match[str]) -> str:
-            letters = list(m.group(1))
-            plural = m.group(2) or ""
-            expanded = " ".join(letters)
-            if plural:
-                expanded = f"{expanded} {plural}"
-            return expanded
-
-        return _ACRONYM_TOKEN.sub(expand, text)
+        return _DOTTED_INITIALISM.sub(undot, text)

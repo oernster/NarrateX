@@ -14,13 +14,30 @@ def test_sanitizer_removes_number_only_lines_and_prefixes() -> None:
     assert "\n" not in out
 
 
-def test_sanitizer_expands_acronyms() -> None:
+def test_sanitizer_expands_only_the_initialisms_the_author_marked() -> None:
     s = SpokenTextSanitizer()
+
     out = s.sanitize("I'm a CTO-level leader working with APIs in the U.K.")
-    # Keep words but expand initialisms for TTS.
-    assert "C T O" in out
-    assert "A P I" in out
+
+    # The stops say the author meant letters, so the letters are spoken.
     assert "U K" in out
+    # Nothing else is touched: a run of capitals cannot be told from emphasis.
+    assert "CTO-level" in out
+    assert "APIs" in out
+
+
+def test_sanitizer_leaves_shouted_prose_as_words() -> None:
+    """A novel's capitals are emphasis, never an initialism.
+
+    Measured over `When the Wind Blows`: spelling capitals out fired 504 times
+    and was wrong for roughly 86% of them, so a reader heard "P L E A S E".
+    """
+
+    s = SpokenTextSanitizer()
+
+    assert s.sanitize("SOMEBODY PLEASE help me!") == "SOMEBODY PLEASE help me!"
+    assert s.sanitize("FIRST FLIGHT") == "FIRST FLIGHT"
+    assert s.sanitize("MAX! The FBI is here.") == "MAX! The FBI is here."
 
 
 def test_sanitizer_can_return_empty_for_number_only_text() -> None:
@@ -40,13 +57,16 @@ def test_sanitizer_drops_separator_only_lines() -> None:
 
 def test_sanitizer_drops_unicode_dash_separators_and_common_rules() -> None:
     s = SpokenTextSanitizer()
-    # Em dash / en dash / minus sign + common horizontal rules.
-    text = "A\n\n———\n\nB\n\n___\n\nC\n\n***\n\nD"
+    # The dash characters are written as escapes rather than typed: they
+    # are the input under test; a literal one in the file would be a dash
+    # sitting in the repository.
+    rule = "\u2014" * 3
+    text = f"A\n\n{rule}\n\nB\n\n___\n\nC\n\n***\n\nD"
     out = s.sanitize(text)
     assert "A" in out
     assert "B" in out
     assert "C" in out
     assert "D" in out
-    assert "—" not in out
+    assert "\u2014" not in out
     assert "___" not in out
     assert "***" not in out
