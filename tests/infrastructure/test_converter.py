@@ -24,13 +24,20 @@ def test_converter_rejects_unknown_extension(tmp_path: Path) -> None:
         c.convert_to_epub_if_needed(p)
 
 
-def test_converter_runs_ebook_convert(monkeypatch, tmp_path: Path) -> None:
+def test_converter_runs_ebook_convert(tmp_path: Path) -> None:
+    """The runner is injected rather than patched onto subprocess.
+
+    The converter holds the runner it was built with, so patching the module
+    would change nothing; handing one in is also what lets a test read the
+    environment Calibre would be given.
+    """
+
     src = tmp_path / "a.mobi"
     src.write_text("x", encoding="utf-8")
-    c = CalibreConverter(temp_books_dir=tmp_path)
+    seen: dict = {}
 
-    def fake_run(cmd, capture_output, text, check):
-        # create output file
+    def fake_run(cmd, **kwargs):
+        seen.update(kwargs)
         out = Path(cmd[-1])
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(b"epub")
@@ -42,10 +49,11 @@ def test_converter_runs_ebook_convert(monkeypatch, tmp_path: Path) -> None:
 
         return R()
 
-    monkeypatch.setattr(__import__("subprocess"), "run", fake_run)
+    c = CalibreConverter(temp_books_dir=tmp_path, runner=fake_run)
     out = c.convert_to_epub_if_needed(src)
     assert out.suffix.lower() == ".epub"
     assert out.exists()
+    assert "env" in seen, "Calibre is always given an environment of its own"
 
 
 def test_markdown_needs_no_conversion(tmp_path) -> None:

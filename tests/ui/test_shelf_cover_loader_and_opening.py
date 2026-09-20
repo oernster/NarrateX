@@ -274,3 +274,36 @@ def test_opening_with_no_shelf_wired_does_nothing(qapp) -> None:
     shelf_helpers.open_work(controller, _work())
 
     assert controller.loaded == []
+
+
+def test_the_folder_dialog_opens_in_the_downloads_folder(
+    qapp, tmp_path, monkeypatch
+) -> None:
+    """Books arrive in the downloads folder, so the search starts there."""
+
+    del qapp
+    (tmp_path / "Downloads").mkdir()
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+    controller = _Controller(MainWindow(), _Shelf(_Library(tmp_path)))
+    shown: list[str] = []
+
+    def _dialog(_parent, _title, start):
+        shown.append(start)
+        return ""
+
+    monkeypatch.setattr(
+        shelf_helpers.QFileDialog, "getExistingDirectory", staticmethod(_dialog)
+    )
+
+    shelf_helpers.choose_shelf_root(controller)
+
+    assert shown == [str(tmp_path / "Downloads")]
+
+
+def test_a_machine_with_no_downloads_folder_opens_at_home(
+    qapp, tmp_path, monkeypatch
+) -> None:
+    del qapp
+    monkeypatch.setattr(Path, "home", staticmethod(lambda: tmp_path))
+
+    assert shelf_helpers._first_folder_to_show() == tmp_path  # noqa: SLF001

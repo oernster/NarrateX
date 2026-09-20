@@ -27,6 +27,10 @@ from voice_reader.ui.shelf_grid import ShelfGrid
 
 CHOOSE_ROOT_TITLE = "Choose the folder holding your books"
 
+# Where the folder dialog opens. Named rather than written into the call; the
+# one place to change if a platform ever spells it differently.
+DOWNLOADS_FOLDER = "Downloads"
+
 MISSING_TITLE = "Book not found"
 MISSING_RESCAN = "Rescan"
 MISSING_CLOSE = "Close"
@@ -95,7 +99,9 @@ def choose_shelf_root(controller) -> None:
 
     if controller.shelf is None:
         return
-    chosen = QFileDialog.getExistingDirectory(controller.window, CHOOSE_ROOT_TITLE)
+    chosen = QFileDialog.getExistingDirectory(
+        controller.window, CHOOSE_ROOT_TITLE, str(_first_folder_to_show())
+    )
     if not chosen:
         return
     outcome = controller.shelf.library.add_root(Path(chosen))
@@ -105,6 +111,18 @@ def choose_shelf_root(controller) -> None:
         )
         return
     rescan_shelf(controller)
+
+
+def _first_folder_to_show() -> Path:
+    """Where the folder dialog opens: the reader's downloads, else their home.
+
+    Books arrive in the downloads folder, so that is where the search for them
+    starts. A machine without one falls back to the home folder rather than to
+    whatever directory the application happened to be started from.
+    """
+
+    downloads = Path.home() / DOWNLOADS_FOLDER
+    return downloads if downloads.is_dir() else Path.home()
 
 
 def rescan_shelf(controller) -> None:

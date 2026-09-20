@@ -200,3 +200,31 @@ def test_the_size_hint_is_the_tile(qapp) -> None:
     size = ShelfTileDelegate().sizeHint(option, model.index(0, 0))
 
     assert (size.width(), size.height()) == (TILE_WIDTH, TILE_HEIGHT)
+
+
+def test_the_ring_under_the_pointer_is_the_house_green(qapp) -> None:
+    """The same green every other control wears, read from its one home."""
+
+    from PySide6.QtGui import QColor
+
+    from voice_reader.ui.window_helpers import RING_GREEN
+
+    del qapp
+    from voice_reader.domain.shelf.progress import UNREAD
+
+    tile = TileData(title="Dune", author="Frank Herbert", picture=None, progress=UNREAD)
+    wanted = QColor(RING_GREEN).rgb()
+
+    ringed = _painted(tile, selected=True)
+    plain = _painted(tile)
+
+    def _count(canvas):
+        return sum(
+            1
+            for y in range(canvas.height())
+            for x in range(canvas.width())
+            if canvas.pixelColor(x, y).rgb() == wanted
+        )
+
+    assert _count(ringed) > 0, "a marked tile draws the green ring"
+    assert _count(plain) == 0, "an unmarked tile draws no ring at all"

@@ -3,10 +3,10 @@
 FR-BS-050, FR-BS-033 and FR-BS-054. A delegate rather than a widget per work, so
 a shelf of three thousand costs the same as a shelf of thirty (FR-BS-037).
 
-**Every colour comes from the palette.** A delegate that named its own greys
-would be a second theme able to disagree with the window's; the palette is
-already filled from the one stylesheet, so a tile follows a theme change without
-knowing a theme exists.
+**No colour is invented here.** The greys come from the palette, which the one
+stylesheet fills; the ring under the pointer is the same green every other
+control in the window wears, read from where that green is declared. A delegate
+naming its own colours would be a second theme able to drift from the first.
 
 A work with no picture is not a gap: it draws its title and author in the cover's
 place and stays selectable (FR-BS-033).
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import QStyle, QStyledItemDelegate
 
 from voice_reader.domain.shelf.progress import ReadingState
 from voice_reader.ui.shelf_model import TILE_ROLE, TileData
+from voice_reader.ui.window_helpers import RING_GREEN
 
 TILE_WIDTH = 176
 TILE_HEIGHT = 310
@@ -30,6 +31,8 @@ _COVER_HEIGHT = 200
 _LINE_GAP = 2
 _BAR_HEIGHT = 5
 _CORNER_RADIUS = 6
+# The ring is two pixels, as the stylesheet draws it on every other control.
+_RING_WIDTH = 2
 _TITLE_POINT_DELTA = 0
 _AUTHOR_POINT_DELTA = -1
 
@@ -96,7 +99,7 @@ class ShelfTileDelegate(QStyledItemDelegate):
         marked = QStyle.StateFlag.State_Selected | QStyle.StateFlag.State_MouseOver
         if option.state & marked:
             painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.setPen(QPen(option.palette.highlight().color(), 2))
+            painter.setPen(QPen(QColor(RING_GREEN), _RING_WIDTH))
             painter.drawRoundedRect(body, _CORNER_RADIUS, _CORNER_RADIUS)
 
     def _cover(self, painter: QPainter, option, cover: QRect, tile: TileData) -> None:

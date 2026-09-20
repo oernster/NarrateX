@@ -132,7 +132,7 @@ def test_enter_on_an_empty_shelf_opens_nothing(qapp) -> None:
     grid.release()
 
 
-def test_activating_a_tile_opens_that_work(qapp) -> None:
+def test_one_click_opens_that_work(qapp) -> None:
     del qapp
     grid = ShelfGrid(covers=_Covers())
     works = (_work("Dune"), _work("Emma"))
@@ -140,13 +140,13 @@ def test_activating_a_tile_opens_that_work(qapp) -> None:
     opened: list[Work] = []
     grid.work_activated.connect(opened.append)
 
-    grid.activated.emit(grid.model().index(1, 0))
+    grid.clicked.emit(grid.model().index(1, 0))
 
     assert opened == [works[1]]
     grid.release()
 
 
-def test_activating_a_row_that_is_gone_opens_nothing(qapp) -> None:
+def test_a_click_on_a_row_that_is_gone_opens_nothing(qapp) -> None:
     del qapp
     grid = ShelfGrid(covers=_Covers())
     grid.show_works((_work(),))
@@ -155,7 +155,7 @@ def test_activating_a_row_that_is_gone_opens_nothing(qapp) -> None:
     grid.work_activated.connect(opened.append)
     grid.show_works(())
 
-    grid.activated.emit(index)
+    grid.clicked.emit(index)
 
     assert opened == []
     grid.release()

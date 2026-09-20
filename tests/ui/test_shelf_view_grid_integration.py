@@ -200,7 +200,7 @@ def test_opening_a_tile_reaches_the_controller(qapp) -> None:
     grid = window.shelf_view.grid
     grid.show_works((work,))
 
-    grid.activated.emit(grid.model().index(0, 0))
+    grid.clicked.emit(grid.model().index(0, 0))
 
     assert controller.opened == [work]
     grid.release()

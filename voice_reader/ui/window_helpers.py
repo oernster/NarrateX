@@ -56,6 +56,14 @@ def _install_no_focus_rect_style(app) -> None:
     app._no_focus_rect_style = style  # noqa: SLF001 (idempotence anchor)
 
 
+# The interaction ring, in one place because more than the stylesheet draws it.
+# A shelf tile is painted by a delegate rather than styled by a sheet; a second
+# green written there would be a second theme able to drift from this one.
+RING_GREEN = "#22c55e"
+RING_RED = "#dc2626"
+RING_ATTENTION = "#f59e0b"
+
+
 def apply_main_window_theme(window) -> None:
     """Apply the app stylesheet to the given QMainWindow and the QApplication.
 
@@ -83,11 +91,11 @@ def apply_main_window_theme(window) -> None:
     # Hover and focus rules are gated on :enabled because Qt's stylesheet
     # engine nests :hover under enabled anyway; the red ring must be the
     # plain :disabled form to be permanent rather than hover-gated.
-    ring_green = "#22c55e"
-    ring_red = "#dc2626"
+    ring_green = RING_GREEN
+    ring_red = RING_RED
     # The choose-a-voice prompt: an amber ring the picker flashes after a
     # book loads, held steady after first interaction, cleared on choice.
-    ring_attention = "#f59e0b"
+    ring_attention = RING_ATTENTION
     disabled_text = "#94a3b8"
     divider = "#374151"
     # One corner radius for every bordered button, text or picture.

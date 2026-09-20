@@ -4,6 +4,11 @@ FR-BS-050 and FR-BS-037. A `QListView` in icon mode holds no widget per work, so
 the shelf costs the same at three thousand works as at thirty; the delegate beside
 it draws each tile.
 
+**One click opens a book.** The tile under the pointer wears the same green ring
+every other control in the window wears; a single left click on it opens the
+work, because there is nothing a reader can do with a selected tile that would justify
+asking for a second click.
+
 **A pane is not a keyboard stop, yet a grid is.** The rule the shelf follows is
 that a container holding controls takes no focus and paints no ring; this view is
 not a container, it is the control; a reader has to be able to reach the works
@@ -57,7 +62,10 @@ class ShelfGrid(QListView):
             # A bound method of a QObject living on this thread, so Qt queues
             # the call rather than running it on the worker that emitted it.
             self._loader.picture_ready.connect(self._model.picture_arrived)
-        self.activated.connect(self._on_activated)
+        # One left click opens the work.  is deliberately not also
+        # connected: a double click emits both, which would open the same book
+        # twice and start a second load over the first.
+        self.clicked.connect(self._on_activated)
 
     def _configure(self) -> None:
         self.setViewMode(QListView.ViewMode.IconMode)
@@ -72,6 +80,8 @@ class ShelfGrid(QListView):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollMode(QListView.ScrollMode.ScrollPerPixel)
         self.setFrameShape(QListView.Shape.NoFrame)
+        # Hover has to reach the delegate for a tile to ring under the pointer.
+        self.setMouseTracking(True)
         # The tiles carry the shelf's surfaces; a viewport painting its own
         # would put a second background behind them.
         self.viewport().setAutoFillBackground(False)
