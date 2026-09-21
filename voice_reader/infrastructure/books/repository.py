@@ -12,12 +12,13 @@ from voice_reader.domain.entities.book import Book
 from voice_reader.domain.interfaces.book_repository import BookRepository
 from voice_reader.infrastructure.books.converter import CalibreConverter
 from voice_reader.infrastructure.books.parser import BookParser, ParsedBook
+from voice_reader.shared.errors import BookHasNoTextError
 
 # Least share of the book that must be accounted for by *some* block before the
 # structured model is trusted.
 #
 # This is the guardrail: extraction that could not account for at least this
-# much of the text is treated as too poor to structure, and the book falls back
+# much of the text is treated as too poor to structure; the book falls back
 # to being one unbroken run of prose, which reads and narrates the whole text.
 #
 # The bar is high on purpose, because the model now decides what is *spoken*,
@@ -26,7 +27,7 @@ from voice_reader.infrastructure.books.parser import BookParser, ParsedBook
 # read aloud only six-tenths of the book with no sign of the rest. The complete
 # flat fallback is the lesser evil there. Real books cluster at 0.96 and above,
 # and a genuinely failed walk scores near zero, so 0.90 sits in the wide gap
-# between them: it keeps every well-formed book with margin, and rejects
+# between them: it keeps every well-formed book with margin while it rejects
 # anything that would drop more than a tenth of the text from narration.
 _MIN_COVERED_RATIO = 0.90
 
@@ -44,6 +45,10 @@ class LocalBookRepository(BookRepository):
         converted = self.converter.convert_to_epub_if_needed(source_path)
         parsed = self.parser.parse(converted)
         normalized = parsed.normalized_text
+        if not normalized.strip():
+            # Refused here rather than handed on: an empty book loads as an
+            # empty reader with nothing said, which is the silence this ends.
+            raise BookHasNoTextError()
         title = source_path.stem
         book_id = hashlib.sha256(
             (title + normalized[:2000]).encode("utf-8", errors="ignore")

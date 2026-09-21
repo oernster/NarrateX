@@ -3,7 +3,7 @@
 Loading a large book is CPU-bound pure Python, so running it on a thread
 starves the Qt event loop through the GIL and the window freezes anyway.
 The parse therefore runs in a separate process, exactly as Ideas indexing
-does, and the parent waits on the result queue with the GIL released.
+does; the parent waits on the result queue with the GIL released.
 
 This module wires infrastructure (converter, parser, repository, cover
 extraction) together with application services (navigation chunks, chapter
@@ -20,6 +20,8 @@ import queue
 from pathlib import Path
 from typing import Any
 
+from voice_reader.shared.errors import VoiceReaderError
+
 # How long the parent sleeps between liveness checks while the child works.
 # Short enough that a crashed child is noticed promptly; long enough that
 # polling costs nothing.
@@ -30,16 +32,30 @@ def run_worker(*, out_q: Any, payload: dict) -> None:
     """Child-process entry: load the book and put one terminal event.
 
     Always puts exactly one event: `{"type": "result", ...}` carrying the
-    parsed book with everything the UI needs, or `{"type": "error", ...}`.
+    parsed book with everything the UI needs; else `{"type": "error", ...}`.
     """
 
     try:
         out_q.put({"type": "result", **_compute(payload)})
     except Exception as exc:
         try:
-            out_q.put({"type": "error", "message": f"{type(exc).__name__}: {exc}"})
+            out_q.put({"type": "error", "message": failure_words(exc)})
         except Exception:
             return
+
+
+def failure_words(exc: Exception) -> str:
+    """What a failed load says, as the reader will see it.
+
+    NarrateX's own errors are written for the reader, so they pass through as
+    they stand. Anything else keeps its type name in front, because an
+    unexpected failure is diagnosed from the type and a bare message from a
+    library rarely says what went wrong on its own.
+    """
+
+    if isinstance(exc, VoiceReaderError):
+        return str(exc)
+    return f"{type(exc).__name__}: {exc}"
 
 
 def _compute(payload: dict) -> dict:
@@ -66,7 +82,7 @@ def _compute(payload: dict) -> dict:
     )
     book = repo.load(path)
 
-    # The render plan, or None when raw text should win (unstructured or
+    # The render plan; None when raw text should win (unstructured or
     # empty plans fall back to the plain text in the UI).
     plan = None
     document = book.document
