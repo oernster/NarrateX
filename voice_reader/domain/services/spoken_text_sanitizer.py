@@ -93,7 +93,8 @@ class SpokenTextSanitizer:
     def _expand_initialisms(text: str) -> str:
         """Expand only what the author wrote as an initialism: "U.K." -> "U K".
 
-        An undotted run of capitals is left alone; it needs nothing done to it. Measured on 2026-09-21 through Kokoro's own G2P, in both accents:
+        An undotted run of capitals is left alone; it needs nothing done to it.
+        Measured on 2026-09-21 through Kokoro's own G2P, in both accents:
         FBI, TV, MIT, NYU, DNA and EMS are each spelled out letter by letter,
         with the article turned to "thee" before a letter sounding a vowel,
         while NASA is said as the word it is. The engine already tells an

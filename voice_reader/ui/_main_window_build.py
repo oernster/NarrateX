@@ -70,6 +70,10 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     window.lbl_status = SentenceCaseLabel("Idle")
     window.lbl_status.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
     window.lbl_status.setMinimumWidth(260)
+    # A failure names the book and then the reason, which can outrun one line:
+    # measured in a real window at its narrowest, the no-text message needs
+    # 816 pixels against 702. It wraps rather than being cut off mid-word.
+    window.lbl_status.setWordWrap(True)
 
     window.lbl_progress = QLabel("0/0")
     window.lbl_progress.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -93,8 +97,9 @@ def build_main_window_widgets(window: Any, *, strings) -> None:
     # column aligned with the cover panel.
     progress_wrap.setMinimumWidth(cover_w)
 
-    status.addWidget(window.lbl_status)
-    status.addStretch(1)
+    # The label takes the row's spare width itself rather than leaving it to a
+    # stretch, so a wrapping message fills that width before it adds a line.
+    status.addWidget(window.lbl_status, stretch=1)
     status.addWidget(progress_wrap)
     left_panel.addLayout(status)
 

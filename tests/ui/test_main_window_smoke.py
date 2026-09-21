@@ -217,3 +217,33 @@ def test_main_window_licence_buttons_open_dialogs(qapp) -> None:
 
     backend_dlg.close()
     qapp.processEvents()
+
+
+def test_a_long_status_message_is_never_cut_off(qapp) -> None:
+    """The no-text failure names the book, then the reason, at any width.
+
+    Seen cut off mid-word in the installed build: a single-line label beside a
+    stretch ran out of room at the window's narrowest. It wraps instead.
+    """
+
+    from PySide6.QtCore import QRect, Qt
+
+    from voice_reader.shared.errors import BookHasNoTextError
+
+    w = MainWindow()
+    w.resize(w.minimumSizeHint().width(), w.height())
+    w.show()
+    text = f"Failed loading New Scientist - 19 April 2014.pdf: {BookHasNoTextError()}"
+    w.lbl_status.setText(text)
+    w.lbl_status.setMaximumWidth(
+        w.lbl_status.fontMetrics().horizontalAdvance(text) // 2
+    )
+    qapp.processEvents()
+    label = w.lbl_status
+    room = label.contentsRect()
+    needed = label.fontMetrics().boundingRect(
+        QRect(0, 0, room.width(), room.height() * 100), Qt.TextWordWrap, label.text()
+    )
+    assert needed.width() <= room.width()
+    assert needed.height() <= room.height()
+    w.close()
