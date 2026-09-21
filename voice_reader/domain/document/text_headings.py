@@ -24,6 +24,13 @@ nothing is lost by declining to guess here.
 Measured over twelve books carrying no navigation: six gained a spine of
 between 2 and 74 headings; six state no numbered division anywhere and are left
 exactly as they were.
+
+**Tried and rejected; do not try again without new evidence.** Scored against the
+same ten books and 968 heading instances. A wholly emphasised line is a poor
+signal on its own, 50.9% precision; adding it to the keyword rule dropped
+precision from 96.8% to 62.3% for a recall gain of eleven points. A bare number
+on a line of its own brought 138 false positives and dropped precision to 59.4%.
+The emphasis hypothesis is therefore disproved, not merely untuned.
 """
 
 from __future__ import annotations
