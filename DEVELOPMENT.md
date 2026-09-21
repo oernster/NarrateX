@@ -241,3 +241,7 @@ Two build paths are provided for Linux:
 
 Running from source on Linux is covered in
 [LINUX-INSTALLATION.md](LINUX-INSTALLATION.md).
+
+---
+
+See also: [ARCHITECTURE.md](ARCHITECTURE.md) for the layers and the runtime flow; [TESTING.md](TESTING.md) for the gate and the suites.

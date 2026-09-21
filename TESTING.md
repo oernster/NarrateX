@@ -91,7 +91,7 @@ match the dependency direction the layers themselves obey:
 | --- | --- | --- |
 | `tests/domain/` | `voice_reader.domain` | Pure business logic. Tests are pure and must not perform IO or import framework code. |
 | `tests/application/` | `voice_reader.application` | Orchestration/services. Tests target the controller/service boundary; Infrastructure is stubbed. |
-| `tests/infrastructure/` | `voice_reader.infrastructure` | Adapters implementing domain ports. External processes and heavy imports are stubbed. Sub-suites: `infrastructure/audio/`, `infrastructure/tts/`. |
+| `tests/infrastructure/` | `voice_reader.infrastructure` | Adapters implementing domain ports. External processes and heavy imports are stubbed. Sub-suites: `infrastructure/audio/`, `infrastructure/books/`, `infrastructure/shelf/`, `infrastructure/tts/`. |
 | `tests/ui/` | `voice_reader.ui` | PySide UI. Tests assert controller behavior and signals, not brittle widget trees. Run under an offscreen Qt platform (see the `qapp` fixture in [`tests/conftest.py`](tests/conftest.py)). |
 | `tests/shared/` | `voice_reader.shared` | Lowest-level helpers (logging/config/paths/runtime). |
 | `tests/installer/` | `installer/` | Installer entrypoint and installer UI. |
@@ -161,3 +161,7 @@ Recommended loop:
 3. Refactor (extract module/class, reduce LOC, etc.)
 4. Run `python -m pytest -q` to keep the coverage gate green
 
+
+---
+
+See also: [ARCHITECTURE.md](ARCHITECTURE.md) for the layers and the invariants these tests enforce; [DEVELOPMENT.md](DEVELOPMENT.md) for building and running from source.

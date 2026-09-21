@@ -13,7 +13,7 @@ This project has the strongest structural enforcement in the portfolio: `tests/s
 ## Looks like debt, not worth touching
 
 - `builddmg.py` at around 790 lines. Delivery script, exempt from the cap by design and correctly listed in `_BUILD_SCRIPTS` in the LOC test.
-- The eleven files between 355 and 380 lines. All under the cap, all clear of the danger band, none needs anything.
+- The twelve files between 355 and 380 lines. All under the cap, all clear of the danger band, none needs anything.
 - The `_ui_controller_*.py` and `_main_window_*.py` families and the twelve-module `structural_bookmarks/` package. These are the 400-line cap doing its job; the parts are cohesive and merging any of them would breach it immediately.
 - `voice_reader/ui/_ui_controller_ideas.py` and `ideas_dialog.py`, marked in `.coveragerc` as "Legacy Ideas UI (the brain button now uses Sections instead of Ideas)". Superseded UI that still loads. Worth deleting when someone is next in that area, not worth a dedicated pass.
 - Four `requirements-*.txt` variants (base, mac, linux, flatpak). Native audio dependencies genuinely differ per platform; this is the documented split.

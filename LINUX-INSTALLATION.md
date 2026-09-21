@@ -43,7 +43,7 @@ If you are on a headless or minimal system without an audio daemon, install Puls
 The Linux dependency set (`requirements-linux.txt`) is pinned for **Python 3.12** and the wider
 Windows set supports 3.10, 3.11 or 3.12. Use 3.12 here: when run from source, `app.py` refuses
 3.13 and later at startup with a message naming the supported range. (The macOS build environment
-is pinned to 3.13 with its own requirements file; see [DEVELOPMENT-README.md](DEVELOPMENT-README.md).)
+is pinned to 3.13 with its own requirements file; see [DEVELOPMENT.md](DEVELOPMENT.md).)
 
 Check your version:
 

@@ -254,5 +254,5 @@ narratex.flatpak
 dist-pyinstaller/
 build/pyinstaller/
 
-# Session resume snapshot (local only)
-.claude/resume.md
+# Local Claude session state (resume snapshot, preview launcher)
+.claude/

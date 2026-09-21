@@ -13,6 +13,10 @@
       <image:loc>https://narratex.co.uk/site-images/how-it-works.svg</image:loc>
       <image:title>How NarrateX structured listening works</image:title>
     </image:image>
+    <image:image>
+      <image:loc>https://narratex.co.uk/site-images/bookshelf.png</image:loc>
+      <image:title>The NarrateX bookshelf</image:title>
+    </image:image>
   </url>
   <url>
     <loc>https://narratex.co.uk/why.html</loc>

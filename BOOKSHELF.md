@@ -2,7 +2,7 @@
 
 Status: **BASELINED 1.0, 2026-09-19.** Every question in appendix B is ruled and the
 genre vocabulary in appendix D is closed. Changes from here arrive as numbered amendments
-carrying a reason, never as silent edits. Amendments A1 to A3 are recorded in appendix E;
+carrying a reason, never as silent edits. Amendments A1 to A10 are recorded in appendix E;
 each came from building against the real library rather than from rereading the
 document.
 

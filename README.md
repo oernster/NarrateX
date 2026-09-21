@@ -7,8 +7,10 @@ It reads EPUB, PDF, plain text and Markdown, preserves document structure and pr
 navigation through sections and chapters. It handles real-world book formats, including
 Kindle-compatible content and multi-book compilations.
 
-NarrateX treats books as structured systems rather than raw text. Everything runs on your machine:
-the neural voice, the parsing and the audio cache. Nothing you read leaves the device.
+NarrateX treats books as structured systems rather than raw text. A bookshelf shows the library
+you already have on disk as covers, so a book is found by looking rather than by remembering where
+it sits. Everything runs on your machine: the neural voice, the parsing, the shelf and the audio
+cache. Nothing you read leaves the device.
 
 > **Commercial licences available.** NarrateX is free and open source under GPL-3.0, with its interface
 > layer under LGPL-3.0. If those terms do not suit what you are building, such as a closed-source
@@ -17,7 +19,8 @@ the neural voice, the parsing and the audio cache. Nothing you read leaves the d
 
 ## Who it is for
 
-- Readers with a large ebook library and little time to sit and read it
+- Readers with a large ebook library and little time to sit and read it, who want to see what they own
+  as a shelf of covers rather than hunt for files
 - Anyone who wants to listen to a book while doing something else, on a wired or wireless headset
 - People who need a document read aloud predictably, with the frontmatter, page numbers and
   back-of-book index left out
@@ -34,11 +37,37 @@ the neural voice, the parsing and the audio cache. Nothing you read leaves the d
   English inventory as it stands.
 - DRM-locked books. NarrateX reads files you can already open; it does not strip protection.
 - Non-English narration. The shipped voice inventory is English (British and American) only.
+- Anyone wanting a library manager. The bookshelf reads your books where they already sit: it never
+  copies, moves, renames or edits a book file, never writes into the folders it reads and never
+  looks a book up online. Every title, author, cover and genre comes from the file, its Calibre
+  sidecar or its filename.
+- Scanned books. A PDF whose pages are only pictures holds no text to read aloud; NarrateX says so
+  rather than attempting to recognise the characters.
 
 ## Capabilities
 
+- A bookshelf: choose the folders holding your books and NarrateX shows everything in them as a grid
+  of covers or as a list, with the title, author, genres and how far through each book you are.
+  One click opens a book; a book held as both `.mobi` and `.azw3` appears once and opens in the
+  format quickest to read. The shelf fills while the folders are still being read, a rescan re-reads
+  only what changed and a folder on a drive that is not connected keeps its books on the shelf
+- Shelf filtering by genre from a fixed catalogue, with the genres a file states mapped onto it and
+  a choice of its own for books that state none; a search over titles and authors; three orderings
+  (author then title, title alone, most recently read). The three combine; the grid or list choice
+  is remembered. A folder, once added, cannot yet be taken off the shelf from within the application
+- Filing books under a genre yourself, one at a time or several at once by Ctrl or Shift click and
+  a right click. What you state outranks what the file says and survives every rescan
+- The shelf takes the same lock as the open control: while a book is being read aloud it will not
+  open another; it says to pause or stop first
 - Playback follows document structure rather than file order
-- Section navigation is derived from headings and bookmarks
+- Section navigation is derived from headings and bookmarks. Where a book marks up no headings at
+  all, as many Kindle conversions do not, the chapters come from its own navigation table or from
+  lines worded as divisions ("Chapter 12", "PART I", "Prologue")
+- A Kindle book's running header (its title repeated at the top of every page) is recognised and
+  neither shown nor read aloud; a word in capitals is read as the word, not spelled out letter by
+  letter
+- A book that opens with no text at all, such as a PDF whose pages are pictures, says so rather than
+  leaving the reader empty
 - Non-content is excluded from narration by structure rather than by guesswork: page numbers,
   running heads, contents entries and the back-of-book index are shown where they belong and never
   read aloud; PDF running heads and margin folios are stripped from the extracted text itself so
@@ -106,7 +135,7 @@ Kindle formats (via optional Calibre conversion to EPUB):
 | Audio output | `sounddevice` over PortAudio, with an `afplay` path on macOS |
 | Book parsing | ebooklib (EPUB), PyMuPDF (PDF) and an in-house pure-domain document model |
 | Kindle conversion | Calibre `ebook-convert`, optional |
-| Persistence | JSON bookmark, preference and ideas stores plus a filesystem audio cache |
+| Persistence | JSON bookmark, preference and ideas stores, a filesystem audio cache, a SQLite shelf index and a cache of cover thumbnails |
 | Tests | pytest with a 100% coverage gate over the configured runtime scope |
 | Format and lint | black (88), flake8, ruff |
 | Packaging | PyInstaller (Windows onedir plus installer, macOS DMG, Linux onedir) and Flatpak |
@@ -125,14 +154,16 @@ enforced by structural tests at every test run. See
 [ARCHITECTURE.md](ARCHITECTURE.md) for the invariants and the full design;
 [ARCHITECTURE_CONSTRAINTS.md](ARCHITECTURE_CONSTRAINTS.md) holds the constraints themselves.
 
-## Screenshot
+## Screenshots
 
-<img width="1050" height="678" src="images/narratex.png" alt="NarrateX reading a book with the Sections dialog open over the reading pane" />
+<img width="1050" height="633" src="docs/site-images/NarrateX4.png" alt="NarrateX reading a book: the spoken word highlighted in the reading pane, the chapter spine beside it, the cover on the right and the voice picker along the top" />
+
+<img width="1050" height="642" src="docs/site-images/bookshelf.png" alt="The NarrateX bookshelf: a grid of covers with titles, authors and reading state, under the folder, rescan, genre filter, search, ordering and layout controls" />
 
 ## Install and run
 
 Full developer setup, including the per-platform dependency sets, is in
-[DEVELOPMENT-README.md](DEVELOPMENT-README.md). The short version on Windows:
+[DEVELOPMENT.md](DEVELOPMENT.md). The short version on Windows:
 
 ```powershell
 python -m venv venv
@@ -143,7 +174,7 @@ python app.py
 
 Linux needs its system audio libraries first; see [LINUX-INSTALLATION.md](LINUX-INSTALLATION.md).
 macOS builds its disk image from a Python 3.13 virtual environment with `requirements-mac.txt`; see
-[DEVELOPMENT-README.md](DEVELOPMENT-README.md) for why `python app.py` itself needs 3.10 to 3.12.
+[DEVELOPMENT.md](DEVELOPMENT.md) for why `python app.py` itself needs 3.10 to 3.12.
 
 On first run NarrateX downloads the Kokoro model weights (around 330 MB) from HuggingFace Hub.
 After that the reading path is entirely offline; the one recurring network request is a daily
