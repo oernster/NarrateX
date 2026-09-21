@@ -30,10 +30,14 @@ GUIDE_MIN_HEIGHT = 560
 
 # Pictures that are not controls of their own, so the Guide does not list them:
 # the pin marks a row inside a dialog; the muted speaker is the volume button
-# showing its other state and is named in that button's row. The bookshelf is
-# here for a different reason: its artwork has arrived ahead of the control it
-# belongs to, so it leaves this set on the day the shelf gains a button.
-NOT_LISTED = frozenset({Artwork.BOOKSHELF, Artwork.PIN, Artwork.VOLUME_MUTED})
+# showing its other state and is named in that button's row.
+NOT_LISTED = frozenset({Artwork.PIN, Artwork.VOLUME_MUTED})
+
+
+def _worded(label: str, text: str) -> str:
+    """A control that wears words rather than a picture, named as it reads."""
+
+    return f"<p><b>{label}</b>: {text}</p>"
 
 
 def _img(name: Artwork) -> str:
@@ -57,11 +61,12 @@ def guide_html() -> str:
 <h2>How {APP_NAME} works</h2>
 
 <h3>Choosing what to hear</h3>
-{_row(Artwork.SELECT_BOOK, "Select book", "open an EPUB, PDF, text or Markdown file.")}
-{_row(Artwork.FILTER, "Filter by genre",
-      "on the bookshelf, show only the genres you tick. Books that state no "
-      "genre have a box of their own. Right click a book to file it under a "
-      "genre yourself, which outranks whatever its file says.")}
+{_row(Artwork.SELECT_BOOK, "Select book",
+      "open an EPUB, PDF, text or Markdown file. Kindle files open too when "
+      "Calibre is installed.")}
+{_row(Artwork.BOOKSHELF, "Show the shelf",
+      "see the books in your folders as covers; described below. Press "
+      "again to go back to the book you are reading.")}
 {_row(Artwork.REMOVE_CURRENT_BOOK, "Remove current book",
       "forget the bookmarks, resume point, ideas map and cached audio for "
       "this book. The file on disk is never touched.")}
@@ -71,6 +76,7 @@ def guide_html() -> str:
       "press to switch accents.")}
 {_row(Artwork.SELECT_VOICE, "Select voice",
       "choose the narrator. Nothing plays until one is chosen.")}
+{_worded("Speed", "how fast the narrator reads.")}
 {_row(Artwork.VOLUME_CONTROL, "Volume",
       "press to mute; the speaker is crossed out while muted. Press again for "
       "the level you had. The slider beside it sets the level.")}
@@ -90,6 +96,27 @@ that way.</p>
 {_row(Artwork.SECTIONS, "Sections", "jump to a chapter or heading of the book.")}
 {_row(Artwork.HELP, "Help", "this Guide and About.")}
 
+<h3>The bookshelf</h3>
+{_worded("Choose a folder",
+         f"pick a folder holding your books. {APP_NAME} reads it and every "
+         "folder beneath it; choose again to add another. Nothing in those "
+         "folders is ever moved, renamed or changed.")}
+{_worded("Rescan", "read the folders again after books are added or removed.")}
+{_row(Artwork.FILTER, "Filter by genre",
+      "show only the genres you tick. Books that state no genre have a box "
+      "of their own; Clear shows everything again.")}
+{_worded("Search", "show only books whose title or author holds what you type.")}
+{_worded("Order", "lay the shelf out by author then title, by title alone or "
+         "by most recently read.")}
+{_worded("Show as list", "switch between covers and a list with each book's "
+         "genres. The shelf opens the way you left it.")}
+<p>Click a book to open it. Hold <b>Ctrl</b> or <b>Shift</b> while clicking to
+gather several, then right click one of them to file them all under a genre;
+right click a single book to file just that one. What you choose outranks what
+the file says and survives a rescan. The count at the right says how many books
+are showing. While a book is being read aloud the shelf will not open another:
+pause or stop first.</p>
+
 <h3>The strip along the foot</h3>
 {_row(Artwork.DONATE, "Donate",
       f"opens a donation page in your browser. {APP_NAME} itself sends "
@@ -107,7 +134,8 @@ shows where each chapter sits in the book.</p>
 <b>Right</b> do the same along a row of buttons. <b>Enter</b> or <b>Space</b>
 presses the one ringed. <b>Down</b> opens a dropdown. On the speaker,
 <b>Up</b> and <b>Down</b> change the volume. In the text, <b>Up</b> and
-<b>Down</b> scroll.</p>
+<b>Down</b> scroll. On the shelf, the arrow keys move between books and
+<b>Enter</b> or <b>Space</b> opens the one ringed.</p>
 """
 
 

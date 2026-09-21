@@ -158,7 +158,7 @@ enforced by structural tests at every test run. See
 
 <img width="1050" height="633" src="docs/site-images/NarrateX4.png" alt="NarrateX reading a book: the spoken word highlighted in the reading pane, the chapter spine beside it, the cover on the right and the voice picker along the top" />
 
-<img width="1050" height="642" src="docs/site-images/bookshelf.png" alt="The NarrateX bookshelf: a grid of covers with titles, authors and reading state, under the folder, rescan, genre filter, search, ordering and layout controls" />
+<img width="1050" height="639" src="docs/site-images/bookshelf.png" alt="The NarrateX bookshelf: a grid of covers with titles, authors and reading state, under the folder, rescan, genre filter, search, ordering and layout controls" />
 
 ## Install and run
 
