@@ -51,6 +51,11 @@ class ShelfApi:
 
         return filter_shelf(self)
 
+    def toggle_shelf_layout(self) -> None:
+        from voice_reader.ui._ui_controller_shelf_layout import toggle_shelf_layout
+
+        return toggle_shelf_layout(self)
+
     def order_shelf(self, order) -> None:
         from voice_reader.ui._ui_controller_shelf import order_shelf
 

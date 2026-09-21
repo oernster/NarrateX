@@ -136,10 +136,10 @@ def test_the_grid_joins_the_ring_once_installed(qapp) -> None:
     del qapp
     view = ShelfView()
 
-    # Choose a folder, Rescan, Filter, the search field and the ordering,
-    # before the works arrive.
-    assert len(view.ring_stops()) == 5
-    assert view.ring_stops()[-1] is view.cmb_order
+    # Choose a folder, Rescan, Filter, the search field, the ordering and the
+    # layout, before the works arrive.
+    assert len(view.ring_stops()) == 6
+    assert view.ring_stops()[-1] is view.btn_layout
 
     grid = ShelfGrid(covers=_Covers(), parent=view)
     view.install_grid(grid)

@@ -31,9 +31,11 @@ TILE_WIDTH = 176
 TILE_HEIGHT = 310
 TILE_GAP = 10
 
-_PADDING = 8
+PADDING = 8
+# How far a surface sits inside the box Qt gives it, so a ring has room.
+INSET = 2
 _COVER_HEIGHT = 200
-_LINE_GAP = 2
+LINE_GAP = 2
 _BAR_HEIGHT = 5
 _CORNER_RADIUS = 6
 # The ring is two pixels, as the stylesheet draws it on every other control.
@@ -82,22 +84,22 @@ class ShelfTileDelegate(QStyledItemDelegate):
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        body = option.rect.adjusted(2, 2, -2, -2)
+        body = option.rect.adjusted(INSET, INSET, -INSET, -INSET)
         self._panel(painter, option, body)
 
         cover = QRect(
-            body.left() + _PADDING,
-            body.top() + _PADDING,
-            body.width() - 2 * _PADDING,
+            body.left() + PADDING,
+            body.top() + PADDING,
+            body.width() - 2 * PADDING,
             _COVER_HEIGHT,
         )
         self._cover(painter, option, cover, tile)
 
         words = QRect(
             cover.left(),
-            cover.bottom() + _PADDING,
+            cover.bottom() + PADDING,
             cover.width(),
-            body.bottom() - cover.bottom() - 2 * _PADDING,
+            body.bottom() - cover.bottom() - 2 * PADDING,
         )
         self._words(painter, option, words, tile)
         painter.restore()
@@ -139,11 +141,9 @@ class ShelfTileDelegate(QStyledItemDelegate):
     ) -> None:
         """FR-BS-033: no picture, so the words take the picture's place."""
 
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(option.palette.window().color().darker(_WELL_DEPTH))
-        painter.drawRoundedRect(cover, _CORNER_RADIUS, _CORNER_RADIUS)
-        painter.setPen(_dimmed(option.palette.text().color()))
-        inner = cover.adjusted(_PADDING, _PADDING, -_PADDING, -_PADDING)
+        self._well(painter, option, cover)
+        painter.setPen(quiet_colour(option))
+        inner = cover.adjusted(PADDING, PADDING, -PADDING, -PADDING)
         words = tile.title if not tile.author else f"{tile.title}\n{tile.author}"
         painter.drawText(
             inner,
@@ -151,67 +151,79 @@ class ShelfTileDelegate(QStyledItemDelegate):
             words,
         )
 
+    @staticmethod
+    def _well(painter: QPainter, option, cover: QRect) -> None:
+        """The sunken place a cover sits in, drawn where there is no cover."""
+
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(option.palette.window().color().darker(_WELL_DEPTH))
+        painter.drawRoundedRect(cover, _CORNER_RADIUS, _CORNER_RADIUS)
+
     def _words(self, painter: QPainter, option, words: QRect, tile: TileData) -> None:
-        metrics_font = QFont(option.font)
-        metrics_font.setBold(True)
-        base_size = option.font.pointSize()
-        if base_size > 0:
-            metrics_font.setPointSize(base_size + _TITLE_POINT_DELTA)
-        painter.setFont(metrics_font)
-        painter.setPen(option.palette.text().color())
-        line_height = painter.fontMetrics().height()
-        title_rect = QRect(words.left(), words.top(), words.width(), line_height)
+        title = self._line(
+            painter,
+            words,
+            words.top(),
+            tile.title,
+            title_font(option),
+            loud_colour(option),
+        )
+        author = self._line(
+            painter,
+            words,
+            title.bottom() + LINE_GAP,
+            tile.author,
+            quiet_font(option),
+            quiet_colour(option),
+        )
+        self._progress(painter, option, words, author.bottom() + LINE_GAP, tile)
+
+    @staticmethod
+    def _line(
+        painter: QPainter,
+        column: QRect,
+        top: int,
+        text: str,
+        font: QFont,
+        colour: QColor,
+    ) -> QRect:
+        """One line of words across `column` from `top`, cut short to fit.
+
+        Answers the rect it filled, so the line under it knows where to start.
+        Shared by the tile and the row, which differ in where their lines go
+        and never in how one is drawn.
+        """
+
+        painter.setFont(font)
+        painter.setPen(colour)
+        rect = QRect(column.left(), top, column.width(), painter.fontMetrics().height())
         painter.drawText(
-            title_rect,
+            rect,
             int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
             painter.fontMetrics().elidedText(
-                tile.title, Qt.TextElideMode.ElideRight, words.width()
+                text, Qt.TextElideMode.ElideRight, column.width()
             ),
         )
-
-        author_font = QFont(option.font)
-        if base_size > 0:
-            author_font.setPointSize(max(1, base_size + _AUTHOR_POINT_DELTA))
-        painter.setFont(author_font)
-        painter.setPen(_dimmed(option.palette.text().color()))
-        author_rect = QRect(
-            words.left(),
-            title_rect.bottom() + _LINE_GAP,
-            words.width(),
-            painter.fontMetrics().height(),
-        )
-        painter.drawText(
-            author_rect,
-            int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
-            painter.fontMetrics().elidedText(
-                tile.author, Qt.TextElideMode.ElideRight, words.width()
-            ),
-        )
-
-        self._progress(painter, option, words, author_rect, tile)
+        return rect
 
     def _progress(
-        self, painter: QPainter, option, words: QRect, above: QRect, tile: TileData
+        self, painter: QPainter, option, column: QRect, top: int, tile: TileData
     ) -> None:
-        """FR-BS-054: the state in a word, with a bar for the fraction."""
+        """FR-BS-054: the state in a word from `top`, with a bar under it."""
 
-        painter.setPen(_dimmed(option.palette.text().color()))
-        state_rect = QRect(
-            words.left(),
-            above.bottom() + _LINE_GAP,
-            words.width(),
-            painter.fontMetrics().height(),
-        )
-        painter.drawText(
-            state_rect,
-            int(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter),
+        state_rect = self._line(
+            painter,
+            column,
+            top,
             _STATE_WORDS[tile.progress.state],
+            quiet_font(option),
+            quiet_colour(option),
         )
 
         track = QRect(
-            words.left(),
-            state_rect.bottom() + _LINE_GAP,
-            words.width(),
+            column.left(),
+            state_rect.bottom() + LINE_GAP,
+            column.width(),
             _BAR_HEIGHT,
         )
         painter.setPen(Qt.PenStyle.NoPen)
@@ -230,3 +242,36 @@ def _dimmed(colour: QColor) -> QColor:
     dimmed = QColor(colour)
     dimmed.setAlpha(_SECONDARY_ALPHA)
     return dimmed
+
+
+def loud_colour(option) -> QColor:
+    """The colour of a first line: the palette's own text."""
+
+    return option.palette.text().color()
+
+
+def quiet_colour(option) -> QColor:
+    """The colour of every line under the first."""
+
+    return _dimmed(option.palette.text().color())
+
+
+def title_font(option) -> QFont:
+    """The first line's face: the view's own, in bold."""
+
+    font = QFont(option.font)
+    font.setBold(True)
+    base_size = option.font.pointSize()
+    if base_size > 0:
+        font.setPointSize(base_size + _TITLE_POINT_DELTA)
+    return font
+
+
+def quiet_font(option) -> QFont:
+    """Every other line's face: a point smaller than the view's own."""
+
+    font = QFont(option.font)
+    base_size = option.font.pointSize()
+    if base_size > 0:
+        font.setPointSize(max(1, base_size + _AUTHOR_POINT_DELTA))
+    return font

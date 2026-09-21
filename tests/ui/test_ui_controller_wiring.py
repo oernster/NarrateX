@@ -34,6 +34,7 @@ def _make_window(**extras):
             filter_clicked=_SilentSignal(),
             search_changed=_SilentSignal(),
             order_changed=_SilentSignal(),
+            layout_clicked=_SilentSignal(),
         ),
         # Optional: inside try/except, intentionally raise to cover except branches.
         "remove_book_clicked": _ExplodingSignal(),
@@ -62,6 +63,7 @@ def _make_controller(window):
         rescan_shelf=lambda: None,
         search_shelf=lambda _typed: None,
         order_shelf=lambda _order: None,
+        toggle_shelf_layout=lambda: None,
         filter_shelf=lambda: None,
         remove_current_book=lambda **_: None,
         toggle_voice_sex=lambda: None,
@@ -95,6 +97,7 @@ def test_connect_signals_skips_optional_signals_when_absent() -> None:
             filter_clicked=_SilentSignal(),
             search_changed=_SilentSignal(),
             order_changed=_SilentSignal(),
+            layout_clicked=_SilentSignal(),
         ),
     )
     controller = _make_controller(window)

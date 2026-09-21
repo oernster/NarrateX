@@ -19,6 +19,7 @@ def connect_signals(controller) -> None:
     controller.window.shelf_view.rescan_clicked.connect(controller.rescan_shelf)
     controller.window.shelf_view.search_changed.connect(controller.search_shelf)
     controller.window.shelf_view.order_changed.connect(controller.order_shelf)
+    controller.window.shelf_view.layout_clicked.connect(controller.toggle_shelf_layout)
     controller.window.shelf_view.filter_clicked.connect(controller.filter_shelf)
 
     # Remove the current book from NarrateX's memory (never the file).

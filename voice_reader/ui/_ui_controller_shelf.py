@@ -25,6 +25,7 @@ from voice_reader.ui._ui_controller_book_loading import (
     prepare_for_book_switch,
 )
 from voice_reader.domain.shelf.query import ShelfQuery
+from voice_reader.ui._ui_controller_shelf_layout import apply_saved_layout
 from voice_reader.ui._ui_controller_shelf_scan import rescan_shelf
 from voice_reader.ui.genre_dialogs import GenreFilterDialog, GenreTagDialog
 from voice_reader.ui.shelf_grid import ShelfGrid
@@ -82,6 +83,7 @@ def install_shelf_grid(controller) -> None:
     grid.work_activated.connect(controller.open_work)
     grid.tag_requested.connect(controller.tag_work)
     view.install_grid(grid)
+    apply_saved_layout(controller)
 
 
 def refresh_shelf(controller) -> None:

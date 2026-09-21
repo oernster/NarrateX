@@ -37,12 +37,14 @@ from typing import Callable
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import QApplication, QListView, QMenu, QWidget
 
+from voice_reader.domain.shelf.layout import DEFAULT_LAYOUT, ShelfLayout
 from voice_reader.domain.shelf.progress import Progress
 from voice_reader.domain.shelf.works import Work
 from voice_reader.ui._message_box_utils import _in_tests
 
 from voice_reader.ui.shelf_cover_loader import ShelfCoverLoader
 from voice_reader.ui.shelf_model import ShelfModel
+from voice_reader.ui.shelf_row import ROW_GAP, ShelfRowDelegate
 from voice_reader.ui.shelf_tile import (
     TILE_GAP,
     TILE_HEIGHT,
@@ -79,6 +81,8 @@ class ShelfGrid(QListView):
         super().__init__(parent)
         self._loader = ShelfCoverLoader(covers, parent=self) if covers else None
         self._delegate = ShelfTileDelegate(self)
+        self._row_delegate = ShelfRowDelegate(self)
+        self._layout = DEFAULT_LAYOUT
         self._model = ShelfModel(
             held_picture=covers.held_for if covers else _no_picture,
             progress_of=progress_of,
@@ -86,8 +90,8 @@ class ShelfGrid(QListView):
             parent=self,
         )
         self.setModel(self._model)
-        self.setItemDelegate(self._delegate)
         self._configure()
+        self.set_layout(DEFAULT_LAYOUT)
         if self._loader is not None:
             # A bound method of a QObject living on this thread, so Qt queues
             # the call rather than running it on the worker that emitted it.
@@ -98,13 +102,10 @@ class ShelfGrid(QListView):
         self.clicked.connect(self._on_activated)
 
     def _configure(self) -> None:
-        self.setViewMode(QListView.ViewMode.IconMode)
+        """What holds in either layout; `set_layout` does what differs."""
+
         self.setResizeMode(QListView.ResizeMode.Adjust)
-        self.setMovement(QListView.Movement.Static)
-        self.setWrapping(True)
         self.setUniformItemSizes(True)
-        self.setSpacing(TILE_GAP)
-        self.setGridSize(QSize(TILE_WIDTH + TILE_GAP, TILE_HEIGHT + TILE_GAP))
         # Several at once, because filing 1251 works one at a time is not a
         # task anyone completes (FR-BS-046a). What it costs is that a click
         # now has to say which of the two things it means; see
@@ -126,15 +127,50 @@ class ShelfGrid(QListView):
     def show_works(self, works: tuple[Work, ...]) -> None:
         self._model.set_works(works)
 
+    def set_layout(self, layout: ShelfLayout) -> None:
+        """FR-BS-051: tiles or rows, over the same works and the same model.
+
+        One view in two modes rather than two views, so everything the shelf
+        already does holds in both without being built twice: the ring and its
+        lock, a click opening, Ctrl and Shift gathering, the right button
+        filing, Enter opening, the covers arriving late.
+
+        The view mode is set before the movement, because Qt resets the
+        movement whenever the mode changes and a free movement would let a
+        reader drag a tile out of its place.
+        """
+
+        self._layout = layout
+        if layout is ShelfLayout.LIST:
+            self.setViewMode(QListView.ViewMode.ListMode)
+            self.setWrapping(False)
+            self.setSpacing(ROW_GAP)
+            self.setGridSize(QSize())
+            self.setItemDelegate(self._row_delegate)
+        else:
+            self.setViewMode(QListView.ViewMode.IconMode)
+            self.setWrapping(True)
+            self.setSpacing(TILE_GAP)
+            self.setGridSize(QSize(TILE_WIDTH + TILE_GAP, TILE_HEIGHT + TILE_GAP))
+            self.setItemDelegate(self._delegate)
+        self.setMovement(QListView.Movement.Static)
+
+    def shelf_layout(self) -> ShelfLayout:
+        """The layout being drawn. Not `layout`, which Qt already means."""
+
+        return self._layout
+
     def set_locked(self, locked: bool) -> None:
         """FR-BS-055a: no book can be opened, so every ring reads red.
 
-        The viewport is repainted rather than left to the next hover, because
-        the lock arrives while the pointer is already resting on a tile and
-        that tile is exactly the one making the promise.
+        Both delegates are told, so switching layout while narrating cannot
+        bring back a green ring. The viewport is repainted rather than left to
+        the next hover, because the lock arrives while the pointer is already
+        resting on a tile and that tile is exactly the one making the promise.
         """
 
         self._delegate.set_locked(locked)
+        self._row_delegate.set_locked(locked)
         self.viewport().update()
 
     def works(self) -> tuple[Work, ...]:

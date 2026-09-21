@@ -41,6 +41,8 @@ class TileData:
     author: str
     picture: QPixmap | None
     progress: Progress
+    #: Drawn by a row, which has the width for it (FR-BS-051); a tile does not.
+    genres: tuple[str, ...] = ()
 
 
 class ShelfModel(QAbstractListModel):
@@ -124,6 +126,7 @@ class ShelfModel(QAbstractListModel):
             author=work.author,
             picture=self._picture(work),
             progress=self._progress(work),
+            genres=work.genres,
         )
 
     def _picture(self, work: Work) -> QPixmap | None:

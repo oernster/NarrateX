@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol
 
+from voice_reader.domain.shelf.layout import ShelfLayout
 from voice_reader.domain.value_objects.playback_volume import PlaybackVolume
 
 
@@ -26,3 +27,9 @@ class PreferencesRepository(Protocol):
 
     def save_skipped_update_version(self, version: str) -> None:
         """Remember a release the user chose to skip, so it never prompts again."""
+
+    def load_shelf_layout(self) -> ShelfLayout | None:
+        """The layout the shelf was last drawn in; None when none was chosen."""
+
+    def save_shelf_layout(self, layout: ShelfLayout) -> None:
+        """Remember the layout, so the shelf reopens in it (FR-BS-052)."""

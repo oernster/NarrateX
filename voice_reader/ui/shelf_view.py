@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from voice_reader.domain.shelf import formats
+from voice_reader.domain.shelf.layout import DEFAULT_LAYOUT, ShelfLayout
 from voice_reader.domain.shelf.query import Order
 from voice_reader.ui._icon_buttons import icon_button
 from voice_reader.ui.artwork import ICON_BUTTON_PX, ICON_PX, Artwork
@@ -52,6 +53,13 @@ ORDERINGS = (
     ("Title alone", Order.TITLE),
     ("Most recently read", Order.RECENTLY_READ),
 )
+
+# FR-BS-051. Keyed by the layout a press switches TO, since the button says what
+# it does rather than what is showing.
+LAYOUT_TEXT = {
+    ShelfLayout.LIST: "Show as list",
+    ShelfLayout.GRID: "Show as grid",
+}
 
 NO_ROOT_TEXT = "No folder has been chosen yet"
 NO_BOOKS_TEXT = "That folder holds nothing NarrateX can read"
@@ -90,6 +98,8 @@ class ShelfView(QWidget):
     search_changed = Signal(str)
     #: FR-BS-053a: the reader chose an ordering, carried as the rule itself.
     order_changed = Signal(object)
+    #: FR-BS-051: the reader asked for the other layout.
+    layout_clicked = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -133,11 +143,15 @@ class ShelfView(QWidget):
         for words, order in ORDERINGS:
             self.cmb_order.addItem(words, order)
         self.cmb_order.setEnabled(False)
+        # FR-BS-051. Worded until the shelf has artwork for it; see A10.
+        self.btn_layout = QPushButton(LAYOUT_TEXT[DEFAULT_LAYOUT.other])
+        self.btn_layout.setEnabled(False)
         controls.addWidget(self.btn_choose_root)
         controls.addWidget(self.btn_rescan)
         controls.addWidget(self.btn_filter)
         controls.addWidget(self.txt_search)
         controls.addWidget(self.cmb_order)
+        controls.addWidget(self.btn_layout)
         controls.addStretch(1)
         self.lbl_count = SentenceCaseLabel("")
         controls.addWidget(self.lbl_count)
@@ -177,6 +191,7 @@ class ShelfView(QWidget):
         self.btn_filter.clicked.connect(self.filter_clicked.emit)
         self.txt_search.textChanged.connect(self.search_changed.emit)
         self.cmb_order.currentIndexChanged.connect(self._order_chosen)
+        self.btn_layout.clicked.connect(self.layout_clicked.emit)
 
     def _order_chosen(self, row: int) -> None:
         """Say which rule was chosen, rather than which row holds it."""
@@ -192,9 +207,9 @@ class ShelfView(QWidget):
         self._root.addWidget(grid, stretch=1)
         grid.setVisible(False)
         # The window set its ring before the grid existed, so the grid takes its
-        # place in the chain here: directly after the ordering combo, which is
+        # place in the chain here: directly after the layout button, which is
         # the last of the controls above it.
-        QWidget.setTabOrder(self.cmb_order, grid)
+        QWidget.setTabOrder(self.btn_layout, grid)
 
     def show_no_root(self) -> None:
         """FR-BS-057: no folder chosen; the control that chooses one is live."""
@@ -232,8 +247,8 @@ class ShelfView(QWidget):
         """FR-BS-036: the shelf as the scan fills it.
 
         The grid replaces the words the moment there are books to stand in
-        their place, while the three controls stay shut exactly as
-        `show_scanning` left them: the scan is still running, so a second one
+        their place, while every control above it stays shut exactly as
+        `show_scanning` left it: the scan is still running, so a second one
         would only fight it and a filter would narrow a shelf still arriving.
 
         The count says "so far" rather than a bare number, because a number
@@ -245,14 +260,32 @@ class ShelfView(QWidget):
         self._controls_live(False)
         self.lbl_count.setText(FILLING_TEXT.format(words=work_count_words(len(works))))
 
+    def set_layout(self, layout: ShelfLayout) -> None:
+        """Draw the shelf this way; the button offers the other (FR-BS-051).
+
+        The button names what a press does rather than what is showing, so it
+        never needs a pressed look to be read: "Show as list" over a grid says
+        exactly what it will do.
+        """
+
+        if self.grid is not None:
+            self.grid.set_layout(layout)
+        self.btn_layout.setText(LAYOUT_TEXT[layout.other])
+
     def _controls_live(self, live: bool) -> None:
-        """The three controls above a drawn shelf, opened or shut together."""
+        """Every control above a drawn shelf, opened or shut together."""
 
         self.btn_choose_root.setEnabled(live)
         self.btn_rescan.setEnabled(live)
+        self._shaping_live(live)
+
+    def _shaping_live(self, live: bool) -> None:
+        """The four controls that shape a drawn shelf rather than fill it."""
+
         self.btn_filter.setEnabled(live)
         self.txt_search.setEnabled(live)
         self.cmb_order.setEnabled(live)
+        self.btn_layout.setEnabled(live)
 
     def _draw(self, works) -> None:
         """The grid, holding these works, in the empty block's place."""
@@ -272,13 +305,11 @@ class ShelfView(QWidget):
         self.empty_panel.setVisible(True)
         self.btn_choose_root.setEnabled(can_choose)
         self.btn_rescan.setEnabled(can_rescan)
-        # Nothing on the shelf is nothing to narrow, so the filter and the
-        # search shut together rather than offering to narrow an empty
+        # Nothing on the shelf is nothing to shape, so those controls shut
+        # together rather than offering to narrow or lay out an empty
         # catalogue. The words the reader typed are left in the field: a
         # search that found nothing is exactly when they want to see it.
-        self.btn_filter.setEnabled(False)
-        self.txt_search.setEnabled(False)
-        self.cmb_order.setEnabled(False)
+        self._shaping_live(False)
         self.lbl_count.setText("")
         if self.grid is not None:
             self.grid.setVisible(False)
@@ -318,6 +349,7 @@ class ShelfView(QWidget):
             self.btn_filter,
             self.txt_search,
             self.cmb_order,
+            self.btn_layout,
         )
         if self.grid is None:
             return stops

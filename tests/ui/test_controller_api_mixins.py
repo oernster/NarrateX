@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from voice_reader.ui import _ui_controller_transport_api as transport
 from voice_reader.ui import _ui_controller_shelf as shelf_helpers
+from voice_reader.ui import _ui_controller_shelf_layout as layout_helpers
 from voice_reader.ui import _ui_controller_shelf_scan as scan_helpers
 from voice_reader.ui._ui_controller_shelf_api import ShelfApi
 from voice_reader.ui._ui_controller_transport_api import TransportApi
@@ -47,6 +48,12 @@ def test_every_shelf_entry_point_reaches_its_helper(monkeypatch) -> None:
         "order_shelf",
         lambda _c, rule: reached.append(f"order:{rule}"),
     )
+    # The layout lives in its own module too.
+    monkeypatch.setattr(
+        layout_helpers,
+        "toggle_shelf_layout",
+        lambda _c: reached.append("toggle_shelf_layout"),
+    )
 
     controller.toggle_shelf()
     controller.choose_shelf_root()
@@ -55,6 +62,7 @@ def test_every_shelf_entry_point_reaches_its_helper(monkeypatch) -> None:
     controller.refresh_shelf()
     controller.search_shelf("clarke")
     controller.order_shelf("by title")
+    controller.toggle_shelf_layout()
     controller.open_work(work)
 
     assert reached == [
@@ -65,6 +73,7 @@ def test_every_shelf_entry_point_reaches_its_helper(monkeypatch) -> None:
         "refresh_shelf",
         "search:clarke",
         "order:by title",
+        "toggle_shelf_layout",
         f"open:{work}",
     ]
 

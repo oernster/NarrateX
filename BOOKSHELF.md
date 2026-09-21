@@ -1014,3 +1014,34 @@ The order rides on the same `ShelfQuery` the filter and the search ride on, so c
 one never drops the other two. The filling shelf obeys the ordering for the same
 reason it obeys the filter: a reader who chose a layout should not watch their books
 arrive in a different one.
+
+**A10, 2026-09-21: the list view is the grid in its other mode.** FR-BS-051 was built as
+one `QListView` switching between icon mode and list mode over the same model, rather
+than as a second view beside the first. Everything the shelf already did therefore holds
+in the list without being built twice: the ring and its lock, a click opening, Ctrl and
+Shift gathering, the right button filing, Enter opening, covers arriving late, the
+filter, the search and the ordering. Switching loses nothing and reorders nothing,
+because nothing is rebuilt.
+
+The row is drawn by the tile's own pieces. The drawing helpers that were private to the
+tile were made shared rather than copied: one line of words cut short to fit, the fonts
+and colours of a first line and of every line under it, the sunken well a cover sits in,
+the state with its bar. A row that drew any of them its own way would be a second shelf
+able to disagree with the first about what a locked ring looks like. Where a work has no
+cover the row draws the well alone, since the title and author already stand beside it.
+
+A row's height is read off the view's fonts rather than written down: three lines with
+the gaps between them, the padding round them and the inset the ring needs. A literal
+would be right at one font size and wrong at every other without saying so.
+
+FR-BS-052 is kept in the reader's preferences beside the playback volume, stored as the
+word `grid` or `list` rather than as a flag. A word the build does not recognise reads as
+nothing chosen, so a file edited by hand or written by another build opens the grid
+rather than refusing to open. Where no preferences are wired at all the shelf opens as a
+grid and remembers nothing, which is an answer rather than a fault.
+
+**Stated rather than claimed: the layout button is worded.** It reads "Show as list" over
+the grid and "Show as grid" over the list, naming what a press does so that it needs no
+pressed look to be read. The filter beside it is a picture; this one should be too. The
+shelf has no artwork for a grid or a list, though; artwork is not invented here. The
+words are what ships until a picture is supplied.

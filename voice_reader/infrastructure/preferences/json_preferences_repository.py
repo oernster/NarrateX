@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from voice_reader.domain.interfaces.preferences_repository import PreferencesRepository
+from voice_reader.domain.shelf import layout as layout_rules
+from voice_reader.domain.shelf.layout import ShelfLayout
 from voice_reader.domain.value_objects.playback_volume import PlaybackVolume
 
 
@@ -74,4 +76,12 @@ class JSONPreferencesRepository(PreferencesRepository):
     def save_skipped_update_version(self, version: str) -> None:
         data = self._load_raw()
         data["skipped_update_version"] = version
+        self._save_raw(data)
+
+    def load_shelf_layout(self) -> ShelfLayout | None:
+        return layout_rules.parsed(self._load_raw().get("shelf_layout"))
+
+    def save_shelf_layout(self, layout: ShelfLayout) -> None:
+        data = self._load_raw()
+        data["shelf_layout"] = layout.value
         self._save_raw(data)
