@@ -220,7 +220,7 @@ a donation. If it has replaced something you were paying for, a donation support
 continued development. The same link sits at the foot of the application's own window, where the
 donate button hands it to your browser; NarrateX itself never opens a connection for it.
 
-<a href="https://www.paypal.com/ncp/payment/26YQ4HUNDHYXY"><img src="docs/donate.png" alt="Donate to NarrateX" width="120"></a>
+<a href="https://www.paypal.com/ncp/payment/DZ6FF3G9E54C2"><img src="docs/donate.png" alt="Donate to NarrateX" width="120"></a>
 
 ## Licence
 

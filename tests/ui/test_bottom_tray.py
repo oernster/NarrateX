@@ -48,7 +48,7 @@ def test_the_donate_button_calls_its_handler(qapp) -> None:
 
 
 def test_the_donation_address_is_this_apps_own() -> None:
-    assert DONATE_URL == "https://www.paypal.com/ncp/payment/26YQ4HUNDHYXY"
+    assert DONATE_URL == "https://www.paypal.com/ncp/payment/DZ6FF3G9E54C2"
     assert DONATE_URL.startswith("https://")
 
 
