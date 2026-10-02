@@ -9,6 +9,11 @@
       <image:loc>https://narratex.co.uk/site-images/NarrateX4.png</image:loc>
       <image:title>NarrateX reader interface</image:title>
     </image:image>
+  </url>
+  <url>
+    <loc>https://narratex.co.uk/features.html</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
     <image:image>
       <image:loc>https://narratex.co.uk/site-images/how-it-works.svg</image:loc>
       <image:title>How NarrateX structured listening works</image:title>
