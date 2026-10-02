@@ -152,7 +152,12 @@ understanding the text: a contents-heavy book is not a badly parsed one.
       version against it (honouring a skipped version, picking the platform asset by filename
       suffix) and the ui [`UpdateCheckController`](voice_reader/ui/update_check.py) owns the
       triggers: a launch check, a daily re-check and the About dialog's Check for updates button,
-      each run on a worker thread whose result crosses back through a queued signal. The skipped
+      each run on a worker thread whose result crosses back through a queued signal. Should the
+      controller be deleted while a check is out (it is the window's child), the result is dropped
+      rather than raised on the worker; quitting leaves the window alive, so this is a guard rather
+      than a fix for an observed fault.
+      [`test_update_check_after_close.py`](tests/ui/test_update_check_after_close.py) holds it.
+      The skipped
       release persists through [`PreferencesRepository`](voice_reader/domain/interfaces/preferences_repository.py)
       beside the other preferences; wiring lives in
       [`install_update_check()`](voice_reader/ui/update_check.py), called by [`main()`](app.py)

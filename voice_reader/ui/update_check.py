@@ -17,6 +17,7 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
+import shiboken6
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QMessageBox
 
@@ -93,7 +94,21 @@ class UpdateCheckController(QObject):
         thread.start()
 
     def _run(self, skipped: str | None, manual: bool) -> None:
-        self._result_ready.emit(self._service.check(skipped), manual)
+        """Ask, on the worker thread, then hand the answer back across.
+
+        Should this controller be deleted while the question is out (deleting
+        its parent window deletes it too), the emit raises on a thread nothing
+        would catch it on. Nobody is left to tell, so that answer is dropped.
+        Asking first whether the controller still exists would not do: it can
+        go between the asking and the emit. Anything else the emit raises is
+        still raised.
+        """
+        status = self._service.check(skipped)
+        try:
+            self._result_ready.emit(status, manual)
+        except RuntimeError:
+            if shiboken6.isValid(self):
+                raise
 
     def _on_result(self, status: UpdateStatus, manual: bool) -> None:
         if status.update_available:
