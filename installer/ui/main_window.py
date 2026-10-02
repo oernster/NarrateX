@@ -43,13 +43,18 @@ read_uninstall_entry = read_uninstall_entry
 class InstallerMainWindow(QMainWindow):
     operationRequested = Signal(str, object)
 
-    def __init__(self, cli_args) -> None:  # noqa: ANN001 (Qt entrypoint)
+    def __init__(
+        self, cli_args, *, remove_user_data: bool  # noqa: ANN001 (Qt entrypoint)
+    ) -> None:
         super().__init__()
 
         if os.name != "nt":
             raise RuntimeError("Installer UI is Windows-only")
 
         self._cli_args = cli_args
+        # Whether an uninstall also removes the bookmarks, the shelf and the
+        # rest of the user data; decided once by the entrypoint.
+        self._remove_user_data = remove_user_data
         self._identity = InstallerIdentity()
         self._op_controller = OperationController()
         self._read_uninstall_entry = read_uninstall_entry
@@ -65,7 +70,7 @@ class InstallerMainWindow(QMainWindow):
         # Windows DPI scaling / Accessibility text size / mixed-DPI multi-monitor
         # setups (see [`crapinstaller.png`](crapinstaller.png:1)).
         #
-        # Use a minimum size for the intended design, but allow width/height to
+        # Use a minimum size for the intended design; allow width/height to
         # grow if required to keep all header text visible.
         self.setMinimumSize(620, 520)
         self.resize(620, 520)

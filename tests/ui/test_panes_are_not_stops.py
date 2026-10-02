@@ -151,7 +151,9 @@ def _surfaces(monkeypatch, tmp_path) -> list:
     ]
     monkeypatch.setattr(installer_window, "read_uninstall_entry", lambda _key: None)
     surfaces.append(
-        installer_window.InstallerMainWindow(SimpleNamespace(uninstall=False))
+        installer_window.InstallerMainWindow(
+            SimpleNamespace(uninstall=False), remove_user_data=True
+        )
     )
     (tmp_path / "NarrateX.exe").write_bytes(b"stub")
     installed = SimpleNamespace(
@@ -164,7 +166,9 @@ def _surfaces(monkeypatch, tmp_path) -> list:
         installer_window, "read_uninstall_entry", lambda _key: installed
     )
     surfaces.append(
-        installer_window.InstallerMainWindow(SimpleNamespace(uninstall=False))
+        installer_window.InstallerMainWindow(
+            SimpleNamespace(uninstall=False), remove_user_data=True
+        )
     )
     return surfaces
 

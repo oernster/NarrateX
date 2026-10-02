@@ -96,7 +96,7 @@ Qt and all dependencies.
 
 ## First-run model download
 
-NarrateX uses the Kokoro-82M TTS model (around 330 MB), downloaded automatically from HuggingFace Hub on first run.
+NarrateX uses the Kokoro-82M TTS model (around 330 MB), downloaded automatically from HuggingFace Hub on first run together with every voice it offers.
 The download happens at startup, before the main window opens, behind a progress dialog; if it
 fails, NarrateX says so and exits rather than opening a window that cannot narrate.
 Subsequent launches load the model from disk cache (`~/.cache/huggingface/hub/`).

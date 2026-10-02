@@ -178,7 +178,8 @@ Linux needs its system audio libraries first; see [LINUX-INSTALLATION.md](LINUX-
 macOS builds its disk image from a Python 3.13 virtual environment with `requirements-mac.txt`; see
 [DEVELOPMENT.md](DEVELOPMENT.md) for why `python app.py` itself needs 3.10 to 3.12.
 
-On first run NarrateX downloads the Kokoro model weights (around 330 MB) from HuggingFace Hub.
+On first run NarrateX downloads the Kokoro model weights (around 330 MB) and every voice it offers
+from HuggingFace Hub.
 After that the reading path is entirely offline; the one recurring network request is a daily
 check of this project's GitHub releases for a newer version, which carries nothing about you or
 your books and fails silently without a connection.

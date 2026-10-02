@@ -24,7 +24,9 @@ def test_a_pass_pending_at_deletion_never_runs(qapp, monkeypatch) -> None:
 
     del qapp
     monkeypatch.setattr(mw, "read_uninstall_entry", lambda _key: None)
-    window = mw.InstallerMainWindow(SimpleNamespace(uninstall=False))
+    window = mw.InstallerMainWindow(
+        SimpleNamespace(uninstall=False), remove_user_data=True
+    )
     window.show()
     ran: list[bool] = []
     controller = window._header_fit  # noqa: SLF001

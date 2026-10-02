@@ -64,10 +64,24 @@ from voice_reader.version import APP_APPUSERMODELID, APP_NAME
 install_wiring_placeholders(globals())
 
 
+def _preflight_voice_ids() -> tuple[str, ...]:
+    """Every voice the picker offers, read from the one repository that lists them.
+
+    The first-run download fetches exactly these, so no voice a reader can pick
+    is left for Kokoro to download mid-read.
+    """
+
+    from voice_reader.infrastructure.tts.voice_profile_repository import (
+        KokoroVoiceProfileRepository,
+    )
+
+    return tuple(p.name for p in KokoroVoiceProfileRepository().list_profiles())
+
+
 def _run_model_preflight(app) -> bool:  # noqa: ANN001
     from voice_reader.ui.model_download_dialog import maybe_download_model
 
-    return maybe_download_model(app)
+    return maybe_download_model(app, voice_ids=_preflight_voice_ids())
 
 
 def _env_truthy(name: str) -> bool:

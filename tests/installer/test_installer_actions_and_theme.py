@@ -60,7 +60,9 @@ class TestTheRowsHoldTheirShape:
             shortcut_start_menu=True,
         )
         monkeypatch.setattr(mw, "read_uninstall_entry", lambda _key: entry)
-        win = mw.InstallerMainWindow(SimpleNamespace(uninstall=False))
+        win = mw.InstallerMainWindow(
+            SimpleNamespace(uninstall=False), remove_user_data=True
+        )
         win.show()
         qapp.processEvents()
         win._header_fit.ensure_now()
@@ -70,7 +72,7 @@ class TestTheRowsHoldTheirShape:
 
     def test_the_window_covers_the_height_for_width_answer(self, window) -> None:
         # The plain layout minimum is not enough: wrapped labels are handed
-        # their height-for-width first, and whatever that takes comes out of
+        # their height-for-width first; whatever that takes comes out of
         # the fixed-height rows unless the window covers it too.
         root = window.centralWidget()
         layout = root.layout()
@@ -82,7 +84,7 @@ class TestTheRowsHoldTheirShape:
         # allocates them heightForWidth(width), which on real font metrics
         # can sit below the SafeLabel's padded minimum without any clipping.
         # The defect under test is the fixed-height rows (the buttons, the
-        # bar) being starved, and those must always receive their minimum.
+        # bar) being starved; those must always receive their minimum.
         outer = window.centralWidget().layout()
         for index in range(outer.count()):
             item = outer.itemAt(index)

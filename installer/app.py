@@ -40,10 +40,6 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parse_args(list(argv) if argv is not None else sys.argv[1:])
 
-    # When invoked as uninstaller from Settings, we can optionally run without UI
-    # in the future. For now, always show UI.
-    _ = wants_remove_user_data(args)
-
     app = QApplication([f"{APP_NAME} Setup"])
     inactive_tooltips.install(app)
     app.setApplicationName(f"{APP_NAME} Setup")
@@ -76,7 +72,11 @@ def main(argv: list[str] | None = None) -> int:
     except Exception:
         logger.exception("Failed to set QApplication window icon")
 
-    win = InstallerMainWindow(cli_args=args)
+    # The command line's user-data choice decides what an uninstall from this
+    # window removes, whichever way the uninstall is started.
+    win = InstallerMainWindow(
+        cli_args=args, remove_user_data=wants_remove_user_data(args)
+    )
     win.show()
     return app.exec()
 

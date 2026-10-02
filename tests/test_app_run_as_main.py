@@ -125,7 +125,9 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
     ).JSONPreferencesRepository = lambda **kwargs: SimpleNamespace()
     _m(
         "voice_reader.infrastructure.tts.voice_profile_repository"
-    ).KokoroVoiceProfileRepository = lambda **kwargs: SimpleNamespace()
+    ).KokoroVoiceProfileRepository = lambda **kwargs: SimpleNamespace(
+        list_profiles=lambda: ()
+    )
 
     class _Cfg(FakeConfig):
         """The shared fake, plus the factory the entrypoint calls on it."""
@@ -142,7 +144,9 @@ def test_running_as_main_raises_system_exit(monkeypatch, tmp_path: Path) -> None
     _m("voice_reader.shared.logging_utils").configure_logging = lambda level=None: None
     _m("voice_reader.ui.main_window").MainWindow = FakeWindow
     _m("voice_reader.ui.ui_controller").UiController = FakeUiController
-    _m("voice_reader.ui.model_download_dialog").maybe_download_model = lambda a: True
+    _m("voice_reader.ui.model_download_dialog").maybe_download_model = (
+        lambda a, voice_ids: True
+    )
     # The real install parents a QObject to the application, which this fake
     # cannot be. `from voice_reader.ui import inactive_tooltips` reads the
     # package attribute before sys.modules, so the stub goes in both.

@@ -82,7 +82,7 @@ class TestForceStopSuppressesTheFinishedCallback:
         assert callbacks.finished[0].ok is True
 
     def test_a_second_start_reports_again_after_a_force_stop(self, qapp) -> None:
-        # Suppression must reset per operation, or one cancelled install would
+        # Suppression must reset per operation; otherwise one cancelled install would
         # mute every later one.
         controller = OperationController()
         callbacks = _Callbacks()
@@ -112,7 +112,9 @@ class TestTheBarKeepsItsSlot:
         import installer.ui.main_window as mw
 
         monkeypatch.setattr(mw, "read_uninstall_entry", lambda _key: None)
-        win = mw.InstallerMainWindow(SimpleNamespace(uninstall=False))
+        win = mw.InstallerMainWindow(
+            SimpleNamespace(uninstall=False), remove_user_data=True
+        )
         win.show()
         qapp.processEvents()
         yield win

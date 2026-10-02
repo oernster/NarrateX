@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Sequence
 
 from tqdm import tqdm as _BaseTqdm
 from PySide6.QtCore import Qt, QThread, Signal
@@ -16,33 +17,31 @@ from PySide6.QtWidgets import QMessageBox, QProgressDialog
 
 _REPO_ID = "hexgrad/Kokoro-82M"
 
-# All Kokoro voice IDs - keep in sync with KokoroVoiceProfileRepository
-_VOICE_IDS = (
-    "bf_emma",
-    "bf_isabella",
-    "bf_lily",
-    "bm_daniel",
-    "bm_fable",
-    "bm_george",
-    "bm_lewis",
-    "af_heart",
-    "af_bella",
-    "af_nicole",
-    "af_sarah",
-    "am_adam",
-    "am_michael",
-)
+# Where each stage of the download ends on the progress bar, in percent. The
+# voices share whatever is left after the weights, up to the full bar.
+_CONFIG_END_PCT = 2
+_WEIGHTS_END_PCT = 62
+_FULL_PCT = 100
 
-# Download steps: (filename, progress_end_pct)
-_n = len(_VOICE_IDS)
-_STEPS: tuple = (
-    ("config.json", 2),
-    ("kokoro-v1_0.pth", 62),
-    *(
-        (f"voices/{v}.pt", 62 + int((i + 1) * 38 / _n))
-        for i, v in enumerate(_VOICE_IDS)
-    ),
-)
+
+def download_steps(voice_ids: Sequence[str]) -> tuple[tuple[str, int], ...]:
+    """Every file the first run fetches, each with its progress end percent.
+
+    The voice IDs arrive from the composition root, which reads them from the
+    same repository the voice picker lists, so every voice a reader can choose
+    is fetched here and none is left for Kokoro to download mid-read.
+    """
+
+    n = len(voice_ids)
+    span = _FULL_PCT - _WEIGHTS_END_PCT
+    return (
+        ("config.json", _CONFIG_END_PCT),
+        ("kokoro-v1_0.pth", _WEIGHTS_END_PCT),
+        *(
+            (f"voices/{v}.pt", _WEIGHTS_END_PCT + int((i + 1) * span / n))
+            for i, v in enumerate(voice_ids)
+        ),
+    )
 
 
 def _hf_cache_root() -> Path:
@@ -73,9 +72,9 @@ def _is_cached(filename: str) -> bool:
     )
 
 
-def model_is_ready() -> bool:
+def model_is_ready(voice_ids: Sequence[str]) -> bool:
     """True only when every model weight and voice file is already cached."""
-    return all(_is_cached(fname) for fname, _ in _STEPS)
+    return all(_is_cached(fname) for fname, _ in download_steps(voice_ids))
 
 
 # ---------------------------------------------------------------------------
@@ -146,6 +145,10 @@ class _DownloadThread(QThread):
     all_done: Signal = Signal()
     failed: Signal = Signal(str)
 
+    def __init__(self, steps: tuple[tuple[str, int], ...]) -> None:
+        super().__init__()
+        self._steps = steps
+
     def run(self) -> None:
         try:
             from huggingface_hub import hf_hub_download
@@ -157,7 +160,7 @@ class _DownloadThread(QThread):
 
             try:
                 prev_end = 0
-                for fname, end_pct in _STEPS:
+                for fname, end_pct in self._steps:
                     if _is_cached(fname):
                         self.progress.emit(end_pct, "")
                         prev_end = end_pct
@@ -185,8 +188,11 @@ class _DownloadThread(QThread):
 # ---------------------------------------------------------------------------
 
 
-def maybe_download_model(app) -> bool:  # noqa: ANN001
+def maybe_download_model(app, voice_ids: Sequence[str]) -> bool:  # noqa: ANN001
     """Show a determinate progress dialog to download the Kokoro model and voices.
+
+    `voice_ids` is every voice the picker offers; each is fetched here so that
+    narration never reaches the network after the first run.
 
     Uses a direct filesystem check (no huggingface_hub import) for model_is_ready()
     so the fast-path (model already cached) returns in microseconds.
@@ -195,7 +201,7 @@ def maybe_download_model(app) -> bool:  # noqa: ANN001
     thread while keeping the main thread in a processEvents() busy-loop so the
     splash window continues to respond to GNOME/Wayland compositor pings.
     """
-    if model_is_ready():
+    if model_is_ready(voice_ids):
         return True
 
     # Pre-warm huggingface_hub imports in a background thread.
@@ -247,7 +253,7 @@ def maybe_download_model(app) -> bool:  # noqa: ANN001
         _error.append(msg)
         dlg.reject()
 
-    thread = _DownloadThread()
+    thread = _DownloadThread(download_steps(voice_ids))
     thread.progress.connect(_on_progress)
     thread.all_done.connect(dlg.accept)
     thread.failed.connect(_on_failed)
@@ -268,4 +274,4 @@ def maybe_download_model(app) -> bool:  # noqa: ANN001
         box.exec()
         return False
 
-    return model_is_ready()
+    return model_is_ready(voice_ids)

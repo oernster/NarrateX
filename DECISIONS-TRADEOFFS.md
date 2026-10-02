@@ -79,8 +79,10 @@ to the first over a local channel, not the network.
 
 ### The voice model is fetched once, before the window opens
 
-On first run the Kokoro weights are downloaded behind a progress dialog. A
-failed download ends startup with a message.
+On first run the Kokoro weights and every voice the picker offers are
+downloaded behind a progress dialog. The voice list is the repository's own,
+handed in by the entrypoint, so no voice is left for Kokoro to fetch mid-read.
+A failed download ends startup with a message.
 
 - **Rather than:** opening a window that cannot narrate and failing at the
   first Play.
@@ -689,12 +691,13 @@ with a message outside Python 3.10 to 3.12. A packaged build skips the check.
 ### Installed for one user
 
 On Windows the setup program installs into the user's own folders and
-registry. Uninstalling from its window removes the user's data too; the
-confirmation says so before anything is removed.
+registry. Uninstalling removes the user's data too unless the setup program
+was started with `--keep-user-data`; the confirmation names the bookmarks and
+the shelf when they will go and says the data is kept when it will stay.
 
-- **Rather than:** a machine-wide install; leaving data behind.
-- **Gains:** no administrator prompt; an uninstall leaves nothing.
-- **Costs:** each account installs separately; uninstalling takes the
+- **Rather than:** a machine-wide install; leaving data behind by default.
+- **Gains:** no administrator prompt; a default uninstall leaves nothing.
+- **Costs:** each account installs separately; a default uninstall takes the
   bookmarks and shelf genres with it.
 
 ### A setup program of its own

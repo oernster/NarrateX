@@ -22,7 +22,9 @@ def test_installer_header_title_fits_without_eliding(qapp, monkeypatch) -> None:
 
     monkeypatch.setattr(mw, "read_uninstall_entry", lambda _key: None)
 
-    win = mw.InstallerMainWindow(SimpleNamespace(uninstall=False))
+    win = mw.InstallerMainWindow(
+        SimpleNamespace(uninstall=False), remove_user_data=True
+    )
     win.show()
     qapp.processEvents()
 
