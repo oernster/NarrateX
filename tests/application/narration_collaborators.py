@@ -2,8 +2,8 @@
 
 Every one of these can be told to fail, because most of the uncovered code in
 the narration package is a broad handler protecting playback from a
-collaborator that misbehaves. No mock library is used anywhere in this
-repository.
+collaborator that misbehaves. No mock library is used here; the one test in
+the repository that reaches for unittest.mock is the bootstrap wiring test.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ class FakeMapping:
 
 
 class FakeMapper:
-    """Sanitiser that speaks the text unchanged, or nothing for chosen text."""
+    """Sanitiser that speaks the text unchanged; nothing for chosen text."""
 
     def __init__(self, *, silent_for: set[str] | None = None) -> None:
         self.silent_for = set(silent_for or set())
