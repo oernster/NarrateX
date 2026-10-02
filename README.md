@@ -180,11 +180,11 @@ macOS builds its disk image from a Python 3.13 virtual environment with `require
 
 On first run NarrateX downloads the Kokoro model weights (around 330 MB) and every voice it offers
 from HuggingFace Hub.
-After that, reading needs no connection. While one is available, two requests recur: a daily check
-of this project's GitHub releases for a newer version; the Hugging Face library that Kokoro loads
-through asking huggingface.co whether the model and voice files it has cached are current, each
-time the voice engine loads them. Neither carries anything about you or your books; both fall
-back silently without a connection.
+After that, reading needs no connection and makes no network call: once every file is cached,
+NarrateX switches the Hugging Face library to offline mode, so loading a voice never asks
+huggingface.co again. While a connection is available, one request recurs: a daily check of this
+project's GitHub releases for a newer version. It carries nothing about you or your books and
+falls back silently without a connection.
 
 ## Tests
 

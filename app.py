@@ -79,9 +79,15 @@ def _preflight_voice_ids() -> tuple[str, ...]:
 
 
 def _run_model_preflight(app) -> bool:  # noqa: ANN001
+    from voice_reader.shared.hub_offline import enter_hub_offline_mode
     from voice_reader.ui.model_download_dialog import maybe_download_model
 
-    return maybe_download_model(app, voice_ids=_preflight_voice_ids())
+    ready = maybe_download_model(app, voice_ids=_preflight_voice_ids())
+    if ready:
+        # Every file is cached, so nothing after this needs huggingface.co;
+        # without it the hub library asks the network on every model load.
+        enter_hub_offline_mode(os.environ, sys.modules)
+    return ready
 
 
 def _env_truthy(name: str) -> bool:

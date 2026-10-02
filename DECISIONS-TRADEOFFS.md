@@ -67,18 +67,18 @@ measurement that forced them.
 
 ### The ways out, all named
 
-NarrateX itself makes two kinds of request: the voice model download and the
-update check. The voice library also asks its host whether the model files it
-has cached are still current whenever it loads them, falling back to the cache
-without a connection. The donate button hands its address to the desktop's
-browser and stops there; a second launch talks to the first over a local
-channel, not the network.
+NarrateX makes two kinds of request: the voice model download and the update
+check. Once every model file is cached, the voice library is switched to its
+offline mode, so it no longer asks its host whether those files are current.
+The donate button hands its address to the desktop's browser and stops there;
+a second launch talks to the first over a local channel, not the network.
 
-- **Rather than:** network use spread wherever it was convenient.
+- **Rather than:** network use spread wherever it was convenient; leaving the
+  voice library to check its cache with its host on every load.
 - **Gains:** "nothing you read leaves the device" can be checked by reading a
-  handful of places; none of the requests carries anything about the reader.
-- **Costs:** NarrateX never learns what the browser did next; the voice
-  library's own check is left at its default rather than switched off.
+  handful of places; reading makes no request at all.
+- **Costs:** NarrateX never learns what the browser did next; a newer copy of
+  the model on its host is never picked up without clearing the cache.
 
 ### The voice model is fetched once, before the window opens
 

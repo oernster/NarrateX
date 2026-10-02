@@ -148,9 +148,11 @@ understanding the text: a contents-heavy book is not a badly parsed one.
       latest-release endpoint (published releases only, so drafts, prereleases and bare tags can
       never prompt); the opener is injected so tests never touch the network. Beyond the Kokoro
       model files, this is the application's only outbound network call. Those are downloaded once
-      by the preflight; after that, each time Kokoro loads one, the Hugging Face library asks
-      huggingface.co whether the cached copy is current when a connection exists and falls back to
-      the cache when it does not (NarrateX does not set `HF_HUB_OFFLINE`). The application
+      by the preflight; once it confirms every file is cached,
+      [`enter_hub_offline_mode()`](voice_reader/shared/hub_offline.py) turns the Hugging Face
+      library's offline mode on (`HF_HUB_OFFLINE`, plus the library's own flag and a reset of its
+      cached HTTP sessions when the download already imported it), so loading a model or voice
+      never asks huggingface.co again. The application
       [`UpdateService`](voice_reader/application/services/update_service.py) compares the running
       version against it (honouring a skipped version, picking the platform asset by filename
       suffix) and the ui [`UpdateCheckController`](voice_reader/ui/update_check.py) owns the
