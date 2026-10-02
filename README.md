@@ -31,8 +31,8 @@ cache. Nothing you read leaves the device.
 
 - Mobile users. NarrateX is a desktop application: Windows, macOS and Linux. There is no phone or
   tablet build and none is planned.
-- Anyone wanting cloud voices, an account or a subscription. There are none and there is no
-  network call in the reading path.
+- Anyone wanting cloud voices, an account or a subscription. There are none; once the voice
+  model is downloaded, reading needs no connection.
 - Anyone wanting voice cloning or a custom voice. NarrateX is Kokoro-only and ships Kokoro's
   English inventory as it stands.
 - DRM-locked books. NarrateX reads files you can already open; it does not strip protection.
@@ -180,13 +180,16 @@ macOS builds its disk image from a Python 3.13 virtual environment with `require
 
 On first run NarrateX downloads the Kokoro model weights (around 330 MB) and every voice it offers
 from HuggingFace Hub.
-After that the reading path is entirely offline; the one recurring network request is a daily
-check of this project's GitHub releases for a newer version, which carries nothing about you or
-your books and fails silently without a connection.
+After that, reading needs no connection. While one is available, two requests recur: a daily check
+of this project's GitHub releases for a newer version; the Hugging Face library that Kokoro loads
+through asking huggingface.co whether the model and voice files it has cached are current, each
+time the voice engine loads them. Neither carries anything about you or your books; both fall
+back silently without a connection.
 
 ## Tests
 
 ```powershell
+$env:QT_QPA_PLATFORM = 'offscreen'
 venv\Scripts\python.exe -m pytest -q
 ```
 

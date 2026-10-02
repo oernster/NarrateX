@@ -75,9 +75,10 @@ version literal:
 - the packagers ([`buildexe.py`](buildexe.py), [`buildinstaller.py`](buildinstaller.py),
   [`builddmg.py`](builddmg.py), [`buildlinux.py`](buildlinux.py),
   [`build_flatpak.sh`](build_flatpak.sh)) ship `VERSION` beside the package. Where a packager
-  needs the number itself it reads the same file: `builddmg.py` and `stamp_version.py` through
-  their own `read_version()` carrying the same sentinel, `build_flatpak.sh` directly and the
-  installer payload through `voice_reader/version.py`
+  needs the number itself it reads the same file: `builddmg.py` through its own `read_version()`
+  carrying the same sentinel, `stamp_version.py` through one that refuses an empty file rather
+  than stamping a sentinel onto the site, `build_flatpak.sh` directly and the installer payload
+  through `voice_reader/version.py`
 - the published site pages, which cannot read a file at render time, carry delimited tokens
   refreshed from `VERSION` by [`stamp_version.py`](stamp_version.py). `buildexe.py` and
   `buildinstaller.py` call it before packaging, so the sweep is a build rule rather than a

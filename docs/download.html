@@ -62,7 +62,7 @@
         <!-- The version between the delimiters is written by stamp_version.py from the
              repo-root VERSION file; the script runs at the start of every packaged build.
              The decorator below replaces it with the live release tag when GitHub answers. -->
-        <span class="dl-version" id="dl-version">Version <!--VERSION-->5.1.1<!--/VERSION--></span>
+        <span class="dl-version" id="dl-version">Version <!--VERSION-->5.2.0<!--/VERSION--></span>
 
         <div class="downloads">
             <div class="dl-card">
@@ -113,7 +113,7 @@
             </div>
             <div class="faq-item">
                 <h3>Does NarrateX work offline?</h3>
-                <p>Yes. NarrateX runs entirely on your device with no cloud dependency. Nothing you read is uploaded anywhere. Beyond the one-off voice-model download, its only recurring network request is a daily check of the project's GitHub releases for a newer version; it carries nothing about you and fails silently without a connection.</p>
+                <p>Yes. NarrateX runs entirely on your device with no cloud dependency. Nothing you read is uploaded anywhere. Once the voice model is downloaded, reading needs no connection. While one is available, two requests recur: a daily check of the project's GitHub releases for a newer version; the voice library asking Hugging Face whether its downloaded model files are current. Neither carries anything about you or your books; both fall back silently without a connection.</p>
             </div>
             <div class="faq-item">
                 <h3>What does the narration sound like?</h3>
@@ -155,7 +155,7 @@
         {
             "@type": "Question",
             "name": "Does NarrateX work offline?",
-            "acceptedAnswer": { "@type": "Answer", "text": "Yes. NarrateX runs entirely on your device with no cloud dependency. Nothing you read is uploaded anywhere. Beyond the one-off voice-model download, its only recurring network request is a daily check of the project's GitHub releases for a newer version; it carries nothing about you and fails silently without a connection." }
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. NarrateX runs entirely on your device with no cloud dependency. Nothing you read is uploaded anywhere. Once the voice model is downloaded, reading needs no connection. While one is available, two requests recur: a daily check of the project's GitHub releases for a newer version; the voice library asking Hugging Face whether its downloaded model files are current. Neither carries anything about you or your books; both fall back silently without a connection." }
         },
         {
             "@type": "Question",

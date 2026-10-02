@@ -146,8 +146,11 @@ understanding the text: a contents-heavy book is not a badly parsed one.
     - [`GitHubReleaseSource`](voice_reader/infrastructure/update/github_release_source.py): implements
       the domain `ReleaseSource` with a single best-effort stdlib `urllib` GET of GitHub's
       latest-release endpoint (published releases only, so drafts, prereleases and bare tags can
-      never prompt); the opener is injected so tests never touch the network. Beyond the one-off
-      Kokoro weight download, this is the application's only outbound network call. The application
+      never prompt); the opener is injected so tests never touch the network. Beyond the Kokoro
+      model files, this is the application's only outbound network call. Those are downloaded once
+      by the preflight; after that, each time Kokoro loads one, the Hugging Face library asks
+      huggingface.co whether the cached copy is current when a connection exists and falls back to
+      the cache when it does not (NarrateX does not set `HF_HUB_OFFLINE`). The application
       [`UpdateService`](voice_reader/application/services/update_service.py) compares the running
       version against it (honouring a skipped version, picking the platform asset by filename
       suffix) and the ui [`UpdateCheckController`](voice_reader/ui/update_check.py) owns the
@@ -224,12 +227,13 @@ Startup is in [`main()`](app.py):
 
 When the user selects a book:
 
-- File picker is opened by [`UiController.select_book()`](voice_reader/ui/ui_controller.py)
-- The book is loaded via [`NarrationService.load_book()`](voice_reader/application/services/narration_service.py)
-  - which delegates to [`LocalBookRepository.load()`](voice_reader/infrastructure/books/repository.py)
-    - which may convert via [`CalibreConverter.convert_to_epub_if_needed()`](voice_reader/infrastructure/books/converter.py)
-    - then parses via [`BookParser.parse()`](voice_reader/infrastructure/books/parser.py)
-- The UI text view is updated immediately (`setPlainText`) via [`MainWindow.set_reader_text()`](voice_reader/ui/main_window.py)
+- File picker is opened by [`UiController.select_book()`](voice_reader/ui/ui_controller.py), which hands the chosen path to [`load_selected_book()`](voice_reader/ui/_ui_controller_book_loading.py). The shelf and the auto-load of the last book open through the same function.
+- In the running application the load happens in a child process ([`book_load_worker.py`](voice_reader/book_load_worker.py); see the concurrency model below). The child loads through [`LocalBookRepository.load()`](voice_reader/infrastructure/books/repository.py)
+  - which may convert via [`CalibreConverter.convert_to_epub_if_needed()`](voice_reader/infrastructure/books/converter.py)
+  - then parses via [`BookParser.parse()`](voice_reader/infrastructure/books/parser.py)
+  - then builds the render plan and the chapter index and reads the cover via [`CoverExtractor.extract_cover_bytes()`](voice_reader/infrastructure/books/cover_extractor.py)
+- The parent hands the book to [`NarrationService.adopt_book()`](voice_reader/application/services/narration_service.py); the pane renders the plan via [`MainWindow.set_reader_document()`](voice_reader/ui/main_window.py), falling back to the plain text via [`MainWindow.set_reader_text()`](voice_reader/ui/main_window.py) where there is no plan
+- Without an injected loader (the tests), the same work runs in-process ([`_book_load_compute.py`](voice_reader/ui/_book_load_compute.py)) through [`NarrationService.load_book()`](voice_reader/application/services/narration_service.py) and the injected cover port
 
 ### 2.5) Click-to-seek reading position (chunk-relative)
 
@@ -263,14 +267,14 @@ Implementation wiring:
   - persists resume immediately via [`BookmarkService.save_resume_position()`](voice_reader/application/services/bookmark_service.py)
     using the resolved chunk start offset and candidate index.
 
-Cover extraction is best-effort and UI-facing:
+Cover extraction is best-effort:
 
-- [`UiController.select_book()`](voice_reader/ui/ui_controller.py) calls [`CoverExtractor.extract_cover_bytes()`](voice_reader/infrastructure/books/cover_extractor.py)
+- the child process calls [`CoverExtractor.extract_cover_bytes()`](voice_reader/infrastructure/books/cover_extractor.py) and returns the bytes with the book; a failure yields no cover rather than a failed load
 - [`MainWindow.set_cover_image()`](voice_reader/ui/main_window.py) decodes the returned bytes into a `QImage` and renders a scaled `QPixmap`
 
 Important layering note:
 
-- UI does **not** import Infrastructure directly. [`UiController`](voice_reader/ui/ui_controller.py) depends on the application port [`CoverExtractor`](voice_reader/application/interfaces/cover_extractor.py) and receives a concrete implementation via the composition root in [`main()`](app.py).
+- UI does **not** import Infrastructure directly. [`UiController`](voice_reader/ui/ui_controller.py) depends on the application port [`CoverExtractor`](voice_reader/application/interfaces/cover_extractor.py) and receives a concrete implementation via the composition root in [`main()`](app.py), for the in-process path; the child process is a composition root of its own.
 
 Cover extraction strategy (ordered):
 
@@ -508,18 +512,18 @@ Tests are organized to mirror the architecture.
 sequenceDiagram
   participant User
   participant UI as UiController
+  participant W as Book-load child process
   participant NS as NarrationService
-  participant BR as BookRepository
-  participant CE as CoverExtractor
   participant TTS as TTSEngine
   participant CR as CacheRepository
   participant AS as AudioStreamer
 
   User->>UI: Select book
-  UI->>NS: load_book
-  NS->>BR: load
-  UI->>CE: extract_cover_bytes
-  UI->>UI: set_reader_text and set_cover_image
+  UI->>W: load in subprocess
+  W->>W: repository load, render plan, chapters, cover
+  W-->>UI: book, plan, chapters, cover
+  UI->>NS: adopt_book
+  UI->>UI: set_reader_document and set_cover_image
 
   User->>UI: Play
   UI->>NS: prepare

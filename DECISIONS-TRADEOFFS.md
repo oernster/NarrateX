@@ -34,8 +34,8 @@ Speech comes from one engine, Kokoro, using its built-in voices.
 
 ### English voices only, all of them offered
 
-The picker offers Kokoro's whole English inventory: 28 voices, British and
-American. British voices are listed first.
+The picker offers Kokoro's whole English inventory, British and American.
+British voices are listed first.
 
 - **Rather than:** a curated handful; regions Kokoro does not ship.
 - **Gains:** the reader chooses from everything the engine can say.
@@ -65,17 +65,20 @@ measurement that forced them.
 
 ## Privacy and the network
 
-### Two ways out, both named
+### The ways out, all named
 
-Beyond the one-off download of the voice model, the only request NarrateX
-makes is the update check. The donate button hands its address to the
-desktop's browser through one function and stops there; a second launch talks
-to the first over a local channel, not the network.
+NarrateX itself makes two kinds of request: the voice model download and the
+update check. The voice library also asks its host whether the model files it
+has cached are still current whenever it loads them, falling back to the cache
+without a connection. The donate button hands its address to the desktop's
+browser and stops there; a second launch talks to the first over a local
+channel, not the network.
 
 - **Rather than:** network use spread wherever it was convenient.
-- **Gains:** "nothing leaves the device" can be checked by reading two
-  modules.
-- **Costs:** NarrateX never learns what the browser did next.
+- **Gains:** "nothing you read leaves the device" can be checked by reading a
+  handful of places; none of the requests carries anything about the reader.
+- **Costs:** NarrateX never learns what the browser did next; the voice
+  library's own check is left at its default rather than switched off.
 
 ### The voice model is fetched once, before the window opens
 
@@ -141,15 +144,15 @@ guessed at.
 
 ### Structure only when it is trusted
 
-The structured model is kept only when it accounts for at least nine tenths
-of the text and finds real body content. Otherwise the book is read as one
-plain, unstructured document through the same code path.
+The structured model is kept only when it accounts for nearly all of the text
+and finds real body content. Otherwise the book is read as one plain,
+unstructured document through the same code path.
 
-- **Rather than:** the half the threshold was while the model only drove the
-  display. Once it decided what is spoken, a model covering six tenths would
-  have read six tenths of the book aloud without a sign of the rest.
+- **Rather than:** the far lower bar used while the model only drove the
+  display. Once it decided what is spoken, a model covering part of a book
+  would have read only that part aloud without a sign of the rest.
 - **Gains:** a failed extraction costs structure, never text. The real books
-  measured sit at 0.96 and above, well clear of the line.
+  measured sit well clear of the line.
 - **Costs:** a book just under the line loses its chapters entirely.
 
 ### Shown and spoken are one policy
@@ -187,8 +190,8 @@ English never numbers ("Prologue") counts. Each applies only where the one
 above found nothing.
 
 - **Rather than:** one rule for every book; treating a wholly emphasised line
-  as a heading, which was measured at 50.9% precision alone and dragged the
-  keyword rule from 96.8% to 62.3%.
+  as a heading, which measured as little better than a coin toss and dragged
+  the keyword rule's precision down with it.
 - **Gains:** Kindle conversions that state no headings gain a chapter spine;
   every EPUB that states its own is untouched.
 - **Costs:** a book whose chapters carry only prose names and no navigation
@@ -202,11 +205,11 @@ tag covering more of a book than plain paragraphs do is indentation, so the
 book is read as prose.
 
 - **Rather than:** a fixed proportion to tune; reading a repeated line as
-  furniture on repetition alone, which measured over eleven books would also
-  have taken a chapter opening and three chapter numbers.
-- **Gains:** one book stopped hearing its title 130 times; another stopped
-  rendering entirely in italic. Both rules are comparisons, so there is
-  nothing to tune.
+  furniture on repetition alone, which measured over a set of real books
+  would also have taken a chapter opening and chapter numbers.
+- **Gains:** one book stopped hearing its title on every page; another
+  stopped rendering entirely in italic. Both rules are comparisons, so there
+  is nothing to tune.
 - **Costs:** a book that genuinely quotes more than it narrates would be read
   as prose; none has been seen.
 
@@ -252,9 +255,9 @@ the pane is then applied in one batch with drawing suspended.
 
 - **Rather than:** a worker thread, which still froze the window because the
   parse is pure Python holding the interpreter lock; formatting the visible
-  pane block by block, which took 11.9 seconds on the largest book.
-- **Gains:** measured on the combined hardback, a 2.9 second load with the
-  window live throughout; the formatting pass fell to 0.06 seconds.
+  pane block by block, which took many seconds on the largest book.
+- **Gains:** the largest book measured loads in a few seconds with the window
+  live throughout; formatting the pane became near instant.
 - **Costs:** a second composition root for the child process; the cost of
   starting an interpreter on every open.
 
@@ -270,8 +273,9 @@ status line names the chapter and how far through it the reader is.
 - **Rather than:** stopping at every sub-heading; a fixed heading level,
   when a chapter is level 3 in one book and level 2 in another; a count of
   text fragments.
-- **Gains:** on the combined hardback the stops fell from 1,153 to 167; the
-  status answers a question a listener has.
+- **Gains:** on the largest book measured the stops fell from over a thousand
+  to the chapters a reader would name; the status answers a question a
+  listener has.
 - **Costs:** a sub-heading is reached through Sections rather than by
   pressing Next.
 
@@ -281,8 +285,8 @@ Only an initialism the author marked with stops, such as U.K., is spelled
 out. A run of capitals is left for the voice engine, which already tells an
 initialism from a word.
 
-- **Rather than:** spelling out any run of two to six capitals, which fired
-  504 times in one novel, roughly 73 of them real initialisms.
+- **Rather than:** spelling out any short run of capitals, which in one novel
+  fired hundreds of times, only a small fraction of them real initialisms.
 - **Gains:** a scream in capitals is read as a scream.
 - **Costs:** an undotted initialism the engine reads badly is read badly.
 
@@ -370,10 +374,10 @@ A scan and the covers it draws never start a process. Kindle titles, authors
 and covers are read straight from the file's own header; a test fails if any
 process is started for any format.
 
-- **Rather than:** a Calibre conversion per book, measured at 2.3 seconds
-  each, which is 54 minutes over a library of about 2,800 files.
-- **Gains:** the direct read covered 2,784 Kindle files in 5 seconds and
-  recovered 2,296 covers.
+- **Rather than:** a Calibre conversion per book, which over the reference
+  library of a few thousand files measured close to an hour.
+- **Gains:** the direct read covered the same library in seconds and
+  recovered most of its covers.
 - **Costs:** a reader of the Kindle container to maintain; a format without
   that container reaches a cover only through a sidecar image.
 
@@ -383,8 +387,9 @@ Title and author come from a Calibre sidecar first, then the file's own
 header, then the filename. Covers come from an image beside the book, then
 the file itself. The sidecar is never asked about the cover.
 
-- **Rather than:** trusting the sidecar's cover field, which none of the 652
-  sidecars measured filled in while 541 books had an image beside them.
+- **Rather than:** trusting the sidecar's cover field, which none of the
+  sidecars measured filled in while hundreds of books had an image beside
+  them.
 - **Gains:** each source is asked the question it actually answers.
 - **Costs:** none recorded.
 
@@ -427,8 +432,8 @@ on a drive that is not connected keeps its books on the shelf and is named
 to the reader.
 
 - **Rather than:** rebuilding the index on every scan.
-- **Gains:** a rescan of 2,819 files was measured at 0.2 seconds, re-reading
-  nothing; unplugging a drive costs nothing.
+- **Gains:** a rescan of an unchanged library was measured at a fraction of a
+  second, re-reading nothing; unplugging a drive costs nothing.
 - **Costs:** a folder that is genuinely gone keeps its books on the shelf.
 
 ### The reader's own word survives everything
@@ -461,7 +466,7 @@ The reader can file one book under a genre. Ctrl or Shift gathers several;
 the whole gathering is then filed at once. The dialog opens on the genres
 every gathered book already shares, since ticking replaces rather than adds.
 
-- **Rather than:** one book at a time, which over a thousand works is not a
+- **Rather than:** one book at a time, which over a large library is not a
   task anyone completes.
 - **Gains:** a library's filing can be done in a sitting.
 - **Costs:** a click has to say what it means: a plain click opens, a
@@ -469,8 +474,8 @@ every gathered book already shares, since ticking replaces rather than adds.
 
 ### The shelf fills while the scan runs
 
-A running scan hands the shelf a new batch only when a hundred entries and a
-quarter of a second have both passed since the last.
+A running scan hands the shelf a new batch only when both a number of
+entries and a slice of time have passed since the last.
 
 - **Rather than:** a count alone, which floods a cached walk; a clock alone,
   which leaves a walk over a sleeping drive motionless; an empty shelf until
@@ -490,11 +495,11 @@ A second scan while one runs is refused rather than queued.
 
 The grid and the list are one view over one model in two modes, drawn by a
 delegate. No tile is a live widget. Covers are read off the painting thread
-and the decoded pictures held in a bounded cache of 200.
+and the decoded pictures held in a bounded cache.
 
 - **Rather than:** a widget per tile; a second view for the list.
-- **Gains:** 791 works drew with no tile widgets at all; switching between
-  grid and list loses and reorders nothing.
+- **Gains:** a library of hundreds of works draws with no tile widgets at
+  all; switching between grid and list loses and reorders nothing.
 - **Costs:** every visual detail of a tile is drawing code.
 
 ### A thumbnail is made when a tile needs it
@@ -502,12 +507,11 @@ and the decoded pictures held in a bounded cache of 200.
 Reduced covers are made the first time a tile is drawn rather than during a
 scan. They are kept lossless in the cache directory.
 
-- **Rather than:** a cover pass during the scan, measured at 17.5 seconds
-  against a scan of about one, for 791 works of which a reader sees two
-  dozen.
-- **Gains:** the shelf appears sooner; a cache of 673 covers redraws in 0.06
-  seconds.
-- **Costs:** that cache took 103 MB, the price of a lossless copy.
+- **Rather than:** a cover pass during the scan, measured at many times the
+  cost of the scan itself, for a library of which a reader sees a screenful.
+- **Gains:** the shelf appears sooner; covers already cached redraw almost
+  at once.
+- **Costs:** the cache is far larger than a lossy one would be.
 
 ### The shelf sits beside the open control, inside the window
 
@@ -577,8 +581,8 @@ window opens with no ring showing; the first Tab lands on a real control.
 
 Tab and Right step forward, Shift+Tab and Left step back, the ring wraps and
 follows the visual order. Enter presses the focused button; Down opens a
-closed dropdown and Space or Tab commits from an open one. The volume moves
-five per cent per arrow.
+closed dropdown and Space or Tab commits from an open one. The arrows move
+the volume in fixed steps.
 
 - **Rather than:** Qt's defaults, where arrows changed a closed dropdown
   silently and wandered focus by geometry.
@@ -692,8 +696,8 @@ with a message outside Python 3.10 to 3.12. A packaged build skips the check.
 
 On Windows the setup program installs into the user's own folders and
 registry. Uninstalling removes the user's data too unless the setup program
-was started with `--keep-user-data`; the confirmation names the bookmarks and
-the shelf when they will go and says the data is kept when it will stay.
+was told to keep it; the confirmation names the bookmarks and the shelf when
+they will go and says the data is kept when it will stay.
 
 - **Rather than:** a machine-wide install; leaving data behind by default.
 - **Gains:** no administrator prompt; a default uninstall leaves nothing.
@@ -705,8 +709,8 @@ the shelf when they will go and says the data is kept when it will stay.
 Install, repair and removal are one bespoke program wearing the
 application's look. Unpacking and repair report progress weighted by bytes.
 A payload entry that would land outside the install folder is refused. A
-locked file is waited on for up to ten seconds; a lock that outlasts the wait
-names the process holding it.
+locked file is waited on briefly; a lock that outlasts the wait names the
+process holding it.
 
 - **Rather than:** a generic installer.
 - **Gains:** a bar that moves honestly; a repair that survives the moment
@@ -742,12 +746,13 @@ setup program's licence dialog says its text covers the setup program only.
 ### A website without dates, honest about the voices
 
 The site is published from its own directory, carries no dates and leads
-with long-form structure rather than the number of voices. It says the
-voices are less natural than the cloud services and what that buys.
+with long-form structure rather than the number of voices. The home page
+makes the case and points the way; the features have a page of their own. It
+says the voices are less natural than the cloud services and what that buys.
 Stylesheet links carry a hash of their content.
 
-- **Rather than:** a version chip with a release date; leading with 28
-  voices, which invites the one comparison cloud services win.
+- **Rather than:** a version chip with a release date; leading with the
+  number of voices, which invites the one comparison cloud services win.
 - **Gains:** nothing on the site goes stale by the calendar; a browser never
   pairs a new page with an old stylesheet.
 - **Costs:** the pages have to be stamped from the source before each build.
@@ -757,7 +762,7 @@ Stylesheet links carry a hash of their content.
 ### Layers with few places where they meet
 
 The code is split into domain, application, infrastructure and interface,
-each depending only inward. Wiring happens only in four named composition
+each depending only inward. Wiring happens only in a few named composition
 roots, the book-loading child among them. Structural tests hold both rules.
 
 - **Rather than:** convention alone.
@@ -780,11 +785,12 @@ measured source altogether.
 
 ### Small modules, never nearly full
 
-No module may exceed four hundred lines. None may sit between 381 and 399
-either: a file there is cut to 350 or below. Build scripts are exempt by name.
+No module may exceed a fixed line cap, nor sit in the last few lines below
+it: a file that reaches that band is cut well below the cap rather than
+trimmed. Build scripts are exempt by name.
 
-- **Rather than:** a cap alone, which let a file sit at 399 and fail on the
-  next unrelated edit.
+- **Rather than:** a cap alone, which let a file sit one line under it and
+  fail on the next unrelated edit.
 - **Gains:** modules split at real seams, once.
 - **Costs:** many small files.
 
@@ -822,7 +828,7 @@ states its fallback and why it stays broad.
 A test that starts a worker waits on the worker's own answer, with a
 deadline that reports itself, rather than polling for a fixed time.
 
-- **Rather than:** a half-second poll, which failed eight runs in ten on a
-  busy machine and blamed the wrong code.
+- **Rather than:** a fixed short poll, which failed most runs on a busy
+  machine and blamed the wrong code.
 - **Gains:** a slow machine makes a test slower, not red.
 - **Costs:** none recorded.

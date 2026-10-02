@@ -114,8 +114,11 @@ This repo enforces **100% test coverage** for the configured runtime scope.
 On Windows, prefer the venv interpreter so a global one cannot be picked up by accident:
 
 ```powershell
+$env:QT_QPA_PLATFORM = 'offscreen'
 venv\Scripts\python.exe -m pytest
 ```
+
+The offscreen platform keeps the Qt tests' windows off the desktop; nothing in the suite sets it.
 
 The gate prints the coverage table last and emits no "N passed" line, so read the exit code rather
 than the text: `0` means every test passed and the gate was met.

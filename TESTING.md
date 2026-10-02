@@ -20,7 +20,8 @@ On Windows if you have a project-local venv, prefer invoking pytest via the venv
 venv\Scripts\python.exe -m pytest -q
 ```
 
-Qt tests need an offscreen platform when running headless:
+Set the offscreen platform first. Nothing in the suite chooses one, so without it the Qt tests
+draw their windows on the real desktop:
 
 ```powershell
 $env:QT_QPA_PLATFORM = 'offscreen'
@@ -39,24 +40,13 @@ python -m flake8
 python -m ruff check .
 ```
 
-## Windows UI QA matrix (installer + app)
+## What is checked by hand
 
-Some UI regressions only reproduce under Windows display scaling / accessibility
-text sizing / mixed-DPI multi-monitor setups.
-
-When validating a UI sizing/layout fix (especially the installer header in
-[`InstallerMainWindow`](installer/ui/main_window.py)), test at least:
-
-- Display scale: 100%, 125%, 150% (Windows Settings → System → Display)
-- Accessibility → Text size: 100%, 110%+
-- Single monitor vs 2+ monitors with *mixed* scale factors
-- Move the window between monitors and confirm text remains un-clipped
-
-Tooltips over an inactive window cannot be checked under the offscreen platform, because it does
-not model window activation faithfully. To check them, run the application on the real
-Windows platform, click into another program and hover a picture button: the tooltip should appear.
-[`tests/ui/test_inactive_tooltips.py`](tests/ui/test_inactive_tooltips.py) pins the part that is
-ours, that every top-level window carries the attribute once shown.
+Two things the offscreen platform cannot model are checked by hand in a real build on Windows:
+layout under display scaling, larger text sizes and mixed-scale monitors (the installer header
+above all); tooltips over an inactive window, since the offscreen platform does not model window
+activation faithfully. [`tests/ui/test_inactive_tooltips.py`](tests/ui/test_inactive_tooltips.py)
+pins the part that is ours, that every top-level window carries the attribute once shown.
 
 ## Coverage exclusions
 
@@ -92,15 +82,15 @@ match the dependency direction the layers themselves obey:
 | `tests/domain/` | `voice_reader.domain` | Pure business logic. Tests are pure and must not perform IO or import framework code. |
 | `tests/application/` | `voice_reader.application` | Orchestration/services. Tests target the controller/service boundary; Infrastructure is stubbed. |
 | `tests/infrastructure/` | `voice_reader.infrastructure` | Adapters implementing domain ports. External processes and heavy imports are stubbed. Sub-suites: `infrastructure/audio/`, `infrastructure/books/`, `infrastructure/shelf/`, `infrastructure/tts/`. |
-| `tests/ui/` | `voice_reader.ui` | PySide UI. Tests assert controller behavior and signals, not brittle widget trees. Run under an offscreen Qt platform (see the `qapp` fixture in [`tests/conftest.py`](tests/conftest.py)). |
+| `tests/ui/` | `voice_reader.ui` | PySide UI. Tests assert controller behavior and signals, not brittle widget trees. Run under the offscreen Qt platform the runner sets (see Quick commands); the `qapp` fixture in [`tests/conftest.py`](tests/conftest.py) creates the application but does not choose its platform. |
 | `tests/shared/` | `voice_reader.shared` | Lowest-level helpers (logging/config/paths/runtime). |
 | `tests/installer/` | `installer/` | Installer entrypoint and installer UI. |
 | `tests/` (top level) | `app.py`, `voice_reader/bootstrap.py`, `voice_reader/book_load_worker.py`, `voice_reader/version.py` | Composition-root / entrypoint and process-boot behavior (app identity, icon fallback, preflight, book-load worker) plus the version single-source check. |
 | `tests/structural/` | the codebase as a whole | AST/structural guards, not behavior. See below. |
 
-Shared fixtures live in [`tests/conftest.py`](tests/conftest.py) - notably a
-session-scoped offscreen `qapp` and an autouse per-test Qt-window cleanup, so UI
-tests never leak windows or an event loop between cases.
+Shared fixtures live in [`tests/conftest.py`](tests/conftest.py): notably a
+session-scoped `qapp` and an autouse per-test Qt-window cleanup, so UI tests never
+leak windows or an event loop between cases.
 
 ### Structural tests (`tests/structural/`)
 
