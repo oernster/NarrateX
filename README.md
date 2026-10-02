@@ -153,6 +153,8 @@ Domain that has no I/O and no framework. Layer boundaries, the composition-root 
 enforced by structural tests at every test run. See
 [ARCHITECTURE.md](ARCHITECTURE.md) for the invariants and the full design;
 [ARCHITECTURE_CONSTRAINTS.md](ARCHITECTURE_CONSTRAINTS.md) holds the constraints themselves.
+[`DECISIONS-TRADEOFFS.md`](DECISIONS-TRADEOFFS.md) sets out the decisions NarrateX rests on, with
+what each one gains and what it costs.
 
 ## Screenshots
 
