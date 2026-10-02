@@ -100,7 +100,9 @@ is written by hand.
   [`buildexe.py`](buildexe.py) and [`buildinstaller.py`](buildinstaller.py) call before packaging
 
 To release a new version, edit `VERSION` and nothing else. Run `python stamp_version.py` if you
-want the site updated before a build; it is idempotent and prints what it touched.
+want the site updated before a build; it is idempotent and prints what it touched. It also puts
+a content hash on every local stylesheet and script link in the site (`styles.css?v=<hash>`) so a
+browser cannot pair a fresh page with a stale cached stylesheet.
 
 ## Tests / Coverage
 

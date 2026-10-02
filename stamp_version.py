@@ -34,6 +34,12 @@ tracked markdown file in this repository carries a version and none may acquire
 one; the single source of truth is `VERSION` and every document refers to it
 rather than restating it.
 
+It also versions each page's own asset links. GitHub Pages lets a browser keep
+a stylesheet for ten minutes, so a fresh page can arrive beside its stale CSS
+and render broken. Every local `href="x.css"` or `src="x.js"` therefore carries
+`?v=<hash>` of the file's content, taken with CRLF folded to LF so a Windows
+checkout and the LF blob GitHub serves give the same hash.
+
 The script is idempotent. Running it twice reports nothing the second time.
 
 Usage::
@@ -46,6 +52,7 @@ release cannot ship with a stale site.
 
 from __future__ import annotations
 
+import hashlib
 import re
 import sys
 from pathlib import Path
@@ -59,6 +66,15 @@ SITE_PAGE_GLOB = "*.html"
 
 MARKUP_TOKEN = re.compile(r"(<!--VERSION-->)(.*?)(<!--/VERSION-->)", re.DOTALL)
 JSONLD_TOKEN = re.compile(r'("softwareVersion"\s*:\s*")([^"]*)(")')
+
+# A stylesheet or script reference; any query it already has is replaced.
+ASSET_LINK = re.compile(
+    r"""(?<![\w-])((?:href|src)=)(["'])"""
+    r"""([^"'?#]+\.(?:css|js))(?:\?[^"'#]*)?(#[^"']*)?\2"""
+)
+# Only relative paths are local files: a scheme, `//` or a leading `/` is not.
+NOT_RELATIVE = re.compile(r"^(?:[A-Za-z][A-Za-z0-9+.-]*:|/)")
+ASSET_HASH_LENGTH = 10
 
 
 def read_version() -> str:
@@ -100,6 +116,44 @@ def stamp_file(path: Path, version: str) -> int:
     return changed
 
 
+def asset_hash(path: Path) -> str:
+    """The content hash of one asset, with CRLF folded to LF first."""
+    if not path.is_file():
+        raise FileNotFoundError(f"a site page links to a missing asset: {path}")
+    data = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()[:ASSET_HASH_LENGTH]
+
+
+def link_text(text: str, page_dir: Path) -> tuple[str, int]:
+    """Return the text with hashed asset links and how many links changed."""
+    changed = 0
+
+    def _replace(match: re.Match[str]) -> str:
+        nonlocal changed
+        attribute, quote, target, fragment = match.groups()
+        if NOT_RELATIVE.match(target):
+            return match.group(0)
+        digest = asset_hash(page_dir / target)
+        linked = f"{attribute}{quote}{target}?v={digest}{fragment or ''}{quote}"
+        if linked != match.group(0):
+            changed += 1
+        return linked
+
+    return ASSET_LINK.sub(_replace, text), changed
+
+
+def link_file(path: Path) -> int:
+    """Hash the asset links of one page in place; return how many changed."""
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        original = handle.read()
+
+    linked, changed = link_text(original, path.parent)
+    if changed:
+        with path.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(linked)
+    return changed
+
+
 def site_pages() -> list[Path]:
     """Every published page, in a stable order."""
 
@@ -129,6 +183,20 @@ def main() -> int:
             print(f"  {name} ({changed} {noun})")
     else:
         print(f"stamp_version: every page already at {version}; nothing to do.")
+
+    linked: list[tuple[str, int]] = []
+    for path in pages:
+        changed = link_file(path)
+        if changed:
+            linked.append((path.relative_to(PROJECT_ROOT).as_posix(), changed))
+
+    if linked:
+        print("stamp_version: versioned asset links in:")
+        for name, changed in linked:
+            noun = "link" if changed == 1 else "links"
+            print(f"  {name} ({changed} {noun})")
+    else:
+        print("stamp_version: every asset link already current; nothing to do.")
 
     return 0
 
