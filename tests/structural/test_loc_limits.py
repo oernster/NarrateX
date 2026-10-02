@@ -22,22 +22,16 @@ _BUILD_SCRIPTS = frozenset(
         "buildexe.py",
         "buildinstaller.py",
         "builddmg.py",
-        "dmg_icon.py",
-        "build_utils.py",
         "build_payload.py",
         "generate_icons.py",
-        "generate_scripts.py",
         "stamp_version.py",
     }
 )
 
-
-def _is_in_scope_python_file(path: Path, *, repo_root: Path) -> bool:
-    if path.suffix != ".py":
-        return False
-
-    parts = {p.lower() for p in path.parts}
-    excluded = {
+# Folders that hold no code of this repo's own: tooling, environments and build
+# output. A file under any of them is neither measured nor counted as present.
+_EXCLUDED_DIRS = frozenset(
+    {
         ".git",
         "__pycache__",
         "venv",
@@ -50,7 +44,18 @@ def _is_in_scope_python_file(path: Path, *, repo_root: Path) -> bool:
         ".flatpak-repo",
         ".flatpak-wheels",
     }
-    if parts & excluded:
+)
+
+
+def _is_excluded(path: Path) -> bool:
+    return bool({p.lower() for p in path.parts} & _EXCLUDED_DIRS)
+
+
+def _is_in_scope_python_file(path: Path, *, repo_root: Path) -> bool:
+    if path.suffix != ".py":
+        return False
+
+    if _is_excluded(path):
         return False
 
     # "Everything" means everything that is part of this repo's code and tests,
@@ -160,3 +165,24 @@ def test_no_in_scope_python_file_sits_in_the_danger_band() -> None:
             "lines to sit just under the cap, because the next edit undoes it.\n"
             + _report(offenders)
         )
+
+
+def test_the_build_script_exemption_has_no_stale_entries() -> None:
+    """An exemption for a file that does not exist is a hole, not a rule.
+
+    A deleted or renamed build script would otherwise leave a name behind that
+    silently exempts whatever takes it next.
+    """
+
+    root = _repo_root()
+
+    missing = sorted(
+        name
+        for name in _BUILD_SCRIPTS
+        if not any(not _is_excluded(p.relative_to(root)) for p in root.rglob(name))
+    )
+
+    assert not missing, (
+        "These names are exempt from the size cap but no file carries them. "
+        "Remove them from _BUILD_SCRIPTS:\n" + "\n".join(f"- {n}" for n in missing)
+    )

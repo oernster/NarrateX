@@ -40,7 +40,7 @@ line-length = 88
 [tool.ruff.lint.per-file-ignores]
 # app.py checks the interpreter version before its heavy imports, so those
 # imports deliberately sit below a statement. This mirrors the same exemption
-# already encoded for flake8 in setup.cfg.
+# already encoded for flake8 in .flake8.
 "app.py" = ["E402"]
 
 [tool.pytest.ini_options]
