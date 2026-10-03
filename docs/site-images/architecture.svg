@@ -1,6 +1,6 @@
 <svg viewBox="0 0 920 396" xmlns="http://www.w3.org/2000/svg" role="img">
 <title>NarrateX clean architecture</title>
-<desc>Four layers left to right: UI, Application, Domain, Infrastructure, with arrows pointing inward to the pure Domain. Composition root and Shared are cross-cutting bands. Boundaries are enforced by AST tests, 100 percent coverage, a 400 line file limit and a no magic numbers rule.</desc>
+<desc>Four layers left to right: UI, Application, Domain, Infrastructure, with arrows pointing inward to the pure Domain. Composition root and Shared are cross-cutting bands. Boundaries are enforced by AST tests, 100 percent coverage, a 400 line file limit and a no emoji rule.</desc>
 <defs>
 <marker id="nx-ah" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto" markerUnits="userSpaceOnUse"><path d="M0,0 L7,3 L0,6 Z" fill="#4a5568"/></marker>
 <style>
@@ -56,6 +56,6 @@ text{font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,s
 <rect class="band" x="45" y="264" width="830" height="32" rx="8"/>
 <text class="bandtx" x="460" y="284" text-anchor="middle">Shared · Config · Errors · external_runtime · logging</text>
 <rect class="foot" x="45" y="312" width="830" height="36" rx="8"/>
-<text class="foottx" x="460" y="334" text-anchor="middle">Enforced every test run:   AST boundary tests   ·   100% coverage   ·   &#8804;400 LOC / file   ·   no magic numbers</text>
+<text class="foottx" x="460" y="334" text-anchor="middle">Enforced every test run:   AST boundary tests   ·   100% coverage   ·   &#8804;400 LOC / file   ·   no emoji</text>
 <text class="cap" x="460" y="372" text-anchor="middle">Arrows show dependency direction. UI and Infrastructure point inward to the pure Domain, which has no I/O and no framework.</text>
 </svg>

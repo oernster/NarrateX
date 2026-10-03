@@ -639,13 +639,16 @@ defaults to Cancel. The file stays on disk.
 - **Gains:** a fresh start on one book costs nothing on disk.
 - **Costs:** none recorded.
 
-### A press never ends in a traceback
+### Play and Pause never end in a traceback
 
-Transport controls catch anything unexpected at the slot, log it and say so
-in the status line.
+The Play and Pause button catches anything unexpected at its slot, logs it
+and says so in the status line. Stop and the other transport controls are not
+wrapped this way.
 
-- **Rather than:** an error escaping to the console from a button.
-- **Gains:** a click can never crash the window.
+- **Rather than:** an error escaping to the console from the button pressed
+  most.
+- **Gains:** the press most likely to meet a half-ready pipeline reports a
+  fault where the reader can see it.
 - **Costs:** a fault shows as a status message; the log holds the detail.
 
 ### One copy runs
@@ -780,8 +783,9 @@ measured source altogether.
 - **Rather than:** a figure over everything, met by standing in for the
   very hardware worth testing.
 - **Gains:** the whole domain and application layers are fully covered.
-- **Costs:** device and window code relies on targeted tests; two guards that
-  cannot fire by construction stay uncovered and say why.
+- **Costs:** device and window code relies on targeted tests; lines marked
+  as excluded from coverage, such as guards that cannot fire by construction
+  and broad exception handlers, are not measured at all.
 
 ### Small modules, never nearly full
 
