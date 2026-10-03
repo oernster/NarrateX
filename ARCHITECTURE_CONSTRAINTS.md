@@ -15,6 +15,12 @@ The primary package is `voice_reader`, which is organized into layers:
 - `voice_reader.ui`: PySide UI; may depend on Application (+ Domain + Shared) but must not depend on Infrastructure.
 
 Enforced by [`test_layering_rules_for_voice_reader_are_respected()`](tests/structural/test_layering_rules.py).
+The scan reads every spelling of an import: absolute (`import voice_reader.x`), package level
+(`from voice_reader import infrastructure`), relative (`from ..infrastructure import x`, resolved
+against the importing module's package) and `importlib.import_module` or `__import__` called with
+a string constant naming the package. A dynamic import of a computed name cannot be read
+statically and is not claimed. Companion tests in the same file plant each spelling in a scratch
+tree and prove the scan reports it; another fails if the scan ever stops reaching a layer.
 
 ## 2) Composition roots (wiring policy)
 
@@ -38,9 +44,13 @@ Related: the packagers (`buildexe.py`, `builddmg.py`, `buildlinux.py`) are white
 
 ## 3) Module size guardrail
 
-All in-scope `*.py` files must remain at most **400 physical lines**.
+All in-scope `*.py` files must remain at most **400 physical lines**. In scope is everything under
+`voice_reader/`, `installer/` and `tests/` plus every module at the repository root, judged on
+the path from the root, so a checkout that itself sits under a folder named `build` or `venv` is
+still measured. Bytecode caches are the only folders skipped inside those packages. A further
+test fails if the measurement ever stops reaching `app.py` or any of the three packages.
 
-**Exempt: build and packaging scripts.** `buildexe.py`, `buildinstaller.py`, `builddmg.py`, `generate_icons.py`, `stamp_version.py` and `installer/build_payload.py` are allowed to be large. The exemption is by bare file name, listed in the test's `_BUILD_SCRIPTS` set. A third test fails when a listed name no longer matches any file, so a deleted or renamed script cannot leave behind an exemption that silently covers whatever takes its name next. They are linear recipes read top to bottom and splitting a sequence of flags and steps across modules costs more than it buys. The app package, the installer UI and the tests stay fully in scope.
+**Exempt: build and packaging scripts.** `buildexe.py`, `buildinstaller.py`, `builddmg.py`, `buildlinux.py`, `generate_icons.py`, `stamp_version.py` and `installer/build_payload.py` are allowed to be large. The exemption is by path from the repository root, listed in the test's `_BUILD_SCRIPTS` set, so a module that merely shares one of those names elsewhere is measured like any other and a new root-level script is measured until it is listed. A third test fails when a listed path no longer names a file, so a deleted or renamed script cannot leave behind an exemption that silently covers whatever takes its name next. They are linear recipes read top to bottom and splitting a sequence of flags and steps across modules costs more than it buys. The app package, the installer UI and the tests stay fully in scope; companion tests plant a file in each place the scope once let escape and prove it is measured.
 
 Enforced by [`test_all_in_scope_python_files_are_at_most_400_lines()`](tests/structural/test_loc_limits.py).
 

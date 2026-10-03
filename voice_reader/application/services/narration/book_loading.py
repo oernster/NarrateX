@@ -46,6 +46,11 @@ def _finish_load(service: NarrationService, book: "Book", source_path: Path) -> 
         except Exception:
             pass
 
+    message = f"Loaded '{book.title}'"
+    kept_aside = _settle_book_records(service, book)
+    if kept_aside is not None:
+        message += f". Its bookmark file was damaged and is kept as {kept_aside.name}"
+
     service._set_state(
         NarrationState(
             status=NarrationStatus.IDLE,
@@ -54,10 +59,27 @@ def _finish_load(service: NarrationService, book: "Book", source_path: Path) -> 
             prefetch_chunk_id=None,
             total_chunks=None,
             progress=0.0,
-            message=f"Loaded '{book.title}'",
+            message=message,
         )
     )
     return book
+
+
+def _settle_book_records(service: NarrationService, book: "Book") -> Path | None:
+    """Carry the book's record to its current id; the kept-aside copy, if any.
+
+    Best-effort like every other store touch on load: a failure here leaves
+    the record where it was and the book still opens.
+    """
+
+    if service.bookmark_service is None:
+        return None
+    try:
+        return service.bookmark_service.settle_book_records(
+            book_id=str(book.id), legacy_ids=tuple(book.legacy_ids)
+        )
+    except Exception:
+        return None
 
 
 def load_book(service: NarrationService, source_path: Path) -> "Book":
@@ -83,7 +105,7 @@ def forget_current_book(service: NarrationService) -> str | None:
     Stops playback WITHOUT persisting a resume position, purges the cached
     narration audio, deletes the bookmark file (bookmarks plus resume),
     forgets the last-book preference so the book is not auto-loaded next
-    run, then unloads. Returns the removed book id, or None when nothing
+    run, then unloads. Returns the removed book id; None when nothing
     was loaded. The caller owns the ideas index (it holds that service).
     """
 

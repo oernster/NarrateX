@@ -1,4 +1,4 @@
-"""The stand-in narration service, and the chunk and state helpers.
+"""The stand-in narration service plus the chunk and state helpers.
 
 The narration helpers take the whole service and read its internals, so testing
 them needs an object with the right attributes rather than the real service and
@@ -48,6 +48,7 @@ class FakeBook:
     document_model: object = None
     id: str = "book-1"
     title: str = "A Book"
+    legacy_ids: tuple[str, ...] = ()
 
 
 def make_chunks(*texts: str) -> list[TextChunk]:

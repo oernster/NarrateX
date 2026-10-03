@@ -8,6 +8,7 @@ for UI/application code.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from voice_reader.domain.entities.bookmark import Bookmark, ResumePosition
 from voice_reader.domain.interfaces.bookmark_repository import BookmarkRepository
@@ -56,3 +57,18 @@ class BookmarkService:
         """Delete every bookmark and the resume position for one book."""
 
         self.repo.delete_book(book_id=book_id)
+
+    def settle_book_records(
+        self, *, book_id: str, legacy_ids: tuple[str, ...]
+    ) -> Path | None:
+        """Make the record of a book just opened reachable and sound.
+
+        A record saved under an id an earlier scheme gave the book moves to
+        its current id, so an existing reader's bookmarks survive the change
+        of scheme. Then a damaged record is kept aside rather than left for
+        the next automatic save. Answers the kept-aside copy or None.
+        """
+
+        for legacy_id in legacy_ids:
+            self.repo.carry_over(from_id=legacy_id, to_id=book_id)
+        return self.repo.keep_aside_if_damaged(book_id=book_id)

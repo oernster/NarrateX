@@ -73,7 +73,7 @@ requirement body.
 
 ### 1.5 References
 
-- `voice_reader/application/services/narration/cache_key.py`: book id derivation
+- `voice_reader/domain/services/book_identity.py`: book id derivation (the audio cache key is separate: `voice_reader/application/services/narration/cache_key.py`)
 - `voice_reader/infrastructure/books/cover_extractor.py`: existing cover strategy
 - `voice_reader/infrastructure/books/converter.py`: Kindle conversion via Calibre
 - `voice_reader/ui/_ui_controller_book_removal.py`: the never-touch-disk rule

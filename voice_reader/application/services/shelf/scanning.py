@@ -25,7 +25,8 @@ from voice_reader.domain.interfaces.shelf_ports import (
     BookMetadataReader,
     ShelfIndexRepository,
 )
-from voice_reader.domain.shelf import corpus, roots as root_rules
+from voice_reader.domain.shelf import corpus, works
+from voice_reader.domain.shelf import roots as root_rules
 from voice_reader.domain.shelf.discovery import FileMetadata, WalkResult
 from voice_reader.domain.shelf.identity import ShelfEntry, ShelfKey, entry_from_filename
 
@@ -85,6 +86,7 @@ class ShelfScanner:
         removed = sum(1 for path in known if path not in surviving)
         entries = corpus.resolve_author_first(entries)
         self.index.save_entries(entries)
+        self._carry_filings(known, entries)
 
         return ScanReport(
             found=walk.found,
@@ -95,6 +97,20 @@ class ShelfScanner:
             unreadable=walk.unreadable,
             unreachable_roots=unreachable,
         )
+
+    def _carry_filings(
+        self, known: dict[Path, ShelfEntry], entries: tuple[ShelfEntry, ...]
+    ) -> None:
+        """Keep each stated genre on the work its file folds into now."""
+
+        stated = self.index.load_stated_genres()
+        carried = works.carried_filings(
+            stated,
+            before={path: works.token_for(e.work_key) for path, e in known.items()},
+            after={e.key.path: works.token_for(e.work_key) for e in entries},
+        )
+        if carried != stated:
+            self.index.save_stated_genres(carried)
 
     def _walk_all(
         self, watched: tuple[Path, ...]

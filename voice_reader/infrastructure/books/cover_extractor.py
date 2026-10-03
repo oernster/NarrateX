@@ -24,9 +24,12 @@ from voice_reader.infrastructure.books.cover.sidecar import (
     extract_sidecar_image_with_path,
     resolve_calibre_sidecar_cover_path,
 )
-from voice_reader.infrastructure.books.cover._io_utils import safe_read_image_bytes
+from voice_reader.infrastructure.books.cover._io_utils import (
+    MAX_COVER_BYTES,
+    safe_read_image_bytes,
+)
 
-_MAX_SIDECAR_BYTES = 12 * 1024 * 1024  # 12MB: avoid accidentally reading huge files
+_MAX_SIDECAR_BYTES = MAX_COVER_BYTES
 
 
 @dataclass(frozen=True, slots=True)

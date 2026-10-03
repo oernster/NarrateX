@@ -213,6 +213,18 @@ class FakeBookmarkService:
             raise Boom("delete_book_state")
         self.deleted.append(book_id)
 
+    # What `settle_book_records` answers: the kept-aside copy or None.
+    kept_aside: Path | None = None
+    fail_settle: bool = False
+
+    def settle_book_records(
+        self, *, book_id: str, legacy_ids: tuple[str, ...]
+    ) -> Path | None:
+        if self.fail_settle:
+            raise Boom("settle_book_records")
+        self.settled = (book_id, legacy_ids)
+        return self.kept_aside
+
 
 class FakePreferencesRepo:
     def __init__(

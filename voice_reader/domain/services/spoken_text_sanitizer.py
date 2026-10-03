@@ -42,6 +42,32 @@ _ISOLATED_DOT = re.compile(r"\s+\.\s+")
 _SEPARATOR_ONLY = re.compile(r"^[\s\-\u2013\u2014\u2212_\*=~]+$")
 
 
+def is_separator_only(line: str) -> bool:
+    """True for a structure line such as "---" or "____": no words, only rule.
+
+    Semantic (no letters or digits), not based on a specific dash count.
+    """
+
+    stripped = str(line or "").strip()
+    return bool(
+        stripped
+        and _SEPARATOR_ONLY.fullmatch(stripped)
+        and not any(ch.isalnum() for ch in stripped)
+    )
+
+
+def holds_content(text: str) -> bool:
+    """True when some line is neither blank nor a separator.
+
+    The question a book load asks before adopting a text: one whose every line
+    narration drops would open and then finish at once, with nothing said.
+    """
+
+    return any(
+        line.strip() and not is_separator_only(line) for line in text.splitlines()
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class SpokenTextSanitizer:
     def sanitize(self, text: str) -> str:
@@ -50,13 +76,7 @@ class SpokenTextSanitizer:
         lines: list[str] = []
         for raw in text.splitlines():
             # Drop separator-only structure lines (e.g. "---", "--", "____").
-            # This is semantic (no words), not based on a specific dash count.
-            stripped = str(raw or "").strip()
-            if (
-                stripped
-                and _SEPARATOR_ONLY.fullmatch(stripped)
-                and not any(ch.isalnum() for ch in stripped)
-            ):
+            if is_separator_only(raw):
                 continue
 
             if _NUMBER_ONLY.match(raw):

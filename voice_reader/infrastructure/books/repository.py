@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
-import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 
 from voice_reader.domain.document.assembly import build_from_drafts
+from voice_reader.domain.services import book_identity
+from voice_reader.domain.services.spoken_text_sanitizer import holds_content
 from voice_reader.domain.document.model import Document
 from voice_reader.domain.entities.book import Book
 from voice_reader.domain.interfaces.book_repository import BookRepository
+from voice_reader.infrastructure.books import epub_protection
 from voice_reader.infrastructure.books.converter import CalibreConverter
 from voice_reader.infrastructure.books.parser import BookParser, ParsedBook
-from voice_reader.shared.errors import BookHasNoTextError
+from voice_reader.shared.errors import BookHasNoTextError, BookIsProtectedError
 
 # Least share of the book that must be accounted for by *some* block before the
 # structured model is trusted.
@@ -45,20 +47,22 @@ class LocalBookRepository(BookRepository):
         converted = self.converter.convert_to_epub_if_needed(source_path)
         parsed = self.parser.parse(converted)
         normalized = parsed.normalized_text
-        if not normalized.strip():
+        if not holds_content(normalized):
             # Refused here rather than handed on: an empty book loads as an
             # empty reader with nothing said, which is the silence this ends.
+            # Separator lines count as nothing, since narration drops them.
+            if epub_protection.is_protected(converted):
+                raise BookIsProtectedError()
             raise BookHasNoTextError()
         title = source_path.stem
-        book_id = hashlib.sha256(
-            (title + normalized[:2000]).encode("utf-8", errors="ignore")
-        ).hexdigest()[:16]
+        book_id = book_identity.book_id_for(normalized)
         return Book(
             id=book_id,
             title=title,
             raw_text=parsed.raw_text,
             normalized_text=normalized,
             document=self._build_document(normalized=normalized, parsed=parsed),
+            legacy_ids=(book_identity.legacy_book_id(title, normalized),),
         )
 
     @staticmethod

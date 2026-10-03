@@ -14,9 +14,12 @@ class Book:
     raw_text: str
     normalized_text: str
     # The structured view of `normalized_text`. Optional so that a book loaded
-    # before the model existed, or one whose extraction was too poor to
-    # structure confidently, still behaves exactly as it always has.
+    # before the model existed (or one whose extraction was too poor to
+    # structure confidently) still behaves exactly as it always has.
     document: Document | None = None
+    # Ids earlier identity schemes gave this book, so the records an existing
+    # reader holds under one of them can be found and carried over.
+    legacy_ids: tuple[str, ...] = ()
 
     @property
     def document_model(self) -> Document:
@@ -24,7 +27,7 @@ class Book:
 
         Every consumer wants a model rather than a model-or-nothing, so the
         fallback lives here instead of at each call site. Answering with a real
-        document keeps the renderer and the narrator on a single code path, and
+        document keeps the renderer and the narrator on a single code path; it also
         keeps that path exercised for well-structured books too.
         """
 

@@ -12,6 +12,7 @@ from pathlib import Path
 from voice_reader.domain.document import markdown, plain_text
 from voice_reader.domain.document.anchoring import BlockDraft
 from voice_reader.domain.document.model import Document
+from voice_reader.infrastructure.books.text_decoding import decode_book_text
 from voice_reader.infrastructure.books import (
     epub_documents,
     epub_structure,
@@ -103,6 +104,12 @@ def _dehyphenate(text: str) -> str:
     (uppercase continuation = new sentence, leave untouched).
     Also strip soft hyphens (U+00AD) and normalize typographic hyphens
     (U+2011 non-breaking hyphen) to plain ASCII so downstream regex matches.
+
+    A known trade-off: a real compound broken at its own hyphen joins too, so
+    "well-\\nknown" reads as "wellknown" and "twenty-\\nfive" as "twentyfive".
+    Telling the two apart needs a word list this parser does not carry. The
+    join is kept as it stands; how often each case occurs in real books has
+    not been measured.
     """
     # Soft hyphen (invisible, used by PDF typesetting)
     text = text.replace("­", "")
@@ -118,7 +125,7 @@ class BookParser:
     def parse(self, path: Path) -> ParsedBook:
         ext = path.suffix.lower()
         if ext == ".txt":
-            raw = path.read_text(encoding="utf-8", errors="ignore")
+            raw = decode_book_text(path.read_bytes())
             normalized = normalize_text(raw)
             # Plain text derives its structure from the canonical text
             # itself, so the spans are exact and need no anchoring.
@@ -128,7 +135,7 @@ class BookParser:
                 document=plain_text.build_document(source=normalized),
             )
         if ext in _MARKDOWN_EXTS:
-            raw = path.read_text(encoding="utf-8", errors="ignore")
+            raw = decode_book_text(path.read_bytes())
             normalized = normalize_markdown_text(raw)
             # Markdown states its own structure, so nothing is inferred
             # and the spans are exact.

@@ -2,6 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# A picture past this size is not a cover. It bounds what a cover read may
+# allocate wherever the bytes come from: an image beside the book or an entry
+# inside an EPUB, whose stated size is checked before it is decompressed.
+MAX_COVER_BYTES = 12 * 1024 * 1024
+
 
 def safe_read_image_bytes(
     path: Path,

@@ -21,6 +21,7 @@ duplicate is MARKED, never merged; the reader decides.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from voice_reader.domain.shelf import genres as genre_rules
 from voice_reader.domain.shelf import text
@@ -133,7 +134,43 @@ class Work:
         moved on disk keeps whatever the reader stated about it.
         """
 
-        return f"{self.key[1]}|{self.key[0]}"
+        return token_for(self.key)
+
+
+def token_for(work_key: tuple[str, str]) -> str:
+    """The token of the work a `(title key, author core)` pair folds into."""
+
+    title_key, author_core = work_key
+    return f"{author_core}|{title_key}"
+
+
+def carried_filings(
+    stated: dict[str, tuple[str, ...]],
+    *,
+    before: dict[Path, str],
+    after: dict[Path, str],
+) -> dict[str, tuple[str, ...]]:
+    """The reader's filings, following each file to the work it folds into now.
+
+    FR-BS-046 says the reader's word survives every rescan, yet a filing is
+    keyed by a token built from the title and author, which a re-read can
+    change (a corrected sidecar, a surname read first). For each file whose
+    token changed, the filing on its old token is copied to its new one unless
+    the new one already has its own. The old filing goes only when no file
+    still folds to it.
+    """
+
+    carried = dict(stated)
+    moved_from: set[str] = set()
+    for path, old in before.items():
+        new = after.get(path)
+        if new is None or new == old or old not in stated:
+            continue
+        carried.setdefault(new, stated[old])
+        moved_from.add(old)
+    for old in moved_from - set(after.values()):
+        del carried[old]
+    return carried
 
 
 def gather(entries: tuple[ShelfEntry, ...]) -> tuple[Work, ...]:

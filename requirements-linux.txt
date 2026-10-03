@@ -166,3 +166,5 @@ zstandard==0.25.0
 # spacy ecosystem (pinned to prevent misaki[en] pulling spacy 4.x dev)
 spacy==3.8.13
 spacy-curated-transformers==0.2.0
+# The model misaki needs, installed here so the first synthesis never downloads it.
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl

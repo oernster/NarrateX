@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from voice_reader.infrastructure.books.cover._io_utils import MAX_COVER_BYTES
+
 
 def extract_epub_cover(path: Path) -> bytes | None:
     """Extract a representative cover image from an EPUB file (best-effort)."""
@@ -18,7 +20,12 @@ def extract_epub_cover(path: Path) -> bytes | None:
             names = z.namelist()
 
             def _read(name: str) -> bytes | None:
+                # The stated size bounds the read: zipfile stops at it and
+                # fails the CRC on an entry that lies, so checking it before
+                # reading caps the allocation however the entry compresses.
                 try:
+                    if z.getinfo(name).file_size > MAX_COVER_BYTES:
+                        return None
                     return z.read(name)
                 except Exception:
                     return None
@@ -91,7 +98,7 @@ def extract_epub_cover(path: Path) -> bytes | None:
                         break
                 # No image-looking link in this cover document. Do not fall back
                 # to whatever the first link happens to be: a cover page often
-                # links its stylesheet first, and returning that as cover bytes
+                # links its stylesheet first. Returning that as cover bytes
                 # both yields an unreadable image and pre-empts the heuristic
                 # scan below that would have found the real cover.
                 if href is None:

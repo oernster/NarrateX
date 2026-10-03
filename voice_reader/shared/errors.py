@@ -39,6 +39,20 @@ class BookHasNoTextError(VoiceReaderError):
         super().__init__(self.READER_TEXT)
 
 
+class BookIsProtectedError(BookHasNoTextError):
+    """An EPUB that yielded no text because its pages are encrypted (DRM).
+
+    A no-text book like any other, so every path that handles the one handles
+    this; only the reason differs, because "probably pictures of text" sends
+    the reader looking for the wrong fix.
+    """
+
+    READER_TEXT = (
+        "This book is copy protected (DRM). NarrateX cannot read a protected "
+        "book's text; a copy without protection opens normally."
+    )
+
+
 class CacheError(VoiceReaderError):
     """Raised for cache repository issues."""
 

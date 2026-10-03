@@ -20,7 +20,10 @@ from pathlib import Path
 
 from voice_reader.domain.shelf import formats
 from voice_reader.domain.shelf.identity import ShelfKey
-from voice_reader.infrastructure.books.cover._io_utils import safe_read_image_bytes
+from voice_reader.infrastructure.books.cover._io_utils import (
+    MAX_COVER_BYTES,
+    safe_read_image_bytes,
+)
 from voice_reader.infrastructure.books.cover.epub import extract_epub_cover
 from voice_reader.infrastructure.books.cover.pdf import extract_pdf_cover
 from voice_reader.infrastructure.books.cover.sidecar import (
@@ -31,7 +34,7 @@ from voice_reader.infrastructure.shelf import kindle_header
 # A sidecar image past this size is not a cover for a tile. The reader's own
 # extractor reads a deterministic sidecar with no limit, because a full-size
 # scan beside the open book is worth having; a thumbnail is not.
-_MAX_SIDECAR_BYTES = 12 * 1024 * 1024
+_MAX_SIDECAR_BYTES = MAX_COVER_BYTES
 
 
 @dataclass(frozen=True, slots=True)

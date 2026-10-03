@@ -10,7 +10,10 @@ File format per book:
 }
 
 Rules:
-- Missing file is treated as empty.
+- Missing file is treated as empty. A damaged or unreadable one reads as
+  empty but is never saved over: a save keeps a damaged file aside under
+  `<id>.json.damaged` (numbered when that name is taken) and refuses outright
+  when the file cannot be read.
 - Writes are atomic via write-to-temp then replace.
 - Manual bookmarks are sorted by bookmark_id.
 - Bookmark IDs are monotonically increasing and never reused.
@@ -18,13 +21,13 @@ Rules:
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
 from voice_reader.domain.entities.bookmark import Bookmark, ResumePosition
 from voice_reader.domain.interfaces.bookmark_repository import BookmarkRepository
+from voice_reader.infrastructure import json_document
 
 
 def _utcnow() -> datetime:
@@ -70,21 +73,53 @@ class JSONBookmarkRepository(BookmarkRepository):
         except Exception:  # noqa: BLE001
             return
 
-    def _load_doc(self, *, book_id: str) -> dict:
+    def carry_over(self, *, from_id: str, to_id: str) -> bool:
+        """Move one book's record to a new id when the new id has none.
+
+        True when a record moved. A record already under `to_id` wins, since
+        it is the newer of the two.
+        """
+
+        source = self._path_for(book_id=from_id)
+        target = self._path_for(book_id=to_id)
+        if source == target or target.exists() or not source.is_file():
+            return False
+        source.rename(target)
+        return True
+
+    def keep_aside_if_damaged(self, *, book_id: str) -> Path | None:
+        """Keep a damaged record aside and answer the kept copy; None when sound."""
+
         path = self._path_for(book_id=book_id)
-        if not path.exists():
-            return {"resume": None, "bookmarks": [], "next_bookmark_id": 1}
+        try:
+            json_document.read_object(path)
+        except json_document.DamagedDocumentError:
+            return json_document.keep_aside(path)
+        except OSError:
+            return None
+        return None
+
+    def _load_doc(self, *, book_id: str) -> dict:
+        """The record for reading: damaged or unreadable reads as empty.
+
+        Reading never changes the file. Only a save decides what happens to a
+        damaged one (see `_load_doc_for_update`).
+        """
 
         try:
-            raw = path.read_text(encoding="utf-8")
-        except Exception:  # noqa: BLE001
-            return {"resume": None, "bookmarks": [], "next_bookmark_id": 1}
+            doc = json_document.read_object(self._path_for(book_id=book_id))
+        except (OSError, json_document.DamagedDocumentError):
+            doc = None
+        return self._normalised(doc or {})
 
-        try:
-            doc = json.loads(raw) if raw.strip() else {}
-        except Exception:  # noqa: BLE001
-            return {"resume": None, "bookmarks": [], "next_bookmark_id": 1}
+    def _load_doc_for_update(self, *, book_id: str) -> dict:
+        """The record a save changes; a damaged file is kept aside first."""
 
+        path = self._path_for(book_id=book_id)
+        return self._normalised(json_document.object_for_update(path))
+
+    @staticmethod
+    def _normalised(doc: dict) -> dict:
         resume = doc.get("resume")
         if resume is not None and not isinstance(resume, dict):
             resume = None
@@ -118,12 +153,7 @@ class JSONBookmarkRepository(BookmarkRepository):
         }
 
     def _write_doc(self, *, book_id: str, doc: dict) -> None:
-        self.bookmarks_dir.mkdir(parents=True, exist_ok=True)
-        path = self._path_for(book_id=book_id)
-        tmp = path.with_suffix(path.suffix + ".tmp")
-        text = json.dumps(doc, indent=2, sort_keys=False)
-        tmp.write_text(text, encoding="utf-8")
-        tmp.replace(path)
+        json_document.write_object(self._path_for(book_id=book_id), doc)
 
     @staticmethod
     def _bookmark_from_dict(d: dict) -> Bookmark:
@@ -165,7 +195,7 @@ class JSONBookmarkRepository(BookmarkRepository):
         char_offset: int,
         chunk_index: int,
     ) -> Bookmark:
-        doc = self._load_doc(book_id=book_id)
+        doc = self._load_doc_for_update(book_id=book_id)
         next_id = int(doc.get("next_bookmark_id") or 1)
         next_id = max(1, next_id)
         bm = Bookmark(
@@ -194,7 +224,7 @@ class JSONBookmarkRepository(BookmarkRepository):
         return bm
 
     def delete_bookmark(self, *, book_id: str, bookmark_id: int) -> None:
-        doc = self._load_doc(book_id=book_id)
+        doc = self._load_doc_for_update(book_id=book_id)
         kept: list[dict] = []
         for item in doc["bookmarks"]:
             if not isinstance(item, dict):
@@ -239,7 +269,7 @@ class JSONBookmarkRepository(BookmarkRepository):
         char_offset: int,
         chunk_index: int,
     ) -> None:
-        doc = self._load_doc(book_id=book_id)
+        doc = self._load_doc_for_update(book_id=book_id)
         doc["resume"] = {
             "char_offset": int(char_offset),
             "chunk_index": int(chunk_index),
