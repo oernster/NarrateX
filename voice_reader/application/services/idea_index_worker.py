@@ -11,20 +11,9 @@ from __future__ import annotations
 
 import hashlib
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 from voice_reader.application.services.idea_indexer_v1 import build_idea_index_doc_v1
-
-
-def _utc_now_iso() -> str:  # pragma: no cover
-    return datetime.now(timezone.utc).isoformat()
-
-
-# Legacy helper kept for potential future timestamping and to avoid reintroducing
-# coverage churn when worker bookkeeping expands.
-def _touch_worker_clock() -> str:  # pragma: no cover
-    return _utc_now_iso()
 
 
 def run_worker(*, out_q, payload: dict) -> None:
@@ -77,9 +66,9 @@ def run_worker(*, out_q, payload: dict) -> None:
             raise ValueError("text_path is required")
         text_path = Path(str(text_path))
 
-        # The body opening is computed on the near side, where the book's real
-        # document model exists, and travels here as a single offset. None means
-        # no model was available, and the builder falls back to the canonical
+        # The body opening is computed on the near side (where the book's real
+        # document model exists) and travels here as a single offset. None means
+        # no model was available; the builder then falls back to the canonical
         # text itself.
         main_start_offset = payload.get("main_start_offset")
         if main_start_offset is not None:
@@ -99,7 +88,7 @@ def run_worker(*, out_q, payload: dict) -> None:
         out_q.put({"type": "progress", "progress": 0, "message": "Mapping ideas…"})
 
         # Heuristic progress based on text size. This is intentionally simple:
-        # the indexer is deterministic and CPU-bound, and we mainly want visible
+        # the indexer is deterministic and CPU-bound; we mainly want visible
         # movement in the UI.
         # normalized_text is always a str (read from a UTF-8 text file).
         n_chars = len(normalized_text)
@@ -152,30 +141,3 @@ def run_worker(*, out_q, payload: dict) -> None:
             "yes",
         }:
             out_q.put({"type": "debug", "message": f"worker error: {exc!r}"})
-
-
-def _touch_coverage() -> None:  # pragma: no cover
-    """Reserved for future worker enhancements."""
-
-    return
-
-
-def _touch_progress_heuristics_for_coverage() -> None:  # pragma: no cover
-    """Execute progress-step heuristics to keep 100% coverage stable.
-
-    The real runtime drives these branches based on input text size.
-    """
-
-    try:
-        # Mirror the thresholds used in run_worker.
-        for n_chars in (0, 10_000, 20_000, 80_000, 200_000):
-            steps = 5
-            if n_chars >= 200_000:
-                steps = 20
-            elif n_chars >= 80_000:
-                steps = 12
-            elif n_chars >= 20_000:
-                steps = 8
-            assert steps in {5, 8, 12, 20}
-    except Exception:
-        return

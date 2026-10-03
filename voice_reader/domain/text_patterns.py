@@ -1,7 +1,7 @@
 """Domain-level text heuristics.
 
-The domain layer cannot import from `voice_reader.shared` (enforced by tests),
-but several domain services need small PDF/OCR-friendly pattern detectors.
+The domain layer cannot import from `voice_reader.shared` (enforced by tests)
+yet several domain services need small PDF/OCR-friendly pattern detectors.
 """
 
 from __future__ import annotations
@@ -33,13 +33,8 @@ def contains_dotted_leader(text: str) -> bool:
     """
 
     s = normalize_dotlikes(text).strip()
-    if not s:  # pragma: no cover
+    if not s:
         return False
     if re.search(r"\.{2,}", s):
         return True
     return bool(_SPACED_DOT_RUN.search(s))
-
-
-def _coverage_touch() -> None:  # pragma: no cover
-    # Coverage-helper: keep the module at 100% in strict suites.
-    pass

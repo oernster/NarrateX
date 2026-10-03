@@ -92,6 +92,13 @@ def test_default_lock_dir_uses_cwd_when_temp_missing(
     assert out == tmp_path / "NarrateX"
 
 
+def test_default_lock_dir_prefers_temp(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("TEMP", str(tmp_path))
+    monkeypatch.setattr(Path, "cwd", staticmethod(lambda: tmp_path / "cwd"))
+    out = startup_ui.default_lock_dir(app_name="NarrateX")
+    assert out == tmp_path / "NarrateX"
+
+
 def test_is_real_pyside_app_true_for_fake_pyside_like_object() -> None:
     # __class__.__module__ is used; emulate that.
     class _C:

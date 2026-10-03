@@ -124,6 +124,20 @@ def test_nothing_is_asked_for_after_it_is_stopped(qapp) -> None:
     assert covers.asked == []
 
 
+def test_the_end_marker_alone_ends_the_worker(qapp) -> None:
+    # stop() sets the flag before it queues the marker, so a threaded run reaches
+    # the marker only when the worker happens to be waiting on the queue; run the
+    # loop here with the marker queued and the flag clear so that exit is pinned.
+    del qapp
+    covers = _Covers()
+    loader = ShelfCoverLoader(covers)
+    loader._queue.put(None)
+
+    loader._work()
+
+    assert covers.asked == []
+
+
 def test_a_second_want_after_the_worker_ended_starts_another(qapp) -> None:
     """The worker leaves when the queue empties, so a later scroll restarts it."""
 

@@ -8,6 +8,7 @@ converts anything unexpected into a logged error.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -88,6 +89,28 @@ def test_an_unexpected_prepare_failure_is_contained(qapp) -> None:
     c.toggle_play_pause()
 
     assert "Playback failed" in c.window.lbl_status.text()
+
+
+@dataclass
+class _StopRaisingNarration(FakeNarration):
+    def stop(self):
+        raise RuntimeError("audio device went away")
+
+
+def test_a_failing_stop_is_contained_like_play_and_pause(qapp, caplog) -> None:
+    # Stop is a slot boundary too: a raising stop() must not escape it and
+    # must be surfaced in the log and the status bar as Play/Pause does.
+    narration = _StopRaisingNarration(listeners=[], state=_idle_state())
+    c = _controller(qapp, narration)
+
+    with caplog.at_level(logging.ERROR):
+        c.stop()
+
+    assert "Playback failed" in c.window.lbl_status.text()
+    assert any(
+        r.exc_info and "audio device went away" in str(r.exc_info[1])
+        for r in caplog.records
+    )
 
 
 def test_the_real_service_flow_still_reaches_prepare(qapp, tmp_path: Path) -> None:

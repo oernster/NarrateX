@@ -38,11 +38,6 @@ def _safe_int(value: object, default: int) -> int:
         return int(default)
 
 
-def _touch_coverage() -> None:  # pragma: no cover
-    # Intentionally unused helper reserved for future migrations.
-    return
-
-
 def _dt_to_iso_z(dt: datetime) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)

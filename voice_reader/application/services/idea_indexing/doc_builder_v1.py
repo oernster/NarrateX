@@ -38,15 +38,6 @@ def resolve_chunk_index(*, char_offset: int, candidates) -> int | None:
     return None
 
 
-# Avoid unused-import warnings in modules that intentionally import this helper
-# only for re-exporting. (This is a local “touch” used by tests/coverage only.)
-def _touch_resolve_chunk_index_for_coverage() -> None:  # pragma: no cover
-    try:
-        resolve_chunk_index(char_offset=0, candidates=[])
-    except Exception:
-        return
-
-
 def _scope_start(text: str, provided: int | None) -> int:
     """Where the main text begins, in `text` coordinates.
 
@@ -54,7 +45,7 @@ def _scope_start(text: str, provided: int | None) -> int:
     contents. The caller has the book's real document model and answers this
     with `body_opening_offset`, so it is passed straight through here.
 
-    When no offset is supplied (an unstructured book, or a direct call), the
+    When no offset is supplied (an unstructured book or a direct call), the
     canonical text is still the coordinate system every offset lives in, so a
     plain-text model of it answers the same question rather than a second
     heuristic of this module's own.
@@ -138,7 +129,7 @@ def build_idea_index_doc_v1(
 
         idx = resolve_chunk_index(char_offset=int(char_offset), candidates=candidates)
         if idx is None:  # pragma: no cover
-            # Defensive: char_offset originates from within `text`, and candidates
+            # Defensive: char_offset originates from within `text`; candidates
             # are derived from the same `text`. Keep as a guard anyway.
             return
         anchor_id = f"a{len(anchors) + 1}"

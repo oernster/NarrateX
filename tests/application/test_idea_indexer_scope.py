@@ -132,7 +132,7 @@ def test_an_essay_span_detection_failure_still_completes(monkeypatch) -> None:
 
 
 def test_a_dotted_leader_heading_is_never_an_idea_node() -> None:
-    # A contents entry that survives into the scoped text is page furniture, and
+    # A contents entry that survives into the scoped text is page furniture;
     # the builder drops it on the model's own textual evidence.
     text = (
         "CHAPTER 1\n\n"
@@ -192,11 +192,27 @@ def test_build_doc_v1_requires_book_id() -> None:
         pass
 
 
-def test_touch_weak_label_expansion_for_coverage_smoke() -> None:
-    from voice_reader.application.services import idea_indexer_v1 as m
+def test_weak_labels_expand_only_along_their_own_line() -> None:
+    from voice_reader.application.services.idea_indexing.labels import (
+        expand_label_from_text,
+        is_weak_label,
+    )
 
-    m._touch_weak_label_expansion_for_coverage()  # noqa: SLF001
-    m._touch_index_scope_for_coverage()  # noqa: SLF001
+    assert is_weak_label(label="") is True
+    assert is_weak_label(label="With") is True
+    assert is_weak_label(label="When") is True
+    assert is_weak_label(label="Decision Architecture") is False
+
+    def expand(text: str) -> str:
+        return expand_label_from_text(label="When", text=text, char_offset=0)
+
+    assert expand("When decisions are made\n\nX") == "When decisions made"
+    # Punctuation ends the heading, leaving too few words to expand.
+    assert expand("When: decisions are made\n\nX") == "When"
+    # A heading wrapped one word per line still reads as one heading.
+    assert expand("When\nDecisions\nAre\nMade\n\nX").startswith("When ")
+    # A blank line closes the heading block.
+    assert expand("When\n\nDecisions are made\n") == "When"
 
 
 def test_expand_label_from_text_covers_edge_cases_for_100_percent() -> None:

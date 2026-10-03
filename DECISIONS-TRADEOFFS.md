@@ -639,15 +639,15 @@ defaults to Cancel. The file stays on disk.
 - **Gains:** a fresh start on one book costs nothing on disk.
 - **Costs:** none recorded.
 
-### Play and Pause never end in a traceback
+### Play, Pause and Stop never end in a traceback
 
-The Play and Pause button catches anything unexpected at its slot, logs it
-and says so in the status line. Stop and the other transport controls are not
-wrapped this way.
+The Play and Pause button and the Stop button share one guard at their
+slots: it catches anything unexpected, logs it and says so in the status
+line. The speed and volume controls catch their own failures and log them.
 
-- **Rather than:** an error escaping to the console from the button pressed
+- **Rather than:** an error escaping to the console from the buttons pressed
   most.
-- **Gains:** the press most likely to meet a half-ready pipeline reports a
+- **Gains:** the presses most likely to meet a half-ready pipeline report a
   fault where the reader can see it.
 - **Costs:** a fault shows as a status message; the log holds the detail.
 

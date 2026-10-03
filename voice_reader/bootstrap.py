@@ -342,13 +342,3 @@ def wiring_module_names() -> tuple[str, ...]:
     """
 
     return tuple(sorted({mod for mod, _attr in _APP_WIRING_IMPORTS.values()}))
-
-
-def _touch() -> None:
-    """Coverage helper.
-
-    This module will be fleshed out as wiring moves from UI into the composition root.
-    Keeping a tiny function makes it trivial to cover under the existing 100% gate.
-    """
-
-    return

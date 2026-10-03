@@ -200,9 +200,3 @@ class SingleInstance:
             cb()
         except Exception:
             return
-
-
-def _touch() -> None:
-    """Coverage helper for import-guarded environments."""
-
-    return

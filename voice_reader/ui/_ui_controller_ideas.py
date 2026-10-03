@@ -30,23 +30,6 @@ from voice_reader.ui._message_box_utils import (
 )
 
 
-def _touch_qtimer_for_flake8() -> None:  # pragma: no cover
-    # Explicitly touch the imported name so this module-level import (kept for
-    # monkeypatching in tests) is not flagged as unused by flake8.
-    _ = QTimer
-
-
-def _touch_qtimer_for_coverage() -> None:  # pragma: no cover
-    """Reserved for environments that strip Qt timers; keep stable coverage."""
-
-    try:
-        from PySide6.QtCore import QTimer
-
-        del QTimer
-    except Exception:
-        return
-
-
 def open_ideas_dialog(controller) -> None:
     log = getattr(controller, "_log", logging.getLogger(__name__))
 
@@ -287,9 +270,3 @@ def open_ideas_dialog(controller) -> None:
         book_title=book_title,
     )
     controller._ideas_dialog.open()  # noqa: SLF001
-
-
-def _touch_coverage() -> None:  # pragma: no cover
-    """Reserved for future UI wiring changes."""
-
-    return

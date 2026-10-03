@@ -6,6 +6,7 @@ Extracted for file-size limits and separation of concerns.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 
 from voice_reader.application.dto.narration_state import NarrationState, NarrationStatus
 from voice_reader.domain.value_objects.playback_rate import PlaybackRate
@@ -171,36 +172,15 @@ def pause(controller) -> None:
     controller.narration_service.pause()
 
 
-def stop(controller) -> None:
-    controller.narration_service.stop()
+def _guard_transport_slot(controller, action: Callable[[], None]) -> None:
+    """Run one transport action at its Qt slot boundary.
 
-
-def toggle_play_pause(controller) -> None:
-    """Unified Play/Pause button semantics.
-
-    Presentation-layer consolidation: reuse the existing `play()` / `pause()`
-    handlers and decide which to invoke based on the current narration state.
-
-    This is a Qt slot boundary: whatever goes wrong below must land in the
-    log and the status bar, never as a raw traceback on the console.
+    Whatever goes wrong inside must land in the log and the status bar, never
+    as a raw traceback on the console. Play/Pause and Stop share this guard.
     """
 
     try:
-        st = getattr(controller.narration_service, "state", None)
-        if isinstance(st, NarrationState):
-            # Transport should be pause-able across the whole active pipeline.
-            # This avoids a "dead click" when state momentarily reports
-            # SYNTHESIZING while audio is still playing (prefetch can race UI
-            # interaction).
-            pauseable_statuses = {
-                NarrationStatus.LOADING,
-                NarrationStatus.CHUNKING,
-                NarrationStatus.SYNTHESIZING,
-                NarrationStatus.PLAYING,
-            }
-            if st.status in pauseable_statuses:
-                return pause(controller)
-        return play(controller)
+        action()
     except Exception:
         log = getattr(controller, "_log", logging.getLogger(__name__))
         log.exception("Transport action failed")
@@ -208,3 +188,39 @@ def toggle_play_pause(controller) -> None:
             controller.window.lbl_status.setText("Playback failed (see log)")
         except Exception:
             pass
+
+
+def stop(controller) -> None:
+    """Stop button semantics, guarded at the slot boundary."""
+
+    _guard_transport_slot(controller, lambda: controller.narration_service.stop())
+
+
+def _play_or_pause(controller) -> None:
+    st = getattr(controller.narration_service, "state", None)
+    if isinstance(st, NarrationState):
+        # Transport should be pause-able across the whole active pipeline.
+        # This avoids a "dead click" when state momentarily reports
+        # SYNTHESIZING while audio is still playing (prefetch can race UI
+        # interaction).
+        pauseable_statuses = {
+            NarrationStatus.LOADING,
+            NarrationStatus.CHUNKING,
+            NarrationStatus.SYNTHESIZING,
+            NarrationStatus.PLAYING,
+        }
+        if st.status in pauseable_statuses:
+            pause(controller)
+            return
+    play(controller)
+
+
+def toggle_play_pause(controller) -> None:
+    """Unified Play/Pause button semantics.
+
+    Presentation-layer consolidation: reuse the existing `play()` / `pause()`
+    handlers and decide which to invoke based on the current narration state,
+    guarded at the slot boundary exactly as Stop is.
+    """
+
+    _guard_transport_slot(controller, lambda: _play_or_pause(controller))

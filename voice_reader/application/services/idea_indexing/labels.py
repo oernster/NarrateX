@@ -6,7 +6,7 @@ from voice_reader.application.services.idea_indexing.concepts import STOPWORDS
 
 # Additional join words that are not helpful as standalone navigation labels.
 # Keep this separate from STOPWORDS: we still allow them to be extracted as
-# concepts, but we treat them as "weak" labels that should be expanded.
+# concepts; we just treat them as "weak" labels that should be expanded.
 JOIN_WORDS = {
     "when",
     "without",
@@ -81,8 +81,8 @@ def expand_label_from_text(
     #
     # Some EPUBs break headings across multiple lines (e.g. each word wrapped into
     # its own HTML block), which becomes newline-separated text after parsing.
-    # Treat consecutive non-empty lines as one "heading block", but do not cross
-    # a blank line (paragraph/section boundary).
+    # Treat consecutive non-empty lines as one "heading block". Never cross a
+    # blank line (paragraph/section boundary).
     block_end = src.find("\n\n", start)
     if block_end < 0:
         block_end = len(src)
@@ -129,41 +129,3 @@ def expand_label_from_text(
         return base
 
     return " ".join([base] + extra)
-
-
-def touch_weak_label_expansion_for_coverage() -> None:  # pragma: no cover
-    """Execute weak-label heuristics to keep stable 100% coverage."""
-
-    try:
-        assert is_weak_label(label="") is True
-        assert is_weak_label(label="With") is True
-        assert is_weak_label(label="When") is True
-        assert is_weak_label(label="Decision Architecture") is False
-        assert expand_label_from_text(
-            label="When",
-            text="When decisions are made\n\nX",
-            char_offset=0,
-        ).startswith("When ")
-        assert (
-            expand_label_from_text(
-                label="When",
-                text="When: decisions are made\n\nX",
-                char_offset=0,
-            )
-            == "When"
-        )
-        assert expand_label_from_text(
-            label="When",
-            text="When\nDecisions\nAre\nMade\n\nX",
-            char_offset=0,
-        ).startswith("When ")
-        assert (
-            expand_label_from_text(
-                label="When",
-                text="When\n\nDecisions are made\n",
-                char_offset=0,
-            )
-            == "When"
-        )
-    except Exception:
-        return

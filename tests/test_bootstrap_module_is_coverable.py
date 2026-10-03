@@ -7,10 +7,6 @@ from unittest.mock import MagicMock
 from voice_reader import bootstrap
 
 
-def test_bootstrap_module_is_importable_and_coverable() -> None:
-    bootstrap._touch()
-
-
 def test_every_wiring_module_actually_resolves() -> None:
     """Drift guard: a wiring entry naming a missing module dies in the
     frozen app at startup, so catch it here instead."""

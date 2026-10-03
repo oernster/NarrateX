@@ -37,12 +37,6 @@ def is_real_pyside_app(app: object) -> bool:
         return False  # pragma: no cover
 
 
-def _touch() -> None:
-    """Coverage helper."""
-
-    return
-
-
 def activate_window(window: object) -> None:
     """Best-effort raise/focus for an existing main window."""
 

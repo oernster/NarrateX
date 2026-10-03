@@ -33,15 +33,3 @@ __all__ = [
     "dedupe_candidates",
     "scan_structural_headings",
 ]
-
-
-def _touch_exports_for_coverage() -> None:  # pragma: no cover
-    """Touch re-exports so flake8 doesn't treat facade imports as unused."""
-
-    _ = (
-        RawHeadingCandidate,
-        StructuralBookmarkService,
-        classify_heading,
-        dedupe_candidates,
-        scan_structural_headings,
-    )
