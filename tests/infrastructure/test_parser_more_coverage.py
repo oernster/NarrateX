@@ -1,7 +1,7 @@
 """Cover the parser's failure and fallback paths.
 
 Real-world EPUBs are inconsistent, so the parser carries a ladder of fallbacks:
-spine first, then the manifest, then a scan by file extension, and for the text
+spine first, then the manifest, then a scan by file extension; for the text
 itself BeautifulSoup, then lxml, then a crude tag strip. Each rung only runs
 when the one above it fails, so each needs driving deliberately.
 
@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.infrastructure.ebooklib_fake import fake_epub
 from voice_reader.domain.document.block_kind import BlockKind
 from voice_reader.infrastructure.books.parser import BookParser, _html_to_text
 from voice_reader.shared.errors import BookParseError
@@ -39,7 +40,7 @@ def _install_ebooklib(monkeypatch, book) -> None:
         sys.modules,
         "ebooklib",
         types.SimpleNamespace(
-            epub=types.SimpleNamespace(read_epub=read_epub),
+            epub=fake_epub(read_epub),
             ITEM_DOCUMENT=_ITEM_DOCUMENT,
         ),
     )
@@ -81,7 +82,7 @@ def test_epub_failure_becomes_a_book_parse_error(monkeypatch, tmp_path: Path) ->
         sys.modules,
         "ebooklib",
         types.SimpleNamespace(
-            epub=types.SimpleNamespace(read_epub=always_fails),
+            epub=fake_epub(always_fails),
             ITEM_DOCUMENT=_ITEM_DOCUMENT,
         ),
     )
@@ -116,7 +117,7 @@ def test_spine_entries_that_name_nothing_readable_are_skipped(
 
     class Book:
         # A plain string entry, an entry with no id, the nav and cover entries
-        # every EPUB3 carries, and an id the manifest does not resolve.
+        # every EPUB3 carries plus an id the manifest does not resolve.
         spine = [
             "bare",
             ("", "yes"),
