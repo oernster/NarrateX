@@ -9,18 +9,23 @@ This service produces:
 - speak_to_original: list[int] mapping each character index in speak_text to a
   best-effort absolute character offset in the original (unsanitized) chunk text.
 
-The mapping is intentionally best-effort:
-- If sanitization drops characters (e.g. outline numbering), the mapping will
-  skip them.
-- When sanitization normalizes punctuation or whitespace, mapping prefers the
-  closest matching original character.
+The mapping is an alignment of the two texts, not a scan. A scan that sought
+each spoken character further along the original was measured on 2026-11-04
+against a sentence holding a formula: the words said for the symbols ("the
+sum from k equals 0 to m of") have no counterpart in the original, so the
+scan ran ahead looking for them and every later word of the chunk mapped to
+its last character. Matching blocks between the two texts place what matches
+exactly; what the sanitizer added stays on the character it was said for.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 from voice_reader.domain.services.spoken_text_sanitizer import SpokenTextSanitizer
+
+_UNMAPPED = -1
 
 
 @dataclass(frozen=True, slots=True)
@@ -31,6 +36,12 @@ class SanitizedTextMapping:
     speak_to_original: list[int]
 
 
+def _folded(text: str) -> list[str]:
+    """One entry per character, so an index into it is an index into `text`."""
+
+    return [char.casefold() for char in text]
+
+
 @dataclass(frozen=True, slots=True)
 class SanitizedTextMapper:
     sanitizer: SpokenTextSanitizer = SpokenTextSanitizer()
@@ -38,59 +49,31 @@ class SanitizedTextMapper:
     def sanitize_with_mapping(self, *, original_text: str) -> SanitizedTextMapping:
         """Return sanitized speak_text plus a per-character index mapping.
 
-        Strategy:
-        1. Sanitize with existing sanitizer (single source of truth for TTS).
-        2. Build mapping by greedily aligning speak_text to original_text.
-
-        The greedy alignment is resilient to dropped prefixes and whitespace
-        normalization.
+        Matching is case-insensitive, so an initialism the sanitizer spelled
+        out still lands on its letters. A spoken character the original does
+        not hold maps to the last original character matched before it, so
+        the highlight waits on the symbol being said; before any match it
+        maps to the first match, else to the start when nothing matches.
         """
 
         speak = self.sanitizer.sanitize(original_text)
         if not speak:
             return SanitizedTextMapping(speak_text="", speak_to_original=[])
 
-        # Greedy scan. Prefer exact char match (case-sensitive), otherwise allow
-        # whitespace collapsing and punctuation normalization.
-        mapping: list[int] = []
-        o = 0
-        orig = original_text
+        mapping = [_UNMAPPED] * len(speak)
+        matcher = SequenceMatcher(
+            None, _folded(original_text), _folded(speak), autojunk=False
+        )
+        for original_at, speak_at, length in matcher.get_matching_blocks():
+            for offset in range(length):
+                mapping[speak_at + offset] = original_at + offset
 
-        def _is_space(ch: str) -> bool:
-            return ch.isspace()
-
-        for i, ch in enumerate(speak):
-            # For spaces, map to the next whitespace run (or previous char).
-            if _is_space(ch):
-                while o < len(orig) and not _is_space(orig[o]):
-                    o += 1
-                if o >= len(orig):
-                    mapping.append(max(0, len(orig) - 1))
-                    continue
-                mapping.append(o)
-                while o < len(orig) and _is_space(orig[o]):
-                    o += 1
-                continue
-
-            # Seek the next matching character.
-            found = -1
-            for j in range(o, len(orig)):
-                if orig[j] == ch:
-                    found = j
-                    break
-            if found == -1:
-                # Fallback: case-insensitive match.
-                for j in range(o, len(orig)):
-                    if orig[j].casefold() == ch.casefold():
-                        found = j
-                        break
-
-            if found == -1:
-                # Last resort: map to current scan pos (clamped).
-                mapping.append(min(max(o, 0), max(0, len(orig) - 1)))
-                continue
-
-            mapping.append(found)
-            o = found + 1
+        first = next((at for at in mapping if at != _UNMAPPED), 0)
+        last = first
+        for index, at in enumerate(mapping):
+            if at == _UNMAPPED:
+                mapping[index] = last
+            else:
+                last = at
 
         return SanitizedTextMapping(speak_text=speak, speak_to_original=mapping)

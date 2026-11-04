@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from voice_reader.domain.services.spoken_mathematics import speak_mathematics
+
 _NUMBER_ONLY = re.compile(r"^\s*\d+(?:\.\d+)*\s*$")
 _NUMBER_PREFIX = re.compile(r"^\s*\d+(?:\.\d+)*\s+")
 
@@ -90,6 +92,9 @@ class SpokenTextSanitizer:
         # Many TTS engines interpret newlines as stronger breaks and can add
         # unnatural pauses.
         out = " ".join(lines).strip()
+        # Before the punctuation pass: a formula's symbols become words here,
+        # and the pass below must not read a maths dot as a broken ellipsis.
+        out = speak_mathematics(out)
         out = self._normalize_punctuation(out)
         out = self._expand_initialisms(out)
         out = re.sub(r"\s+", " ", out).strip()

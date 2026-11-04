@@ -155,25 +155,28 @@ class BookParser:
             import fitz  # PyMuPDF
 
             doc = fitz.open(str(path))
-            # One layout-aware pass yields both the structure and the page
-            # furniture (running heads, margin folios) to strip from the
+            # One layout-aware pass yields the text, the structure and the
+            # page furniture (running heads, margin folios) to strip from the
             # text, so the canonical text never narrates or indexes a page
-            # header. On layout failure it yields nothing and the text keeps
-            # every extracted line.
-            furniture, drafts = pdf_structure.layout_from_document(doc)
+            # header. The text comes from that pass because it is the one
+            # that can read a formula; on layout failure the plain text mode
+            # stands in and the text keeps every extracted line.
+            layout = pdf_structure.layout_from_document(doc)
             pages: list[str] = []
             for index, page in enumerate(doc):
+                if layout.page_texts is None:
+                    page_text = page.get_text("text")
+                else:
+                    page_text = layout.page_texts[index]
                 pages.append(
-                    _strip_furniture_lines(
-                        page.get_text("text"), furniture.get(index, ())
-                    )
+                    _strip_furniture_lines(page_text, layout.furniture.get(index, ()))
                 )
             raw = "\n\n".join(pages)
             normalized = _dehyphenate(raw)
             return ParsedBook(
                 raw_text=raw,
                 normalized_text=normalize_text(normalized),
-                drafts=drafts,
+                drafts=layout.drafts,
             )
         except Exception as exc:
             raise BookParseError(str(exc)) from exc

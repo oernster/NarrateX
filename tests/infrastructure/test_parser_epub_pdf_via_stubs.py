@@ -106,6 +106,66 @@ def test_parser_pdf_strips_running_heads_and_margin_folios(
     assert [d.text for d in parsed.drafts] == bodies
 
 
+def test_parser_pdf_reads_its_text_from_the_layout_pass(
+    monkeypatch, tmp_path: Path
+) -> None:
+    """The text mode cannot read a formula, so the parser never asks it while
+    the layout pass succeeds: a page whose text mode explodes still parses."""
+
+    p = tmp_path / "formula.pdf"
+    p.write_bytes(b"%PDF")
+
+    class FakeRect:
+        height = 100.0
+
+    class FakePage:
+        rect = FakeRect()
+
+        def get_text(self, mode: str):
+            assert mode == "dict", "text mode must not be consulted"
+            return {
+                "blocks": [
+                    {
+                        "type": 0,
+                        "lines": [
+                            {
+                                "bbox": (0.0, 40.0, 12.0, 54.0),
+                                "spans": [
+                                    {
+                                        "text": "\U0001d441",
+                                        "font": "CambriaMath",
+                                        "size": 10.0,
+                                        "flags": 0,
+                                        "bbox": (0.0, 42.0, 8.0, 52.0),
+                                        "origin": (0.0, 50.0),
+                                    },
+                                    {
+                                        "text": "k",
+                                        "font": "CambriaMath",
+                                        "size": 8.0,
+                                        "flags": 0,
+                                        "bbox": (8.0, 46.0, 12.0, 54.0),
+                                        "origin": (8.0, 52.0),
+                                    },
+                                ],
+                            }
+                        ],
+                    }
+                ]
+            }
+
+    class FakeDoc(list):
+        pass
+
+    fake_fitz = types.SimpleNamespace(open=lambda _: FakeDoc([FakePage()]))
+    monkeypatch.setitem(__import__("sys").modules, "fitz", fake_fitz)
+
+    parsed = BookParser().parse(p)
+
+    assert parsed.normalized_text == "N_{k}"
+    assert [draft.text for draft in parsed.drafts] == ["N_{k}"]
+
+
 def test_parser_epub_uses_ebooklib_bs4_stubs(monkeypatch, tmp_path: Path) -> None:
     p = tmp_path / "a.epub"
     p.write_bytes(b"EPUB")

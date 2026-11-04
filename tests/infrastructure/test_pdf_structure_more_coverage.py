@@ -167,10 +167,10 @@ def test_layout_comes_back_classified_from_the_walk() -> None:
         }
     )
 
-    furniture, drafts = pdf_structure.layout_from_document([page])
+    layout = pdf_structure.layout_from_document([page])
 
-    assert furniture == {}
-    assert [draft.kind for draft in drafts] == [
+    assert layout.furniture == {}
+    assert [draft.kind for draft in layout.drafts] == [
         BlockKind.HEADING,
         BlockKind.PARAGRAPH,
     ]
@@ -190,9 +190,10 @@ def test_layout_reports_the_furniture_to_strip() -> None:
             }
         )
 
-    furniture, drafts = pdf_structure.layout_from_document(
+    layout = pdf_structure.layout_from_document(
         [_furnished_page("10"), _furnished_page("11"), _furnished_page("12")]
     )
+    furniture, drafts = layout.furniture, layout.drafts
 
     assert furniture == {
         0: ("A History of Everything", "10"),
@@ -211,4 +212,79 @@ def test_layout_failure_leaves_the_book_unstructured() -> None:
         def rect(self):
             raise RuntimeError("layout unavailable")
 
-    assert pdf_structure.layout_from_document([ExplodingPage()]) == ({}, ())
+    layout = pdf_structure.layout_from_document([ExplodingPage()])
+
+    assert layout == pdf_structure.PdfLayout(furniture={}, drafts=(), page_texts=None)
+
+
+def test_page_text_is_the_lines_joined_blank_ones_included() -> None:
+    page = FakePage(
+        {
+            "blocks": [
+                _text_block([_line([_span("kept")]), _line([_span("   ")])]),
+                _text_block([_line([_span("after")])]),
+            ]
+        }
+    )
+
+    extraction = pdf_structure.extract_document([page])
+
+    assert extraction.page_texts == ("kept\n   \nafter\n",)
+    assert [line.text for line in extraction.lines] == ["kept", "after"]
+    assert pdf_structure.layout_from_document([page]).page_texts == (
+        "kept\n   \nafter\n",
+    )
+
+
+def test_a_maths_span_is_read_with_its_font_box_and_baseline() -> None:
+    """A subscript is told by its size and its baseline: both must reach the
+    rebuild, with the box that says it stands against its base."""
+
+    def maths(text: str, *, size: float, bbox, origin) -> dict:
+        return {
+            "text": text,
+            "font": "CambriaMath",
+            "size": size,
+            "flags": 0,
+            "bbox": bbox,
+            "origin": origin,
+        }
+
+    page = FakePage(
+        {
+            "blocks": [
+                _text_block(
+                    [
+                        _line(
+                            [
+                                maths(
+                                    "\U0001d441",
+                                    size=10.0,
+                                    bbox=(0.0, 42.0, 8.0, 52.0),
+                                    origin=(0.0, 50.0),
+                                ),
+                                maths(
+                                    "k",
+                                    size=8.0,
+                                    bbox=(8.0, 46.0, 12.0, 54.0),
+                                    origin=(8.0, 52.0),
+                                ),
+                            ]
+                        )
+                    ]
+                )
+            ]
+        }
+    )
+
+    (line,) = pdf_structure.lines_from_document([page])
+
+    assert line.text == "N_{k}"
+
+
+def test_a_span_without_a_box_sits_at_the_origin() -> None:
+    page = FakePage(
+        {"blocks": [_text_block([{"spans": [{"text": "x", "font": "CambriaMath"}]}])]}
+    )
+
+    assert pdf_structure.extract_document([page]).page_texts == ("x\n",)

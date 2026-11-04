@@ -40,6 +40,19 @@ def test_sanitizer_leaves_shouted_prose_as_words() -> None:
     assert s.sanitize("MAX! The FBI is here.") == "MAX! The FBI is here."
 
 
+def test_sanitizer_says_a_formula_in_words() -> None:
+    """Measured through Kokoro's phonemiser: every symbol is an unknown token."""
+
+    s = SpokenTextSanitizer()
+
+    out = s.sanitize("a floor, M_{n} ≥ M_{n}^{min}, in a budget.")
+
+    assert (
+        out
+        == "a floor, M sub n greater than or equal to M sub n to the min, in a budget."
+    )
+
+
 def test_sanitizer_can_return_empty_for_number_only_text() -> None:
     s = SpokenTextSanitizer()
     out = s.sanitize("1\n1.1\n2\n")
