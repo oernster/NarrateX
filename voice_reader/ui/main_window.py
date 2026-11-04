@@ -18,6 +18,7 @@ from voice_reader.ui._main_window_controls import PAUSE_TEXT, PLAY_TEXT
 from voice_reader.ui.artwork import Artwork
 from voice_reader.ui.bottom_tray import BACKEND_LICENCE_TITLE, UI_LICENCE_TITLE
 from voice_reader.ui.document_renderer import apply_render_plan
+from voice_reader.ui.script_typesetting import typeset_plain_text
 from voice_reader.ui.guide_dialog import GUIDE_TITLE, GuideDialog
 from voice_reader.ui.links import open_externally
 from voice_reader.version import APP_NAME, DONATE_URL
@@ -254,6 +255,7 @@ class MainWindow(QMainWindow):
         self._render_plan = None
         self._reader_positions = None
         self.reader.setPlainText(text)
+        typeset_plain_text(self.reader)
 
     def set_reader_document(self, plan) -> None:
         """Render a document plan, with headings, spacing and indentation.

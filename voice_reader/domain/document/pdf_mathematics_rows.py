@@ -13,12 +13,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from voice_reader.domain.document.pdf_mathematics import (
+from voice_reader.domain.document.maths_notation_text import (
     BIG_OPERATORS,
+    fraction_text,
+)
+from voice_reader.domain.document.pdf_mathematics import (
     COMPOSITE_FONT,
     PdfSpan,
     abuts,
-    fraction_text,
     render_group,
 )
 

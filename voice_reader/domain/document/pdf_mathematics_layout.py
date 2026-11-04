@@ -19,14 +19,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from voice_reader.domain.document.maths_notation_text import (
+    fold_text,
+    tidy_spacing,
+)
 from voice_reader.domain.document.pdf_mathematics import (
     SCRIPT_SIZE_RATIO,
     PdfSpan,
-    fold_text,
     is_script,
     piece_from_span,
     render_level,
-    tidy_spacing,
 )
 from voice_reader.domain.document.pdf_mathematics_rows import (
     attach_fractions,

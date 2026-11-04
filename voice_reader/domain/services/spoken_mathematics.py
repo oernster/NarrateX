@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 
-from voice_reader.domain.document.pdf_mathematics import tidy_spacing
+from voice_reader.domain.document.maths_notation_text import tidy_spacing
 
 _LIMITED_OPERATORS = {
     "∑": "the sum",

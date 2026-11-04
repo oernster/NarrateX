@@ -39,7 +39,7 @@ from voice_reader.domain.document.mathml_rules import (
     SILENT,
     THOUSANDS_GROUP,
 )
-from voice_reader.domain.document.pdf_mathematics import (
+from voice_reader.domain.document.maths_notation_text import (
     BIG_OPERATORS,
     fold_text,
     fraction_text,

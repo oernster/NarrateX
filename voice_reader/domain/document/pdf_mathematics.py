@@ -18,17 +18,28 @@ This module is the span level: the pieces of one visual row become one line
 of text in a plain notation, "M_{n}^{min}", with a script marked by braces so a
 narrator can say it and a reader can see where it starts and ends. The rows
 above that, fractions, limits and an equation the extractor split across
-blocks, belong to `pdf_mathematics_layout`.
+blocks, belong to `pdf_mathematics_layout`. The characters below it, the
+folded letters, the unmapped glyphs and the relation padding, belong to
+`maths_notation_text`, which the EPUB's reader shares.
 
 Pure: every rule here is testable without opening a PDF.
 """
 
 from __future__ import annotations
 
-import re
-import unicodedata
 from dataclasses import dataclass, replace
 from enum import Enum
+
+from voice_reader.domain.document.maths_notation_text import (
+    REPEATED_SPACES,
+    fold_text,
+    fraction_text,
+)
+from voice_reader.domain.document.product_marks import (
+    PRODUCT_DOT,
+    is_chemical_join,
+    mark_products,
+)
 
 # A font whose name carries one of these sets mathematics. "math" is Cambria
 # Math, the measured case; it also names STIX Math, Latin Modern Math and XITS
@@ -41,47 +52,6 @@ _MATHS_FONT_MARKERS = ("math", "cmmi", "cmsy", "cmex")
 # so it reads as mathematics for the spacing rule at a junction.
 COMPOSITE_FONT = "mathematics"
 
-# Glyphs Cambria Math draws for the large operators and fences, which the PDF
-# leaves without a Unicode mapping so they arrive as the code points of the
-# glyph slots: Sinhala and Malayalam letters. Measured by reading each one in
-# place: the summation sign sits under its limits, the integral sign before
-# its integrand and the fences around a vector and a set difference.
-_UNMAPPED_MATHS_GLYPHS = {
-    "෍": "∑",  # n-ary summation
-    "න": "∫",  # integral
-    "ൣ": "(",
-    "൧": ")",
-    "൫": "(",
-    "൯": ")",
-}
-
-# Operators that take limits above and below rather than beside them.
-BIG_OPERATORS = frozenset({"∑", "∫", "∏"})
-
-# Relations a maths font sets with no space on either side, because the
-# spacing is drawn by position rather than by a space character. Padding them
-# is what turns "N=" and "d_{k}∈{" into "N =" and "d_{k} ∈ {".
-_RELATIONS = re.compile("([=<>≤≥≠≈≃∈∉⊂⊆∪∩" "→⟶↪⇒⇏⇔])")
-
-# A plus or minus is binary (so padded) only when something it can operate on
-# precedes it in the same run: "θ+" and "(t−s)" but not "{−1" or "^{−k}".
-_BINARY_SIGN = re.compile(r"(?<=[\w)\]}])([+−])")
-
-# A combining mark the file sets before the letter it belongs on, so the dot
-# of a time derivative arrives as "̇M" and displays on the space before M.
-_MARK_BEFORE_LETTER = re.compile(r"([̀-ͯ])(\w)")
-
-_SPACE_BEFORE_PUNCTUATION = re.compile(r"\s+([,.;:!?)\]])")
-
-# The Mathematical Alphanumeric Symbols block: every character of it is a
-# styled letter or digit whose compatibility decomposition is the plain one.
-_MATHS_LETTERS = (0x1D400, 0x1D7FF)
-
-# The Letterlike Symbols block holds the double-struck and script capitals of
-# set notation among trademark and unit signs, so only a character whose plain
-# form is one letter is folded: a trade mark sign is not "TM".
-_LETTERLIKE = (0x2100, 0x214F)
-
 # A piece set below this fraction of its row's size is a sub or superscript.
 SCRIPT_SIZE_RATIO = 0.9
 
@@ -93,8 +63,6 @@ _SCRIPT_SHIFT_RATIO = 0.1
 # Two neighbouring pieces further apart than this fraction of the smaller
 # size have a word space between them that the extraction did not report.
 _WORD_GAP_RATIO = 0.2
-
-_REPEATED_SPACES = re.compile(" {2,}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,51 +93,6 @@ class _Shift(Enum):
     SUBSCRIPT = "sub"
     SUPERSCRIPT = "super"
     INLINE = "inline"
-
-
-def _fold_letter(char: str) -> str:
-    code = ord(char)
-    if _MATHS_LETTERS[0] <= code <= _MATHS_LETTERS[1]:
-        return unicodedata.normalize("NFKC", char)
-    if _LETTERLIKE[0] <= code <= _LETTERLIKE[1]:
-        folded = unicodedata.normalize("NFKC", char)
-        if len(folded) == 1 and folded.isascii() and folded.isalpha():
-            return folded
-    return char
-
-
-def fold_text(text: str, *, maths: bool) -> str:
-    """Plain letters for styled ones; for a maths font, its glyphs and spacing.
-
-    Letters are folded whatever the font, because a styled letter never
-    appears in prose. The glyph table and the relation padding apply only to a
-    maths font: a Sinhala book keeps its letters and a prose "=" stays as set.
-    """
-
-    chars = []
-    for char in text:
-        if maths and char in _UNMAPPED_MATHS_GLYPHS:
-            chars.append(_UNMAPPED_MATHS_GLYPHS[char])
-        else:
-            chars.append(_fold_letter(char))
-    folded = "".join(chars)
-    if maths:
-        folded = _MARK_BEFORE_LETTER.sub(r"\2\1", folded)
-        folded = _RELATIONS.sub(r" \1 ", folded)
-        folded = _BINARY_SIGN.sub(r" \1 ", folded)
-    return folded
-
-
-def is_relation(text: str) -> bool:
-    """Whether `text` is one relation sign, set with a space either side."""
-
-    return _RELATIONS.fullmatch(text) is not None
-
-
-def tidy_spacing(text: str) -> str:
-    """One space at most, none before a closing mark, none at either end."""
-
-    return _SPACE_BEFORE_PUNCTUATION.sub(r"\1", _REPEATED_SPACES.sub(" ", text)).strip()
 
 
 def piece_from_span(span: PdfSpan) -> PdfSpan | None:
@@ -263,6 +186,7 @@ def _flush_scripts(
     *,
     baseline: float,
     size: float,
+    products: bool,
 ) -> tuple[str, PdfSpan | None]:
     if not run:
         return out, previous
@@ -279,7 +203,9 @@ def _flush_scripts(
         # Subscript before superscript, the order the narrator reads limits in.
         groups = [(_Shift.SUBSCRIPT, lower), (_Shift.SUPERSCRIPT, upper)]
     for shift, pieces in groups:
-        inner = render_group(pieces)
+        inner = render_group(
+            pieces, products=products and shift is not _Shift.SUBSCRIPT
+        )
         if shift is _Shift.SUBSCRIPT:
             out += f"_{{{inner}}}"
         elif shift is _Shift.SUPERSCRIPT:
@@ -294,53 +220,98 @@ def _flush_scripts(
     return out, previous
 
 
-def render_level(pieces: list[PdfSpan], *, baseline: float, size: float) -> str:
+def _sets_variables(piece: PdfSpan) -> bool:
+    """A maths-font span read as it was set, not a rebuilt composite."""
+
+    return piece.in_maths_font and piece.font != COMPOSITE_FONT
+
+
+def _after_scripts(
+    base: PdfSpan | None, run: list[PdfSpan], piece: PdfSpan, *, products: bool
+) -> str:
+    """What separates a closing script from the factor set after it.
+
+    "d_{k}3^{k}" and "R_{g}T" are two factors and take the dot; "H_{2}O" is
+    one molecule (a count of atoms between two element symbols) and takes
+    nothing; anything else after a script stands a space apart.
+    """
+
+    counted = all(p.text.strip().isdigit() for p in run)
+    if (
+        counted
+        and base is not None
+        and is_chemical_join(base.text.rstrip()[-1:], piece.text[:1])
+    ):
+        return ""
+    # Set clear of the script, as the columns of a vector are, it is a term
+    # of its own; only a factor set hard against the script multiplies it.
+    if not abuts(run[-1], piece):
+        return " "
+    if products and (_sets_variables(piece) or piece.font == COMPOSITE_FONT):
+        return PRODUCT_DOT
+    return " "
+
+
+def _starts_factor(piece: PdfSpan) -> bool:
+    """Whether a piece opens with something a product can multiply.
+
+    A piece opening with a space was set apart and multiplies nothing. A
+    rebuilt fraction is padded by the rebuild itself, so it is read past that.
+    """
+
+    if piece.font == COMPOSITE_FONT:
+        return piece.text.lstrip()[:1] == "("
+    return piece.text[:1].isalnum()
+
+
+def render_level(
+    pieces: list[PdfSpan], *, baseline: float, size: float, products: bool = True
+) -> str:
     """One row of pieces as text, scripts marked relative to the row.
 
     Pieces are read left to right. A run of pieces smaller than the row is a
     script of what precedes it, below the baseline a subscript and above it a
     superscript; a script set smaller still inside that run is a script of the
-    script, rendered by the same rule one level down.
+    script, rendered by the same rule one level down. With `products`, an
+    implicit product takes the dot; a subscript's indices are read without.
     """
 
     ordered = sorted(pieces, key=lambda p: (p.left, p.baseline))
     out = ""
     previous: PdfSpan | None = None
+    base: PdfSpan | None = None
     run: list[PdfSpan] = []
     for piece in ordered:
         if is_script(piece, size=size):
             run.append(piece)
             continue
-        out, previous = _flush_scripts(out, previous, run, baseline=baseline, size=size)
-        if run and piece.text[0].isalnum():
-            # "d_{k}3^{k}" is two factors; the closing brace needs a space
-            # after it before a word or a number starts.
-            out += " "
+        out, previous = _flush_scripts(
+            out, previous, run, baseline=baseline, size=size, products=products
+        )
+        if run and _starts_factor(piece):
+            separator = _after_scripts(base, run, piece, products=products)
+            out += separator
+            if separator == PRODUCT_DOT:
+                piece = replace(piece, text=piece.text.lstrip())
         run = []
+        if products and _sets_variables(piece):
+            piece = replace(piece, text=mark_products(piece.text))
         out = _append(out, previous, piece)
-        previous = piece
-    out, _ = _flush_scripts(out, previous, run, baseline=baseline, size=size)
-    return _REPEATED_SPACES.sub(" ", out)
+        previous = base = piece
+    out, _ = _flush_scripts(
+        out, previous, run, baseline=baseline, size=size, products=products
+    )
+    # A factor follows its dot hard: "C_{j}⋅((t", never "C_{j}⋅ ((t".
+    out = out.replace(PRODUCT_DOT + " ", PRODUCT_DOT)
+    return REPEATED_SPACES.sub(" ", out)
 
 
-def render_group(pieces: list[PdfSpan]) -> str:
+def render_group(pieces: list[PdfSpan], *, products: bool = True) -> str:
     """Render pieces as a row of their own, its size and baseline the largest's."""
 
     ordered = sorted(pieces, key=lambda p: p.left)
     size = max(p.size for p in ordered)
     baseline = next(p.baseline for p in ordered if p.size == size)
-    return render_level(ordered, baseline=baseline, size=size).strip()
-
-
-# A numerator or denominator that can stand without fences: one token with no
-# space and no arithmetic in it.
-_ATOM = re.compile(r"[^\s()+=×−-]+")
-
-
-def fraction_text(numerator: str, denominator: str) -> str:
-    """ "1/((n−1)!)": each half fenced unless it is a single atom."""
-
-    def fenced(text: str) -> str:
-        return text if _ATOM.fullmatch(text) else f"({text})"
-
-    return f"{fenced(numerator)}/{fenced(denominator)}"
+    return render_level(
+        ordered, baseline=baseline, size=size, products=products
+    ).strip()

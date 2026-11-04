@@ -6,8 +6,11 @@ renderer stays a reading of structure.
 
 from __future__ import annotations
 
-# The dot operator, written between the factors of an implicit product.
-PRODUCT_DOT = "⋅"
+from voice_reader.domain.document.product_marks import (  # noqa: F401
+    DIFFERENTIAL,
+    PREFIX_OPERATORS,
+    PRODUCT_DOT,
+)
 
 FUNCTION_APPLICATION = "⁡"
 INVISIBLE_TIMES = "⁢"
@@ -20,12 +23,6 @@ ROWS = frozenset({"math", "mrow", "mstyle", "mpadded", "menclose", "mtd", "merro
 
 # Elements that carry nothing a reader sees.
 SILENT = frozenset({"annotation", "annotation-xml", "mphantom", "none"})
-
-# Signs that act on what follows them, so no product dot is written after.
-PREFIX_OPERATORS = frozenset({"Δ", "∂", "∇"})
-
-# The letter that opens a differential, as in "dt".
-DIFFERENTIAL = "d"
 
 # Signs set with a space either side when they join two terms.
 SIGNS = frozenset({"+", "−", "±", "×", "∖"})

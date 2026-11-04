@@ -9,16 +9,13 @@ baseline and a superscript four above it. Rounded to a body of 10 here.
 from __future__ import annotations
 
 from voice_reader.domain.document.pdf_mathematics import (
+    COMPOSITE_FONT,
     PdfSpan,
     abuts,
-    fold_text,
-    fraction_text,
-    is_relation,
     is_script,
     piece_from_span,
     render_group,
     render_level,
-    tidy_spacing,
 )
 
 BODY = 10.0
@@ -56,33 +53,6 @@ def span(
 
 def render(*pieces: PdfSpan) -> str:
     return render_level(list(pieces), baseline=BASELINE, size=BODY)
-
-
-class TestFoldText:
-    def test_styled_letters_fold_to_plain_ones_in_any_font(self) -> None:
-        assert fold_text("\U0001d440\U0001d45b", maths=False) == "Mn"
-        assert fold_text("\U0001d703", maths=True) == "θ"
-
-    def test_letterlike_set_symbols_fold_but_a_trade_mark_sign_does_not(self) -> None:
-        assert fold_text("ℕℎ", maths=False) == "Nh"
-        assert fold_text("™", maths=False) == "™"
-
-    def test_unmapped_glyphs_are_read_only_in_a_maths_font(self) -> None:
-        assert fold_text("෍නൣ൧", maths=True) == "∑∫()"
-        assert fold_text("෍", maths=False) == "෍"
-
-    def test_relations_are_padded_only_in_a_maths_font(self) -> None:
-        assert fold_text("N=", maths=True) == "N = "
-        assert fold_text("d∈{", maths=True) == "d ∈ {"
-        assert fold_text("N=", maths=False) == "N="
-
-    def test_a_sign_is_padded_only_where_it_is_binary(self) -> None:
-        assert fold_text("θ+", maths=True) == "θ + "
-        assert fold_text("(t−s)", maths=True) == "(t − s)"
-        assert fold_text("{−1", maths=True) == "{−1"
-
-    def test_a_combining_mark_set_before_its_letter_moves_after_it(self) -> None:
-        assert fold_text("̇M", maths=True) == "Ṁ"
 
 
 class TestPieces:
@@ -131,7 +101,7 @@ class TestSpacing:
             span("d", 0, 5), span("k", 5, 8, 102, size=SCRIPT), span("3", 9, 14)
         )
 
-        assert out == "d_{k} 3"
+        assert out == "d_{k}⋅3"
 
 
 class TestScripts:
@@ -142,7 +112,9 @@ class TestScripts:
         assert render(span("3", 0, 6), span("k", 6, 10, 96, size=SCRIPT)) == "3^{k}"
 
     def test_a_small_piece_on_the_baseline_is_small_text(self) -> None:
-        out = render(span("M", 0, 8), span("min", 10, 20, 100.5, size=SCRIPT))
+        out = render(
+            span("M", 0, 8), span("min", 10, 20, 100.5, size=SCRIPT, font=PROSE)
+        )
 
         assert out == "M min"
 
@@ -158,7 +130,7 @@ class TestScripts:
     def test_a_superscript_over_a_subscript_reads_subscript_first(self) -> None:
         out = render(
             span("M", 0, 8),
-            span("min", 8, 20, 96, size=SCRIPT),
+            span("min", 8, 20, 96, size=SCRIPT, font=PROSE),
             span("n", 8, 12, 102, size=SCRIPT),
         )
 
@@ -189,7 +161,7 @@ class TestScriptFractions:
             span("+", 0, 5),
             span("1", 8, 12, 96, size=SCRIPT),
             span("2", 8, 12, 104, size=SCRIPT),
-            span("O", 13, 20),
+            span("O", 13, 20, font=PROSE),
         )
 
         assert out == "+ 1/2 O"
@@ -206,16 +178,29 @@ class TestGroupsAndText:
     def test_a_group_is_read_at_the_size_of_its_largest_piece(self) -> None:
         out = render_group([span("a", 0, 4, 50, size=SCRIPT), span("b", 5, 10, 52)])
 
-        assert out == "^{a} b"
+        assert out == "^{a}⋅b"
 
-    def test_a_fraction_fences_anything_but_an_atom(self) -> None:
-        assert fraction_text("1", "(n − 1)!") == "1/((n − 1)!)"
-        assert fraction_text("28", "16") == "28/16"
-        assert fraction_text("a b", "c") == "(a b)/c"
 
-    def test_a_relation_is_one_relation_sign(self) -> None:
-        assert is_relation("=") and is_relation("↪")
-        assert not is_relation("+") and not is_relation("==")
+class TestFactorsAfterScripts:
+    def test_a_counted_element_joins_the_next_with_nothing(self) -> None:
+        out = render(
+            span("H", 0, 6), span("2", 6, 9, 102, size=SCRIPT), span("O", 9, 15)
+        )
 
-    def test_tidy_spacing_collapses_and_trims(self) -> None:
-        assert tidy_spacing("  a  b , c . ") == "a b, c."
+        assert out == "H_{2}O"
+
+    def test_a_factor_set_clear_of_the_script_stands_a_space_apart(self) -> None:
+        out = render(
+            span("x", 0, 5), span("i", 5, 8, 102, size=SCRIPT), span("y", 20, 25)
+        )
+
+        assert out == "x_{i} y"
+
+    def test_a_rebuilt_fraction_after_a_script_takes_the_dot(self) -> None:
+        out = render(
+            span("x", 0, 5),
+            span("i", 5, 8, 102, size=SCRIPT),
+            span(" (a)/(b)", 8, 30, font=COMPOSITE_FONT),
+        )
+
+        assert out == "x_{i}⋅(a)/(b)"

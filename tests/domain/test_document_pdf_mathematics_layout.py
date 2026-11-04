@@ -77,7 +77,7 @@ class TestRows:
         # Measured: a fence sits 0.31 of the size off its row.
         out = texts(
             line(
-                span("n log", 0, 30, top=92, bottom=102),
+                span("n log", 0, 30, top=92, bottom=102, font=PROSE),
                 span("3⌉", 33, 40, 103.1, top=90, bottom=104),
             )
         )
@@ -127,7 +127,7 @@ class TestRows:
         out = texts(
             line(
                 span("⌈x", 0, 8, 103.5, top=90, bottom=104),
-                span("long piece", 11, 60, top=92, bottom=102),
+                span("long piece", 11, 60, top=92, bottom=102, font=PROSE),
                 span("k", 60, 64, 102, size=SCRIPT),
             )
         )

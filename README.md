@@ -70,10 +70,11 @@ cache. Nothing you read leaves the device.
   leaving the reader empty
 - Mathematics in a PDF or an EPUB is read, shown and spoken: a formula typeset in a maths font
   (or written as MathML) comes back as plain letters with its subscripts, superscripts, limits and
-  fractions marked (`N = ∑_{k = 0}^{m} d_{k} 3^{k}`) and is narrated in words ("N equals the sum
-  from k equals 0 to m of d sub k 3 to the k"); an EPUB's implicit products carry the dot
-  operator (`e^{i⋅π} + 1 = 0`) and its LaTeX source is never shown; a book with no mathematics
-  is extracted exactly as before
+  fractions marked (`N = ∑_{k = 0}^{m} d_{k}⋅3^{k}`) and is narrated in words ("N equals the
+  sum from k equals 0 to m of d sub k times 3 to the k"); an implicit product carries the dot
+  operator in both formats (`e^{i⋅π} + 1 = 0`) and an EPUB's LaTeX source is never shown; the
+  reading pane sets each script small and raised or lowered, so it shows O₂ rather than
+  `O_{2}`; a book with no mathematics is extracted exactly as before
 - Non-content is excluded from narration by structure rather than by guesswork: page numbers,
   running heads, contents entries and the back-of-book index are shown where they belong and never
   read aloud; PDF running heads and margin folios are stripped from the extracted text itself so

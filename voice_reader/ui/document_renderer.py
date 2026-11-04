@@ -16,6 +16,7 @@ from PySide6.QtGui import QFont, QTextBlockFormat, QTextCharFormat, QTextCursor
 from voice_reader.domain.document.block_kind import BlockKind
 from voice_reader.domain.document.render_plan import RenderedBlock, RenderPlan
 from voice_reader.ui._utf16_positions import Utf16PositionMap
+from voice_reader.ui.script_typesetting import typeset_scripts
 
 # Point-size multipliers by heading level, largest first. Six entries to match
 # the six levels the model expresses.
@@ -110,7 +111,7 @@ def apply_render_plan(
 
     Returns the position map for the text that was set. Callers need it: a
     render offset is a Python index, while a cursor position counts UTF-16
-    units, and the two diverge as soon as the book contains an emoji.
+    units; the two diverge as soon as the book contains an emoji.
     """
 
     positions = Utf16PositionMap.for_text(plan.text)
@@ -134,10 +135,19 @@ def apply_render_plan(
                     positions.to_qt(block.render_end),
                     QTextCursor.MoveMode.KeepAnchor,
                 )
-                cursor.mergeCharFormat(
-                    char_format_for(block=block, base=base_point_size)
-                )
+                block_format = char_format_for(block=block, base=base_point_size)
+                cursor.mergeCharFormat(block_format)
                 cursor.mergeBlockFormat(block_format_for(block=block))
+                # Code means what it says: "x_{2}" in a listing stays as typed.
+                if block.kind is not BlockKind.CODE:
+                    typeset_scripts(
+                        cursor=cursor,
+                        positions=positions,
+                        text=plan.text,
+                        start=block.render_start,
+                        end=block.render_end,
+                        base_point_size=block_format.fontPointSize(),
+                    )
         finally:
             cursor.endEditBlock()
 
