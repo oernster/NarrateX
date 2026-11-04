@@ -180,6 +180,12 @@ Output:
 This uses a **onedir** build (recommended). The output folder will also contain
 `_internal/` with the PyInstaller runtime and bundled dependencies.
 
+After PyInstaller finishes, the build trims what the app never uses (see
+[`build_trim.py`](build_trim.py)), then checks every kept DLL's imports and stops
+if one still needs something trimmed. A package the app newly imports is not
+affected unless it appears in `EXCLUDED_MODULES` there; a new Qt module the app
+starts to use must be taken out of the Qt lists there; otherwise the check stops the build.
+
 ## Windows installer builds
 
 The installer is a separate **onefile** PyInstaller build that embeds a payload

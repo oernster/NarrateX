@@ -284,6 +284,11 @@ def main() -> int:
     for mod in wiring_module_names():
         cmd.append(f"--hidden-import={mod}")
 
+    # Packages the app never imports; see build_trim.py for the measurement.
+    import build_trim
+
+    cmd.extend(build_trim.exclude_module_args())
+
     for spec in add_data:
         cmd.extend(["--add-data", spec])
 
@@ -295,6 +300,10 @@ def main() -> int:
 
     exe = dist_root / "NarrateX" / "NarrateX.exe"
     if exe.exists():
+        # Files and Qt modules the app never uses, then proof that no kept
+        # binary needs one of them.
+        build_trim.trim_bundle(exe.parent, windows=True)
+        build_trim.assert_trim_is_safe(exe.parent)
         print(f"\nBuilt: {exe}")
         return 0
 

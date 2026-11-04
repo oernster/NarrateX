@@ -170,7 +170,6 @@ export PYTHONPATH="/app/share/narratex:/app/lib/python3.13/site-packages${PYTHON
 export QT_PLUGIN_PATH="/app/lib/python3.13/site-packages/PySide6/Qt/plugins"
 export QT_QPA_PLATFORM_PLUGIN_PATH="/app/lib/python3.13/site-packages/PySide6/Qt/plugins/platforms"
 export QML2_IMPORT_PATH="/app/lib/python3.13/site-packages/PySide6/Qt/qml"
-export QTWEBENGINE_DISABLE_SANDBOX=1
 if [ -n "${WAYLAND_DISPLAY:-}" ] && [ -z "${FORCE_X11:-}" ]; then
     export QT_QPA_PLATFORM=wayland
 elif [ -n "${DISPLAY:-}" ]; then
@@ -247,7 +246,11 @@ finish-args:
   - --socket=pulseaudio
   - --device=dri
   - --filesystem=home
-  - --env=QTWEBENGINE_DISABLE_SANDBOX=1
+
+# uv only installs the wheels; nothing runs it once the app is built.
+cleanup:
+  - /bin/uv
+  - /bin/uvx
 
 modules:
 
@@ -343,6 +346,9 @@ modules:
     build-commands:
       - mkdir -p /app/share/narratex
       - cp -r app.py voice_reader voices /app/share/narratex/
+      # Sources, headers, static libraries, test folders and the Qt modules
+      # nothing loads: the rules every build shares, in build_trim.py.
+      - python3 build_trim.py /app/lib/python3.13/site-packages
       - cp LICENSE LGPL3-LICENSE /app/share/narratex/
       # VERSION is the single source of truth; voice_reader/version.py reads it
       # from beside the package, so it has to be staged with the source.

@@ -6,7 +6,8 @@ keep that module inside the line cap.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+import PySide6
+from PySide6.QtCore import Qt, qVersion
 from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
 
 from voice_reader.ui.licence_dialog import PlainTextLicenceDialog, read_licence_text
@@ -35,6 +36,25 @@ _CREDITS = (
     "PyInstaller - GPL-2.0 with bootloader exception (packaging)",
     "pytest, pytest-cov, black, flake8, ruff - MIT (development)",
 )
+
+# Where the source of the exact Qt and PySide6 this build runs on lives. The
+# LGPL-3.0 asks that it be made available with the shipped libraries; Qt's own
+# git tags stay at a release for good, where the download mirror moves older
+# releases to an archive. Filled from the running versions, never written in.
+QT_SOURCE_URL = "https://code.qt.io/cgit/qt/qt5.git/tag/?h=v{version}"
+PYSIDE_SOURCE_URL = "https://code.qt.io/cgit/pyside/pyside-setup.git/tag/?h=v{version}"
+
+
+def qt_source_links(*, qt_version: str, pyside_version: str) -> str:
+    """The sentence naming the Qt and PySide6 source, as rich text with links."""
+
+    qt = QT_SOURCE_URL.format(version=qt_version)
+    pyside = PYSIDE_SOURCE_URL.format(version=pyside_version)
+    return (
+        "Qt and PySide6 are used under the LGPL-3.0 as replaceable shared "
+        f'libraries. Their source: <a href="{qt}">Qt {qt_version}</a>; '
+        f'<a href="{pyside}">PySide6 {pyside_version}</a>.'
+    )
 
 
 def build_about_dialog(*, parent: QWidget, on_check_updates=None) -> QMessageBox:
@@ -67,6 +87,7 @@ def build_about_dialog(*, parent: QWidget, on_check_updates=None) -> QMessageBox
               <div style="margin-top: 10px;"><b>Author</b>: {author}</div>
               <div style="margin-top: 10px;"><b>Open source credits</b>:</div>
               <div style="margin-top: 4px; font-size: 12px;">{credits}</div>
+              <div style="margin-top: 8px; font-size: 12px;">{qt_source}</div>
               <div style="margin-top: 8px;">Built on the Python and Qt
               ecosystems, with thanks to their communities.</div>
             </div>
@@ -76,6 +97,9 @@ def build_about_dialog(*, parent: QWidget, on_check_updates=None) -> QMessageBox
             author=APP_AUTHOR,
             copyright=APP_COPYRIGHT,
             credits=credits,
+            qt_source=qt_source_links(
+                qt_version=qVersion(), pyside_version=PySide6.__version__
+            ),
         )
     )
 

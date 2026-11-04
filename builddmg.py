@@ -396,6 +396,11 @@ def build_app_bundle(entitlements_path: Path, icns_path: Path | None = None) -> 
     for mod in wiring_module_names():
         cmd.append(f"--hidden-import={mod}")
 
+    # Packages the app never imports; see build_trim.py for the measurement.
+    import build_trim
+
+    cmd.extend(build_trim.exclude_module_args())
+
     for spec in add_data:
         cmd.extend(["--add-data", spec])
 
@@ -764,6 +769,12 @@ def main() -> int:
 
         try:
             app_path = build_app_bundle(entitlements_path, icns_path)
+            # Before signing: every file removed afterwards would break the
+            # signature over the bundle.
+            section("Trim what the app never uses")
+            import build_trim
+
+            build_trim.trim_bundle(app_path, windows=False)
             strip_build_artifacts(app_path)
             sign_bundle(app_path, entitlements_path)
             notarize_bundle(app_path)

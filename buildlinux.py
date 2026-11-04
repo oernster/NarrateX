@@ -201,6 +201,11 @@ def main() -> int:
     for mod in wiring_module_names():
         cmd.append(f"--hidden-import={mod}")
 
+    # Packages the app never imports; see build_trim.py for the measurement.
+    import build_trim
+
+    cmd.extend(build_trim.exclude_module_args())
+
     for spec in add_data:
         cmd.extend(["--add-data", spec])
 
@@ -247,6 +252,8 @@ def main() -> int:
                 f"  Stripped {Path(match).name} "
                 "(host glib - runtime provides compatible version)"
             )
+
+    build_trim.trim_bundle(dist_root / "NarrateX", windows=False)
 
     print(f"\nBuilt: {exe}  ({_dir_size(dist_root / 'NarrateX')})")
     return 0

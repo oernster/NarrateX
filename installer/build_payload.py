@@ -31,6 +31,10 @@ PAYLOAD_ZIP = PAYLOAD_DIR / "payload.zip"
 MANIFEST_JSON = PAYLOAD_DIR / "manifest.json"
 
 _MB = 1024 * 1024
+# LZMA rather than deflate: measured on the bundle's largest binaries it packs
+# them about 37% smaller (torch_cpu.dll 73 MB deflated, 46 MB as LZMA), for a
+# slower build. The installer reads it with zipfile, which handles both.
+PAYLOAD_COMPRESSION = zipfile.ZIP_LZMA
 # Hashing and compressing the whole bundle runs for minutes on a cold cache;
 # without output it reads as a hang, so report at this fraction of the bytes.
 _REPORT_FRACTION = 0.1
@@ -84,7 +88,7 @@ def build_payload() -> None:
     next_report = _REPORT_FRACTION
 
     fixed_dt = (1980, 1, 1, 0, 0, 0)
-    with zipfile.ZipFile(PAYLOAD_ZIP, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(PAYLOAD_ZIP, "w", compression=PAYLOAD_COMPRESSION) as zf:
         for file_path in files:
             rel = file_path.relative_to(SOURCE_BUNDLE_DIR)
             rel_posix = str(rel).replace("\\", "/")
@@ -93,7 +97,7 @@ def build_payload() -> None:
             entries.append(ManifestEntry(path=rel_posix, size=size, sha256=sha))
 
             zi = zipfile.ZipInfo(filename=rel_posix, date_time=fixed_dt)
-            zi.compress_type = zipfile.ZIP_DEFLATED
+            zi.compress_type = PAYLOAD_COMPRESSION
 
             with file_path.open("rb") as src:
                 data = src.read()

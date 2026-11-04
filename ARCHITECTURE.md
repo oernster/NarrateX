@@ -467,6 +467,14 @@ The build bundles:
 
 Kokoro model weights are resolved at runtime by Kokoro/HuggingFace unless you pre-populate `hf-cache/`.
 
+What every build leaves out lives in one place, [`build_trim.py`](build_trim.py), which the Windows, macOS and Linux packagers and the Flatpak manifest all call. Its rules come from a measurement, recorded in its docstring: the app was run end to end and every module and library the process loaded was listed. Left out:
+
+- packages nothing on the app's path imports (numba with llvmlite, misaki's Chinese pipeline, pywin32's Pythonwin)
+- files no program executes (C and C++ sources, headers, static libraries, type stubs, test folders)
+- Qt modules the app never loads, with the plugins that pull them in and Qt's translations, which the app never installs a translator for
+
+Every Qt library the app does load stays a separate, replaceable file, as the LGPL-3.0 asks of a shared library; Help | About links the source of the exact Qt and PySide6 versions it runs on. On Windows the build then reads the import table of every binary it kept and stops if one still needs a trimmed library. The installer's payload is LZMA compressed, which packs the binaries about 37% smaller than deflate.
+
 Both [`buildexe.py`](buildexe.py) and [`buildinstaller.py`](buildinstaller.py) call
 [`stamp_version.py`](stamp_version.py) before packaging, so the published site pages cannot ship a
 version that disagrees with `VERSION`. That converts a remembered manual sweep into a build rule.
@@ -479,6 +487,8 @@ Linux ships two build paths:
   - the **PortAudio** backend required by `sounddevice` for audio output
   - the **spaCy `en_core_web_sm`** model required by misaki (Kokoro's grapheme-to-phoneme stage); without it misaki would attempt a network download at first synthesis and fail in the read-only sandbox
   - an **espeak-ng** phonemizer (via `espeakng_loader`), located at runtime by [`configure_espeak()`](voice_reader/infrastructure/tts/_espeak_setup.py) so out-of-dictionary words narrate instead of failing
+
+  It installs only what [`requirements-flatpak.txt`](requirements-flatpak.txt) names: the declared dependency closure of the packages NarrateX imports, with `PySide6_Essentials` in place of the PySide6 metapackage, since every Qt module and plugin the app loads lives there. The manifest then runs [`build_trim.py`](build_trim.py) over the installed packages and removes the `uv` used to install them.
 - **Native onedir** via [`buildlinux.py`](buildlinux.py) (PyInstaller), producing `dist-pyinstaller/NarrateX/`.
 
 Source-installation prerequisites per distribution are documented in [`LINUX-INSTALLATION.md`](LINUX-INSTALLATION.md).
