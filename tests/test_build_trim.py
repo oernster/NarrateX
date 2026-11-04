@@ -129,6 +129,28 @@ def test_a_link_left_pointing_at_a_trimmed_file_goes_too(tmp_path: Path) -> None
     assert (tmp_path / "Frameworks/spacy/keep.so").exists()
 
 
+def test_a_link_to_a_folder_the_trim_empties_goes_too(tmp_path: Path) -> None:
+    # The macOS bundle's shape: Frameworks/torch/_C links to Resources/torch/_C,
+    # which holds only type stubs. The folder empties and goes in the same
+    # sweep that checks the link, which sits at the same depth and was checked
+    # first; codesign --verify --strict then refused the dangling link.
+    _tree(
+        tmp_path,
+        ("Resources/torch/_C/__init__.pyi", "Frameworks/torch/lib/libtorch.dylib"),
+    )
+    link = tmp_path / "Frameworks/torch/_C"
+    try:
+        os.symlink("../../Resources/torch/_C", link)
+    except OSError:
+        pytest.skip("this account may not create symbolic links")
+
+    build_trim.trim_bundle(tmp_path, windows=False)
+
+    assert not link.is_symlink()
+    assert not (tmp_path / "Resources/torch/_C").exists()
+    assert (tmp_path / "Frameworks/torch/lib/libtorch.dylib").exists()
+
+
 def test_the_command_line_trims_each_folder_named(tmp_path: Path) -> None:
     _tree(tmp_path, ("a/spacy/vocab.cpp", "a/spacy/vocab.so", "b/torch/x.h"))
 

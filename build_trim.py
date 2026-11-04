@@ -165,6 +165,27 @@ def _doomed(
     )
 
 
+def _sweep_dangling(root: Path) -> bool:
+    """Remove each link pointing at nothing and each empty folder; answer
+    whether anything went.
+
+    One pass is not enough: a folder emptied here can be the target of a link
+    already checked in this pass (a macOS bundle's Frameworks link sits at the
+    same depth as its Resources folder); removing a link can empty its folder
+    in turn. The caller repeats until a pass removes nothing.
+    """
+
+    changed = False
+    for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        if path.is_symlink() and not path.exists():
+            path.unlink()
+            changed = True
+        elif path.is_dir() and not path.is_symlink() and not any(path.iterdir()):
+            path.rmdir()
+            changed = True
+    return changed
+
+
 def trim_bundle(root: Path, *, windows: bool | None = None) -> int:
     """Remove from a built bundle what the app never uses; answer the bytes.
 
@@ -189,11 +210,8 @@ def trim_bundle(root: Path, *, windows: bool | None = None) -> int:
             path = here / name
             if _doomed(path, windows=on_windows):
                 removed += _remove(path)
-    for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
-        if path.is_symlink() and not path.exists():
-            path.unlink()
-        elif path.is_dir() and not path.is_symlink() and not any(path.iterdir()):
-            path.rmdir()
+    while _sweep_dangling(root):
+        pass
     print(f"  Trimmed {removed / _MB:.1f} MB the app never uses from {root}")
     return removed
 
