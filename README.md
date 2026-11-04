@@ -95,7 +95,7 @@ cache. Nothing you read leaves the device.
 - Panes are never rung: a long text view reached by Tab scrolls on Up and Down without an outline,
   a click never focuses it and every dialog opens on its first control rather than on its text
 - A Help menu holding a Guide (every control, led by the picture it wears, plus the keyboard keys)
-  and About
+  and About, which links the source of the exact Qt and PySide6 versions the application runs on
 - The Guide and the licence texts read themselves slowly once open for a few seconds; scrolling,
   clicking or a key pauses them and they carry on from where you left them. The book in the reading
   pane never does this: it keeps pace with the narration

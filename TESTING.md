@@ -84,8 +84,8 @@ match the dependency direction the layers themselves obey:
 | `tests/infrastructure/` | `voice_reader.infrastructure` | Adapters implementing domain ports. External processes and heavy imports are stubbed. Sub-suites: `infrastructure/audio/`, `infrastructure/books/`, `infrastructure/shelf/`, `infrastructure/tts/`. |
 | `tests/ui/` | `voice_reader.ui` | PySide UI. Tests assert controller behavior and signals, not brittle widget trees. Run under the offscreen Qt platform the runner sets (see Quick commands); the `qapp` fixture in [`tests/conftest.py`](tests/conftest.py) creates the application but does not choose its platform. |
 | `tests/shared/` | `voice_reader.shared` | Lowest-level helpers (logging/config/paths/runtime). |
-| `tests/installer/` | `installer/` | Installer entrypoint and installer UI. |
-| `tests/` (top level) | `app.py`, `voice_reader/bootstrap.py`, `voice_reader/book_load_worker.py`, `voice_reader/version.py` | Composition-root / entrypoint and process-boot behavior (app identity, icon fallback, preflight, book-load worker) plus the version single-source check. |
+| `tests/installer/` | `installer/` | Installer entrypoint, installer UI and the payload: built and unpacked on one thread or many, landing the same either way. |
+| `tests/` (top level) | `app.py`, `voice_reader/bootstrap.py`, `voice_reader/book_load_worker.py`, `voice_reader/version.py`, `build_trim.py` | Composition-root / entrypoint and process-boot behavior (app identity, icon fallback, preflight, book-load worker), the version single-source check and the build trim with its guard against removing a library still needed. |
 | `tests/structural/` | the codebase as a whole | AST/structural guards, not behavior. See below. |
 
 Shared fixtures live in [`tests/conftest.py`](tests/conftest.py): notably a

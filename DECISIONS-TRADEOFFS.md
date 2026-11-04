@@ -181,6 +181,24 @@ from the text itself.
   stripped gives a PDF a new identity and its resume position and ideas map
   start again.
 
+### Mathematics is read as notation and spoken as words
+
+A formula is rebuilt as one line of plain notation with its scripts, limits
+and fractions marked: a PDF's from the fonts and positions of its pieces, an
+EPUB's from its MathML as a reader sees it, never from the LaTeX source
+stored beside it. The narrator says it in words. The pane sets each script
+small and raised or lowered while the text beneath keeps the notation, so
+no offset the narrator or the highlight uses moves. Only blocks that set
+mathematics are rebuilt.
+
+- **Rather than:** the flat text a PDF yields, which drops scripts and splits
+  fractions across lines; showing the stored LaTeX; rewriting the text so
+  the pane could draw it.
+- **Gains:** a formula reads the same from either format, on screen and
+  aloud; a book with no mathematics is extracted exactly as before.
+- **Costs:** a set of layout rules to keep true; a formula laid out in a way
+  the rules have not met can be read wrongly.
+
 ### Headings a book never marked up, found in order of trust
 
 A book's own heading tags come first. Where it has none, the chapter names
@@ -707,6 +725,37 @@ they will go and says the data is kept when it will stay.
 - **Costs:** each account installs separately; a default uninstall takes the
   bookmarks and shelf genres with it.
 
+### A build carries only what the application loads
+
+Every build leaves out the packages, source files and Qt modules a full run
+of the application never loaded, by one shared set of rules. The Qt
+libraries it does load stay separate files a user can replace, as the
+LGPL-3.0 asks; About links the source of the exact Qt and PySide6 it runs
+on. The Windows build reads what every kept library imports and stops
+if one still needs something removed.
+
+- **Rather than:** shipping whatever the packager collected, which bundled
+  hundreds of megabytes nothing ever ran.
+- **Gains:** the Windows setup program fell from 480 MB to 287 MB.
+- **Costs:** a module the application starts to use must be taken off the
+  list; the import check runs on Windows only.
+
+### A smaller payload, packed on every core
+
+The setup program's payload is LZMA compressed rather than deflated, which
+makes it a fifth smaller. LZMA is slow on one core, so the build compresses
+and the setup program unpacks on every core the machine offers, with one
+thread where there is only one. The archive is written in a fixed order, so
+it is the same whatever the number of cores.
+
+- **Rather than:** deflate's larger download; LZMA on one thread, which
+  added minutes to every build.
+- **Gains:** a smaller download with a build and an install faster than
+  before.
+- **Costs:** a small zip writer of NarrateX's own, since the standard one
+  compresses one member at a time; the largest library still sets the
+  build's floor, because one file cannot be split across cores.
+
 ### A setup program of its own
 
 Install, repair and removal are one bespoke program wearing the
@@ -752,13 +801,16 @@ The site is published from its own directory, carries no dates and leads
 with long-form structure rather than the number of voices. The home page
 makes the case and points the way; the features have a page of their own. It
 says the voices are less natural than the cloud services and what that buys.
-Stylesheet links carry a hash of their content.
+Stylesheet links carry a hash of their content. The site's page loads are
+counted with GoatCounter; the application itself counts nothing.
 
 - **Rather than:** a version chip with a release date; leading with the
-  number of voices, which invites the one comparison cloud services win.
+  number of voices, which invites the one comparison cloud services win; a
+  site that knows nothing about who visits it.
 - **Gains:** nothing on the site goes stale by the calendar; a browser never
-  pairs a new page with an old stylesheet.
-- **Costs:** the pages have to be stamped from the source before each build.
+  pairs a new page with an old stylesheet; which pages are read is known.
+- **Costs:** the pages have to be stamped from the source before each build;
+  a visit to the site is counted by a third party.
 
 ## Engineering
 

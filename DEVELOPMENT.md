@@ -189,7 +189,11 @@ starts to use must be taken out of the Qt lists there; otherwise the check stops
 ## Windows installer builds
 
 The installer is a separate **onefile** PyInstaller build that embeds a payload
-zip of the app bundle.
+zip of the app bundle. The payload is LZMA compressed on every core the build
+machine offers ([`installer/zip_writer.py`](installer/zip_writer.py) writes it in
+sorted order, so it is byte-identical whatever the core count); the setup program
+unpacks it on every core of the machine it runs on. Either end falls back to one
+thread where there is only one core.
 
 Build workflow:
 
