@@ -32,13 +32,15 @@ megabyte apiece, so shipping them would put tens of megabytes in the bundle and
 decode every one at start-up for a picture drawn at a few dozen pixels.
 
 The script is idempotent: run it twice and the second run reports nothing
-written. Pass --check to compare without writing, which is what a verification
-step wants.
+written. A file counts as current when its pixels match, whatever bytes the
+local zlib would have encoded them as; see `same_picture`. Pass --check to
+compare without writing, which is what a verification step wants.
 """
 
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from pathlib import Path
 
@@ -219,6 +221,34 @@ def targets(master: Image.Image) -> dict[Path, bytes]:
     return wanted
 
 
+def _pictures(data: bytes) -> list[tuple[tuple[int, int], bytes]]:
+    image = Image.open(io.BytesIO(data))
+    if image.format == "ICO":
+        frames = [image.ico.getimage(size) for size in sorted(image.ico.sizes())]
+    else:
+        frames = [image]
+    return [(frame.size, frame.convert("RGBA").tobytes()) for frame in frames]
+
+
+def same_picture(current: bytes | None, expected: bytes) -> bool:
+    """Whether a file on disk already holds the picture `expected` encodes.
+
+    Decoded pixels are compared, every size of an .ico included, rather than
+    the encoded bytes: those depend on the zlib Pillow was built with (classic
+    zlib or zlib-ng), so the same picture encodes differently from one machine
+    to the next and a byte comparison calls an up-to-date icon stale.
+    """
+
+    if current is None:
+        return False
+    if current == expected:
+        return True
+    try:
+        return _pictures(current) == _pictures(expected)
+    except (OSError, ValueError):
+        return False
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -234,7 +264,7 @@ def main(argv: list[str] | None = None) -> int:
     stale: list[Path] = []
     for path, data in targets(master).items():
         current = path.read_bytes() if path.is_file() else None
-        if current == data:
+        if same_picture(current, data):
             continue
         stale.append(path)
         if not args.check:
