@@ -74,6 +74,23 @@ def _text_dialog(text: str):
     return dialog, editor
 
 
+def _settled_maximum(qapp, editor) -> int:
+    """The scroll range once the document is fully laid out.
+
+    Straight after `show()` a long document is only partly laid out; the bar
+    reports an estimate. Measured on 2026-11-04: 6837 just after show,
+    against a document 6408 high in a 142 high viewport; the true 6266 (6408
+    less 142) arrives in a later event, whose timing depends on paints and
+    focus. Read before then, the test's arithmetic rests on a number the bar
+    is about to drop. Asking for the document's size finishes the layout and
+    one pass of the event loop delivers the range it implies.
+    """
+
+    editor.document().size()
+    qapp.processEvents()
+    return editor.verticalScrollBar().maximum()
+
+
 def test_a_region_is_a_stop_only_while_it_overflows(qapp) -> None:
     dialog, editor = _text_dialog("short")
     focus = follow_overflow(editor)
@@ -115,7 +132,7 @@ def test_the_scroller_runs_the_whole_cycle(qapp) -> None:
     assert scroller.timer.isActive()
     scroller.timer.stop()
     bar = editor.verticalScrollBar()
-    maximum = bar.maximum()
+    maximum = _settled_maximum(qapp, editor)
     assert maximum > 0
 
     # Opening focus is not a reader: the start hold survives it.
