@@ -34,6 +34,9 @@ from voice_reader.domain.document.pdf_mathematics_rows import (
     rows_of,
 )
 
+# The hooked arrow a code listing sets before a wrapped line.
+WRAP_MARK = "↪"
+
 # How far, in fractions of the larger size, a script-sized fragment block may
 # stand clear of a block and still be read with it.
 _FRAGMENT_SLACK_RATIO = 0.5
@@ -93,6 +96,10 @@ def _plain_line(line: PdfRawLine) -> AssembledLine:
     )
 
 
+def _is_wrap_mark(line: PdfRawLine) -> bool:
+    return "".join(span.text for span in line.spans).strip() == WRAP_MARK
+
+
 def _blocks_in_order(
     lines: tuple[PdfRawLine, ...],
 ) -> list[tuple[int, list[PdfRawLine]]]:
@@ -138,18 +145,24 @@ def _groups(
 
 
 def _row_size(pieces: list[PdfSpan]) -> float:
-    """The size carrying the most ink: characters weighted by their size.
+    """The size carrying the most ink: glyphs weighted by the area they cover.
 
-    Counting characters alone lets a display equation's limits outvote its
-    body, since "k = 0" and "m" are five characters against "N =" and a
-    sign. Weighted by size the body wins, while a stray larger fragment of a
-    character or two cannot outvote a line of body text.
+    Counting characters alone lets a formula's scripts outvote its body:
+    "H_{n} ↪ H_{n+1}" holds three body glyphs against four script ones. A
+    glyph's area grows with the square of its size, so weighted that way the
+    body wins clearly (356 against 256 there) while a stray larger fragment of
+    a character or two cannot outvote a line of body text.
+
+    Spaces carry no ink and are not counted. They once were; the spaces
+    the extraction sets around a binary sign ("n + 1") were enough to tip that
+    line to the script size, so no script was found at all.
     """
 
     ink: dict[float, float] = {}
     for piece in pieces:
         key = round(piece.size, 1)
-        ink[key] = ink.get(key, 0.0) + key * len(piece.text.strip())
+        glyphs = sum(1 for char in piece.text if not char.isspace())
+        ink[key] = ink.get(key, 0.0) + key * key * glyphs
     return max(ink.items(), key=lambda item: (item[1], item[0]))[0]
 
 
@@ -202,8 +215,14 @@ def assemble_lines(lines: tuple[PdfRawLine, ...]) -> tuple[AssembledLine, ...]:
 
     Blocks keep their order. A group of maths blocks is emitted where its
     first block stood and its other blocks are consumed into it.
+
+    A line holding nothing but a hooked arrow is a code listing's mark for a
+    wrapped line, set small in the maths font; it is dropped. Measured on a
+    Word-produced book: fifteen such marks, every one alone on its line;
+    three arrows of a formula, every one between its operands.
     """
 
+    lines = tuple(line for line in lines if not _is_wrap_mark(line))
     blocks = _blocks_in_order(lines)
     groups = _groups(blocks)
     consumed = {member for group in groups.values() for member in group[1:]}

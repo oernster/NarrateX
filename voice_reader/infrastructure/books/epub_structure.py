@@ -5,9 +5,10 @@ An EPUB already states its structure as `h1`..`h6`, `p`, `li`, `blockquote` and
 of the pipeline guessing at headings from prose. Walking the tags instead means
 EPUB structure is read, not inferred.
 
-The extracted *text* is deliberately produced exactly as before, so
-`normalized_text` is unchanged and every character offset already persisted
-against it keeps its meaning.
+The extracted *text* is produced exactly as before for every document that
+sets no MathML, so its `normalized_text` and every character offset persisted
+against it keep their meaning. A document with formulas reads them through
+`epub_mathematics` instead of as raw tokens plus LaTeX source.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import warnings
 
 from voice_reader.domain.document.anchoring import BlockDraft
 from voice_reader.domain.document.block_kind import BlockKind
+from voice_reader.infrastructure.books import epub_mathematics
 
 _HEADING_LEVEL_BY_TAG = {
     "h1": 1,
@@ -148,6 +150,9 @@ def parse_html(html_bytes: bytes) -> tuple[str, tuple[BlockDraft, ...]] | None:
         except Exception:
             soup = BeautifulSoup(html_bytes, "html.parser")
 
+        # Before either reading of the text, so both carry each formula as
+        # its reader sees it rather than as its tokens plus its LaTeX source.
+        epub_mathematics.replace_mathematics(soup)
         text = (soup.get_text("\n", strip=True) or "").strip()
         return text, drafts_from_soup(soup)
     except Exception:

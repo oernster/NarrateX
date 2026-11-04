@@ -61,7 +61,7 @@ BIG_OPERATORS = frozenset({"∑", "∫", "∏"})
 # Relations a maths font sets with no space on either side, because the
 # spacing is drawn by position rather than by a space character. Padding them
 # is what turns "N=" and "d_{k}∈{" into "N =" and "d_{k} ∈ {".
-_RELATIONS = re.compile("([=<>≤≥≠≈≃∈∉⊂⊆∪∩" "→⟶])")
+_RELATIONS = re.compile("([=<>≤≥≠≈≃∈∉⊂⊆∪∩" "→⟶↪⇒⇏⇔])")
 
 # A plus or minus is binary (so padded) only when something it can operate on
 # precedes it in the same run: "θ+" and "(t−s)" but not "{−1" or "^{−k}".
@@ -158,6 +158,12 @@ def fold_text(text: str, *, maths: bool) -> str:
         folded = _RELATIONS.sub(r" \1 ", folded)
         folded = _BINARY_SIGN.sub(r" \1 ", folded)
     return folded
+
+
+def is_relation(text: str) -> bool:
+    """Whether `text` is one relation sign, set with a space either side."""
+
+    return _RELATIONS.fullmatch(text) is not None
 
 
 def tidy_spacing(text: str) -> str:

@@ -74,14 +74,53 @@ class TestRows:
         assert apart == ["a", "b"]
 
     def test_a_tall_fence_off_the_baseline_stays_on_its_row(self) -> None:
+        # Measured: a fence sits 0.31 of the size off its row.
         out = texts(
             line(
                 span("n log", 0, 30, top=92, bottom=102),
-                span("3⌉", 33, 40, 103.5, top=90, bottom=104),
+                span("3⌉", 33, 40, 103.1, top=90, bottom=104),
             )
         )
 
         assert out == ["n log 3⌉"]
+
+    def test_a_denominator_drawn_tall_is_not_on_the_main_row(self) -> None:
+        """Page 96 of the measured book: the box of "32" reaches up into the
+        main row; reading boxes rather than baselines lost the "88"."""
+
+        out = texts(
+            line(span("m =", 0, 20), span("88", 22, 34, 92.4, top=84, bottom=94)),
+            line(
+                span("32", 22, 34, 106.6, top=92, bottom=109),
+                span("m", 36, 44),
+                block=1,
+            ),
+        )
+
+        assert out == ["m = 88/32 m"]
+
+    def test_spaces_do_not_count_toward_the_row_size(self) -> None:
+        """Page 47 of the measured book: "n + 1" padded with spaces once
+        outweighed the body glyphs, so no script was found at all."""
+
+        out = texts(
+            line(
+                span("H", 0, 8),
+                span("n", 8, 12, 102, size=SCRIPT),
+                span("↪H", 15, 30),
+                span("n+1", 30, 44, 102, size=SCRIPT),
+            )
+        )
+
+        assert out == ["H_{n} ↪ H_{n + 1}"]
+
+    def test_a_line_holding_only_a_wrap_mark_is_dropped(self) -> None:
+        out = texts(
+            line(span("↪", 0, 4, 90, size=NESTED)),
+            line(span("code", 0, 30, font=PROSE), block=1),
+        )
+
+        assert out == ["code"]
 
     def test_the_row_takes_the_baseline_of_its_widest_piece(self) -> None:
         # The fence's own baseline would read the subscript as small text.

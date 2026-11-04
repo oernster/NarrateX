@@ -13,6 +13,7 @@ from voice_reader.domain.document.pdf_mathematics import (
     abuts,
     fold_text,
     fraction_text,
+    is_relation,
     is_script,
     piece_from_span,
     render_group,
@@ -211,6 +212,10 @@ class TestGroupsAndText:
         assert fraction_text("1", "(n − 1)!") == "1/((n − 1)!)"
         assert fraction_text("28", "16") == "28/16"
         assert fraction_text("a b", "c") == "(a b)/c"
+
+    def test_a_relation_is_one_relation_sign(self) -> None:
+        assert is_relation("=") and is_relation("↪")
+        assert not is_relation("+") and not is_relation("==")
 
     def test_tidy_spacing_collapses_and_trims(self) -> None:
         assert tidy_spacing("  a  b , c . ") == "a b, c."

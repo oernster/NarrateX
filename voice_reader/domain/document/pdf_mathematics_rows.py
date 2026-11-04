@@ -22,13 +22,14 @@ from voice_reader.domain.document.pdf_mathematics import (
     render_group,
 )
 
-# Baselines within this fraction of the row's size are one row.
-_ROW_TOLERANCE_RATIO = 0.3
-
-# A piece whose box shares at least this fraction of the shorter height with
-# a row's box is on that row whatever its baseline says: a ceiling bracket is
-# drawn taller than its line and reports a baseline a few points below it.
-_ROW_OVERLAP_RATIO = 0.5
+# Baselines within this fraction of the row's size are one row. Measured over
+# every rebuilt formula of a Word-produced book: a fence drawn taller than its
+# line (a closing ceiling bracket) reports a baseline 0.31 of the size off its
+# row; the halves of a fraction sit 0.64 to 0.76 off theirs; the next line of
+# prose sits 1.24 away.
+# Half the size falls clear of both. A rule that read a tall box as being on
+# the row was tried and measured wrong: a denominator is drawn tall too.
+_ROW_TOLERANCE_RATIO = 0.5
 
 # A row this close to another, in fractions of the size, can be its numerator
 # or denominator. Lines of prose sit further apart than their size; the
@@ -59,24 +60,12 @@ class Row:
         return max(self.pieces, key=lambda p: p.right - p.left).baseline
 
     @property
-    def top(self) -> float:
-        return min(p.top for p in self.pieces)
-
-    @property
-    def bottom(self) -> float:
-        return max(p.bottom for p in self.pieces)
-
-    @property
     def all_pieces(self) -> list[PdfSpan]:
         return self.pieces + self.extras
 
 
 def _on_row(row: Row, piece: PdfSpan, *, size: float) -> bool:
-    if abs(piece.baseline - row.baseline) <= _ROW_TOLERANCE_RATIO * size:
-        return True
-    shared = min(piece.bottom, row.bottom) - max(piece.top, row.top)
-    shorter = min(piece.bottom - piece.top, row.bottom - row.top)
-    return shorter > 0 and shared >= _ROW_OVERLAP_RATIO * shorter
+    return abs(piece.baseline - row.baseline) <= _ROW_TOLERANCE_RATIO * size
 
 
 def rows_of(pieces: list[PdfSpan], *, size: float) -> list[Row]:

@@ -38,6 +38,7 @@ _SYMBOL_WORDS = {
     "+": "plus",
     "−": "minus",
     "×": "times",
+    "⋅": "times",
     "±": "plus or minus",
     "≥": "greater than or equal to",
     "≤": "less than or equal to",
@@ -74,8 +75,9 @@ _SYMBOL_WORDS = {
     "∏": "the product of",
     # The dot of a time derivative, set after its letter by the extraction.
     "̇": "dot",
-    # A continuation mark in a wrapped code listing: nothing to say.
-    "↪": "",
+    # A faithful embedding. The same arrow marks a wrapped line in a PDF code
+    # listing; the PDF assembly drops those marks before anything is said.
+    "↪": "embeds into",
 }
 
 _GREEK_NAMES = {

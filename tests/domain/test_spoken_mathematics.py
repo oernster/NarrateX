@@ -56,8 +56,11 @@ class TestSymbols:
     def test_a_closing_fence_says_nothing(self) -> None:
         assert speak_mathematics("⌈n⌉ bits") == "the ceiling of n bits"
 
-    def test_a_continuation_mark_says_nothing(self) -> None:
-        assert speak_mathematics("↪x") == "x"
+    def test_an_embedding_is_said_and_a_product_dot_is_times(self) -> None:
+        assert speak_mathematics("H_{n} ↪ H_{n + 1}") == (
+            "H sub n embeds into H sub n plus 1"
+        )
+        assert speak_mathematics("e^{i⋅π}") == "e to the i times pi"
 
     def test_a_derivative_dot_is_said_after_its_letter(self) -> None:
         assert speak_mathematics("Ṁ_{CO}") == "M dot sub CO"
