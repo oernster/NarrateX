@@ -14,25 +14,20 @@ import uuid
 import zipfile
 from pathlib import Path
 
+from installer.ops.cores import usable_cores
 from installer.ops.errors import InstallerOperationError
+from installer.ops.parallel_extract import extract_members
 from installer.ops.payload import payload_zip_path
 from installer.ops.progress import (
     CLEANUP_END_PCT,
     CLEANUP_MESSAGE,
     CLEANUP_START_PCT,
-    EXTRACT_END_PCT,
     EXTRACT_MESSAGE,
     EXTRACT_START_PCT,
     report,
 )
 
 logger = logging.getLogger("installer.install")
-
-# Streaming granularity for extraction. The bundle carries individual members
-# of hundreds of megabytes (models, Qt libraries); reporting only between
-# members held the bar still for the whole of each one, and gave Cancel
-# nothing to observe while one was in flight.
-_CHUNK_BYTES = 4 * 1024 * 1024
 
 
 def check_cancel(cancel_event) -> None:  # noqa: ANN001
@@ -46,7 +41,12 @@ def installer_staging_root() -> Path:
 
 
 def extract_payload_to(
-    staging_dir: Path, *, progress=None, cancel_event=None, zip_path: Path | None = None
+    staging_dir: Path,
+    *,
+    progress=None,
+    cancel_event=None,
+    zip_path: Path | None = None,
+    workers: int | None = None,
 ) -> None:  # noqa: ANN001
     """Unpack the payload, reporting progress as it goes.
 
@@ -58,7 +58,8 @@ def extract_payload_to(
 
     `zip_path` defaults to the bundled payload. It is injectable so the
     reporting can be exercised against a small archive rather than only against
-    a real build.
+    a real build. `workers` defaults to every core this process may use; one
+    extracts on the calling thread alone.
     """
 
     staging_dir.mkdir(parents=True, exist_ok=True)
@@ -69,34 +70,29 @@ def extract_payload_to(
     source = payload_zip_path() if zip_path is None else zip_path
     with zipfile.ZipFile(source, "r") as zf:
         members = zf.infolist()
-        # Uncompressed size tracks elapsed work far better than a file count,
-        # because a bundle is a few large libraries among many small files.
-        total_bytes = sum(m.file_size for m in members)
-        span = EXTRACT_END_PCT - EXTRACT_START_PCT
-        extracted = 0
-        last_pct = EXTRACT_START_PCT
-
-        for member in members:
-            check_cancel(cancel_event)
-            target = _member_target(staging_dir, member)
-            if member.is_dir():
-                target.mkdir(parents=True, exist_ok=True)
-                continue
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with zf.open(member) as src, target.open("wb") as dst:
-                while True:
-                    chunk = src.read(_CHUNK_BYTES)
-                    if not chunk:
-                        break
-                    dst.write(chunk)
-                    extracted += len(chunk)
-
-                    if total_bytes > 0:
-                        pct = EXTRACT_START_PCT + int(span * extracted / total_bytes)
-                        if pct != last_pct:
-                            report(progress, pct=pct, message=EXTRACT_MESSAGE)
-                            last_pct = pct
-                    check_cancel(cancel_event)
+    # Every folder is made here, before any thread starts, so the threads
+    # only ever write files and never race one another to make a folder.
+    files: list[zipfile.ZipInfo] = []
+    targets: dict[str, Path] = {}
+    for member in members:
+        check_cancel(cancel_event)
+        target = _member_target(staging_dir, member)
+        if member.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        files.append(member)
+        targets[member.filename] = target
+    # Uncompressed size tracks elapsed work far better than a file count,
+    # because a bundle is a few large libraries among many small files.
+    extract_members(
+        source,
+        files,
+        targets,
+        workers=usable_cores() if workers is None else workers,
+        progress=progress,
+        cancel_event=cancel_event,
+    )
 
     check_cancel(cancel_event)
 

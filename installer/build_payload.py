@@ -15,13 +15,16 @@ The payload is deterministic:
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Iterator
 
+from installer.ops.cores import usable_cores
+from installer.zip_writer import PackedMember, pack, write_zip
 from voice_reader.version import __version__
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -31,9 +34,10 @@ PAYLOAD_ZIP = PAYLOAD_DIR / "payload.zip"
 MANIFEST_JSON = PAYLOAD_DIR / "manifest.json"
 
 _MB = 1024 * 1024
-# LZMA rather than deflate: measured on the bundle's largest binaries it packs
-# them about 37% smaller (torch_cpu.dll 73 MB deflated, 46 MB as LZMA), for a
-# slower build. The installer reads it with zipfile, which handles both.
+# LZMA rather than deflate: measured on the trimmed bundle, 236 MB against
+# deflate's 299 MB. On one thread it took 150 s against deflate's 20 s, so the
+# members are compressed on every core (zip_writer). The installer reads it
+# with zipfile, which handles both.
 PAYLOAD_COMPRESSION = zipfile.ZIP_LZMA
 # Hashing and compressing the whole bundle runs for minutes on a cold cache;
 # without output it reads as a hang, so report at this fraction of the bytes.
@@ -47,14 +51,6 @@ class ManifestEntry:
     sha256: str
 
 
-def _sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with path.open("rb") as f:
-        for chunk in iter(lambda: f.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
 def _iter_files(root: Path) -> list[Path]:
     files: list[Path] = []
     for p in root.rglob("*"):
@@ -66,6 +62,78 @@ def _iter_files(root: Path) -> list[Path]:
     return sorted(files, key=lambda x: str(x.relative_to(root)).replace("\\", "/"))
 
 
+def _packed_in_order(
+    files: list[Path], names: list[str], workers: int
+) -> Iterator[PackedMember]:
+    """Every file packed, answered in the order given.
+
+    On several cores the largest files start first: LZMA cannot split one
+    file across cores, so the biggest set how long the whole takes and must
+    not be left until last. Finished members wait, compressed, for their turn.
+    """
+
+    if workers <= 1:
+        for path, name in zip(files, names):
+            yield pack(path, name)
+        return
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        largest_first = sorted(
+            range(len(files)), key=lambda i: files[i].stat().st_size, reverse=True
+        )
+        futures = {i: pool.submit(pack, files[i], names[i]) for i in largest_first}
+        for index in range(len(files)):
+            yield futures.pop(index).result()
+
+
+def write_payload(source: Path, zip_path: Path, *, workers: int) -> list[ManifestEntry]:
+    """Compress `source` into `zip_path` on `workers` threads; answer the manifest."""
+
+    files = _iter_files(source)
+    names = [str(f.relative_to(source)).replace("\\", "/") for f in files]
+    total_bytes = sum(f.stat().st_size for f in files)
+    print(
+        f"Building payload: hashing and compressing {len(files)} files "
+        f"({total_bytes / _MB:.0f} MB) on {workers} thread(s)...",
+        flush=True,
+    )
+    entries: list[ManifestEntry] = []
+    progress = _Progress(total_bytes)
+
+    def recorded() -> Iterator[PackedMember]:
+        for member in _packed_in_order(files, names, workers):
+            entries.append(
+                ManifestEntry(path=member.name, size=member.size, sha256=member.sha256)
+            )
+            progress.add(member.size)
+            yield member
+
+    with zip_path.open("wb") as out:
+        write_zip(out, recorded())
+    return entries
+
+
+class _Progress:
+    """Prints every tenth of the bytes, once, however large one step is."""
+
+    def __init__(self, total: int) -> None:
+        self._total = total
+        self._done = 0
+        self._next = _REPORT_FRACTION
+
+    def add(self, size: int) -> None:
+        self._done += size
+        if self._total <= 0 or self._done / self._total < self._next:
+            return
+        print(
+            f"  {int(100 * self._done / self._total)}% ({self._done / _MB:.0f} MB)",
+            flush=True,
+        )
+        # One large file can cross several marks at once; skip past every
+        # mark already covered or the next file repeats it.
+        while self._next <= self._done / self._total:
+            self._next += _REPORT_FRACTION
+
+
 def build_payload() -> None:
     if os.name != "nt":
         raise SystemExit("Payload build is intended for Windows builds")
@@ -75,43 +143,7 @@ def build_payload() -> None:
 
     PAYLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    entries: list[ManifestEntry] = []
-
-    files = _iter_files(SOURCE_BUNDLE_DIR)
-    total_bytes = sum(f.stat().st_size for f in files)
-    print(
-        f"Building payload: hashing and compressing {len(files)} files "
-        f"({total_bytes / _MB:.0f} MB)...",
-        flush=True,
-    )
-    done_bytes = 0
-    next_report = _REPORT_FRACTION
-
-    fixed_dt = (1980, 1, 1, 0, 0, 0)
-    with zipfile.ZipFile(PAYLOAD_ZIP, "w", compression=PAYLOAD_COMPRESSION) as zf:
-        for file_path in files:
-            rel = file_path.relative_to(SOURCE_BUNDLE_DIR)
-            rel_posix = str(rel).replace("\\", "/")
-            size = file_path.stat().st_size
-            sha = _sha256_file(file_path)
-            entries.append(ManifestEntry(path=rel_posix, size=size, sha256=sha))
-
-            zi = zipfile.ZipInfo(filename=rel_posix, date_time=fixed_dt)
-            zi.compress_type = PAYLOAD_COMPRESSION
-
-            with file_path.open("rb") as src:
-                data = src.read()
-            zf.writestr(zi, data)
-
-            done_bytes += size
-            if total_bytes > 0 and done_bytes / total_bytes >= next_report:
-                pct = int(100 * done_bytes / total_bytes)
-                print(f"  {pct}% ({done_bytes / _MB:.0f} MB)", flush=True)
-                # One large file can cross several marks at once; skip past
-                # every mark already covered or the next file repeats it.
-                while next_report <= done_bytes / total_bytes:
-                    next_report += _REPORT_FRACTION
-
+    entries = write_payload(SOURCE_BUNDLE_DIR, PAYLOAD_ZIP, workers=usable_cores())
     print(f"Payload written: {PAYLOAD_ZIP}", flush=True)
 
     manifest = {
