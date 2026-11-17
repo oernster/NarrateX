@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="16x16" href="narratex_16.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="narratex_32.png">
+    <link rel="icon" type="image/png" sizes="64x64" href="narratex_64.png">
+    <link rel="apple-touch-icon" href="narratex_256.png">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#0b0f14">
+    <meta name="color-scheme" content="dark">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Oliver Ernster">
+    <meta name="robots" content="index, follow">
+
+    <title>What's new in NarrateX: release history</title>
+
+    <meta name="description" content="NarrateX's release history: mathematics shown and spoken, smaller downloads, a place that follows the book rather than its filename, a bookshelf, a window drawn in pictures with a Guide, an update check and one structured document model.">
+    <link rel="canonical" href="https://narratex.co.uk/whats-new.html">
+
+    <meta property="og:title" content="What's new in NarrateX">
+    <meta property="og:description" content="The release history: mathematics shown and spoken, smaller downloads, a bookshelf of the books you already own, a Guide to every control and one structured document model.">
+    <meta property="og:image" content="https://narratex.co.uk/site-images/NarrateX4.png">
+    <meta property="og:image:alt" content="NarrateX reader showing structured ebook and PDF audio playback">
+    <meta property="og:url" content="https://narratex.co.uk/whats-new.html">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="NarrateX">
+    <meta property="og:locale" content="en_GB">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="What's new in NarrateX">
+    <meta name="twitter:description" content="The release history: mathematics shown and spoken, smaller downloads, a bookshelf of the books you already own, a Guide to every control and one structured document model.">
+    <meta name="twitter:image" content="https://narratex.co.uk/site-images/NarrateX4.png">
+
+    <link rel="stylesheet" href="styles.css?v=aac695536e">
+<script>window.goatcounter = {path: function (p) { return location.host + p }}</script>
+<script data-goatcounter="https://oernster.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+</head>
+
+<body>
+
+<nav class="site">
+    <a class="brand" href="./">
+        <img src="narratex_64.png" alt="NarrateX icon">
+        NarrateX
+    </a>
+    <div class="links">
+        <a href="features.html">Features</a>
+        <a href="why.html">Why</a>
+        <a href="whats-new.html">What's New</a>
+        <a href="download.html">Download</a>
+        <a href="https://github.com/oernster/NarrateX">GitHub</a>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div class="badge"><span class="badge-dot"></span> Changelog</div>
+
+    <h1>What's new</h1>
+
+    <div class="section prose" style="margin-top:34px;">
+        <p>Recent releases have turned NarrateX from a reader of text into a reader of books: one
+            structured document model, chapters found even where a book never marked them, a shelf
+            of the books you already own and mathematics shown and spoken. Alongside that came a
+            window drawn in pictures with a Guide behind its Help button, an update check, every
+            voice on your machine before you start reading and a saved place that follows the book
+            rather than its filename. The newest release also makes every download smaller.</p>
+    </div>
+
+    <div class="changelog">
+
+        <div class="cl-entry">
+            <div class="ver-tag">v<!--VERSION-->5.4.0<!--/VERSION--></div>
+            <h3>Mathematics shown and spoken; smaller downloads</h3>
+            <ul>
+                <li>A formula in a PDF or an EPUB comes back as a formula rather than as scattered letters, keeping its subscripts, superscripts, limits and fractions</li>
+                <li>The reading pane sets each script small and raised or lowered, so a chemical formula shows as O₂. The narrator says a formula in words: "the sum from k equals 0 to m of d sub k times 3 to the k"</li>
+                <li>An EPUB's formulas are read as a reader of the book would see them, never from the typesetting source stored beside them. A book with no mathematics reads exactly as before, so your bookmarks and saved place are untouched</li>
+                <li>Every build leaves out what NarrateX never uses: packages nothing imports, source and header files no program runs and the parts of Qt it never loads. The Windows setup program falls from 480 MB to 287 MB and unpacks on every core your computer has</li>
+                <li>Help &gt; About now links the source code of the exact Qt and PySide6 versions your copy runs on, since both are licensed under the LGPL</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v5.3.0</div>
+            <h3>Your place follows the book, not its filename</h3>
+            <ul>
+                <li>A book is now recognised by its whole text rather than by its filename and first few pages. Renaming or moving a file keeps your place; two different books never share bookmarks</li>
+                <li>Existing bookmarks move across by themselves the first time you open each book after updating. A book whose text has been edited now starts afresh rather than reopening somewhere you did not stop</li>
+                <li>A damaged bookmark or settings file is set aside under a name ending in .damaged instead of being saved over, so what it still held stays on your disk. The status line names the file when it happens</li>
+                <li>Plain-text and Markdown books saved in an older Windows encoding keep their accented letters and curly quotes. A copy-protected EPUB is refused with a plain reason; a file holding nothing but separator lines is refused as having no text</li>
+                <li>On the shelf, a metadata.opf file is trusted only beside a single book, so a folder of many books no longer collapses into one tile. A genre you set survives a rescan</li>
+                <li>Installing from source on Linux now includes the language model the voice engine needs, so the first narration does not have to download it</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v5.2.0</div>
+            <h3>Every voice on your machine; reading fully offline</h3>
+            <ul>
+                <li>The first-run download fetched only 13 of the 28 voices the picker offers, so choosing another fetched it mid-reading and failed without a connection. The download now takes its list from the picker itself, so every voice is on your machine before the window opens</li>
+                <li>Once the voice model is downloaded, reading makes no network call at all. The daily update check is the one request that remains</li>
+                <li>The setup program accepted its --keep-user-data option then ignored it. The option now reaches the uninstall; the confirmation says plainly whether your bookmarks and shelf will be deleted or kept</li>
+                <li>A failing Stop now says "Playback failed (see log)" in the status line, as Play and Pause already did</li>
+                <li>The features have a page of their own on this site; every footer links to the rest of my work. The site also states more exactly what NarrateX does</li>
+                <li>A new document, DECISIONS-TRADEOFFS.md, sets out the choices NarrateX rests on and what each one costs</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v5.1.1</div>
+            <h3>A new donation page</h3>
+            <ul>
+                <li>The Donate button now opens a new PayPal page that suggests £5 and lets you give any amount you choose. Nothing else has changed</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v5.1.0</div>
+            <h3>A bookshelf; chapters for books that never marked them</h3>
+            <ul>
+                <li>A new button beside Select book shows the books you already own as a grid of covers or as a list with title, author, genres and how far through each one you are. It reads the folder you choose and every folder beneath it</li>
+                <li>Filter by genre from a catalogue of nineteen, search by title or author and order by author, by title or by most recently read. Right click a book to file it under a genre yourself; what you say outranks what the file says</li>
+                <li>Nothing is looked up online and nothing on disk is changed. A few thousand books scan in seconds; a rescan re-reads only what changed</li>
+                <li>Kindle books with no heading markup now gain chapters, first from the book's own navigation table, then from lines such as "Chapter 12" or "Prologue". A book that already worked cannot change</li>
+                <li>A converted Kindle book that showed no structure at all now reads as ordinary prose; its title, repeated as a header on every page, is no longer read aloud each time</li>
+                <li>Words in capitals are read as words rather than spelled out letter by letter. Only what an author marked with stops, such as "U.K.", is spelled</li>
+                <li>Kindle books open from the installed application instead of failing with a Calibre error. A book that is only pictures of its pages now says it has no text to read</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v5.0.1</div>
+            <h3>Tooltips while another program has focus</h3>
+            <ul>
+                <li>Hovering over NarrateX while you worked in another program showed no tooltip. The main window, every dialog and the setup program now show their tooltips whether they have focus or not</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v5.0.0</div>
+            <h3>A window drawn in pictures, with a Guide behind Help</h3>
+            <ul>
+                <li>Every emoji and worded button is replaced by artwork that looks the same on Windows, macOS and Linux; hovering any picture button names what it does</li>
+                <li>Every picture button shares one rounded ring: green on hover or keyboard focus, red while unavailable. Previous and Next chapter wear red whenever pressing them would do nothing</li>
+                <li>The speaker button mutes; press it again and the level you had comes back</li>
+                <li>A strip along the foot of the window holds a donate button and the two licence buttons. Nothing is held back behind a donation</li>
+                <li>The help button opens a menu: a Guide naming every control by the picture it wears, then About. The Guide and the licence texts read themselves slowly; any touch pauses them</li>
+                <li>Text areas no longer wear a green ring and dialogs open on their Close button</li>
+                <li>Repair and Uninstall move the progress bar as they work. A Repair that finds a file in use waits for it, then names the file and the program holding it</li>
+                <li>A commercial licence for NarrateX's own code is now available. The macOS build notarizes the application as well as its disk image</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v4.2.0</div>
+            <h3>NarrateX tells you when a newer release exists</h3>
+            <ul>
+                <li>Shortly after launch and once a day, NarrateX asks GitHub's public releases API whether a newer version has been published. Only a formally published release can prompt; the request carries nothing about you or your books and a failed check is silent</li>
+                <li>A newer release offers the download for your platform, Skip This Version and Later. A skipped release never prompts again</li>
+                <li>The About dialog gains a Check for updates button that reports every outcome</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v4.1.0</div>
+            <h3>Stop that stops; Play that starts at once</h3>
+            <ul>
+                <li>Stopping playback now actually stops the speech engine instead of leaving a background worker holding on to it</li>
+                <li>Pressing Play on a freshly loaded book is fast: the step that prepares the first chunks in advance had never run and now does</li>
+                <li>Startup and the setup program now record what they fall back to and why whenever something fails quietly</li>
+                <li>This site became three pages (an overview, Why this exists and Download) with a navigation bar; old deep links redirect to their new homes</li>
+                <li>Behind the scenes: the version lives in a single VERSION file, every icon is generated from one master, the test coverage requirement reaches the whole domain and application layers and the documentation was brought back in line with the code</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v4.0.0</div>
+            <h3>One structured document model</h3>
+            <ul>
+                <li>EPUB, PDF, Markdown and plain text are all read into one structured document model, the single authority for what is shown, what is spoken and where the book begins</li>
+                <li>Page numbers, running heads, contents entries and the index are shown where they belong and never read aloud. If the model covers less than 90% of a book's prose, NarrateX reads the whole book as flat text rather than drop anything</li>
+                <li>Remove current book forgets what NarrateX remembers about the loaded book, never the file itself. The reading pane shows headings, spacing and indentation; you can step backwards and forwards by chapter</li>
+                <li>Opening a book no longer freezes the window: the work runs in a separate process while a loading indicator runs throughout</li>
+                <li>One green ring marks hover and keyboard focus everywhere; a disabled control wears red. Enter activates the focused control and the cursor keys step round the ring like Tab</li>
+                <li>The voice picker offers 28 English voices (8 British, 20 American) behind sex and region toggles; no voice is chosen for you</li>
+                <li>The installer shows real progress, exits cleanly on cancel and asks before uninstalling</li>
+                <li>The download page shows live release details with links that always serve the newest build</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v3.2.0</div>
+            <h3>NarrateX on every desktop</h3>
+            <ul>
+                <li>NarrateX now runs on macOS as a disk image and on Linux as a Flatpak as well as on Windows, with the same features on each</li>
+                <li>The Linux edition is self-contained and is expected to work across most modern distributions</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v3.0.0</div>
+            <h3>Sharper icons</h3>
+            <ul>
+                <li>Every icon size is fixed; the main icon is no longer blurry on the Windows taskbar or desktop</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.9.7</div>
+            <h3>Icon refinements</h3>
+            <ul>
+                <li>The icon is reformatted and slightly larger on the Windows taskbar</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.9.6</div>
+            <h3>Icon fixes</h3>
+            <ul>
+                <li>The application's icons are fixed</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.6.2</div>
+            <h3>Installer title fix</h3>
+            <ul>
+                <li>The installer's title text is no longer cut off</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.6.0</div>
+            <h3>Start playback where you click</h3>
+            <ul>
+                <li>Click in the text to choose where playback starts</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.5.1</div>
+            <h3>Section breaks no longer restart the book</h3>
+            <ul>
+                <li>A line of three hyphens in the middle of a chapter no longer sends playback back to the beginning of the book</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.5.0</div>
+            <h3>EPUB and PDF reading reworked</h3>
+            <ul>
+                <li>EPUB and PDF books are read correctly: section headers are accurate and invalid sections are removed</li>
+                <li>A compilation of several books shows a top-level structure you can navigate</li>
+                <li>Navigation appears at once while processing carries on in the background; playback starts faster</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.4.0</div>
+            <h3>Volume remembered; PDFs start in the right place</h3>
+            <ul>
+                <li>Volume starts at 25% on a first install and is remembered between sessions</li>
+                <li>PDF playback starts at the correct place instead of a contents entry; section bookmarks are detected correctly</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.3.0</div>
+            <h3>Sections played in order</h3>
+            <ul>
+                <li>Sections are no longer skipped: introductions and intermediate sections play</li>
+                <li>The index and front matter, such as the contents, are skipped on purpose</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.2.1</div>
+            <h3>Playback starts at the first section</h3>
+            <ul>
+                <li>Playback starts from the first section bookmark, even where a book's contents are complex or inconsistent</li>
+                <li>Saving your place on close and restoring it on relaunch works again</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.1.0</div>
+            <h3>A splash screen and a single instance</h3>
+            <ul>
+                <li>A splash screen shows while NarrateX starts</li>
+                <li>Only one copy runs at a time; choosing it from the taskbar brings it to the front</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v2.0.0</div>
+            <h3>Automatic bookmarks and highlighting in step with the voice</h3>
+            <ul>
+                <li>Section and chapter bookmarks are generated automatically; your own bookmarks are clearly marked as yours</li>
+                <li>Text highlighting follows the audio</li>
+                <li>Clearer progress in the side navigation, more prominent play and pause controls and clearly marked disabled states</li>
+                <li>The core was rebuilt to clear accumulated technical debt, with a larger test suite holding its structure in place</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v1.2.0</div>
+            <h3>Speed, bookmarks and a chapter tree</h3>
+            <ul>
+                <li>Playback speed control, bookmarks and chapter navigation</li>
+                <li>Volume adjusts as you move it and is remembered</li>
+                <li>A chapter tree down the side of the window</li>
+            </ul>
+        </div>
+
+        <div class="cl-entry">
+            <div class="ver-tag">v1.1.0</div>
+            <h3>The first release</h3>
+            <ul>
+                <li>Narration in several British and American English voices, with play, pause and stop</li>
+                <li>The book's cover where it has one, text highlighted as it is read, bookmarks and chapter navigation</li>
+                <li>A Windows installer that installs, upgrades, repairs and uninstalls</li>
+                <li>Light and dark themes; Help, About and the licence from within the application</li>
+            </ul>
+        </div>
+
+    </div>
+
+    <div class="section">
+        <div class="actions">
+            <a class="secondary" href="https://github.com/oernster/NarrateX/releases">View all releases on GitHub</a>
+        </div>
+    </div>
+
+    <footer class="minor-detail" style="margin-top:60px;">
+        Created by Oliver Ernster
+        <br><a href="https://ernster.dev">More of my work</a>
+    </footer>
+
+</div>
+
+</body>
+</html>
