@@ -41,14 +41,23 @@ def _best_torch_device() -> str:
     return "cpu"
 
 
+# Every dash is spoken as a spaced em dash; see _normalise_for_tts.
+_SPOKEN_DASH = " \u2014 "
+# Zero-width space, word joiner and byte order mark: invisible, never spoken.
+_SILENT_CHARACTERS = "[​⁠﻿]"
+
+
 def _normalise_for_tts(text: str) -> str:
     """Pre-process text to avoid misaki G2P failures on non-American content.
 
     misaki 0.7.x uses a CMU American-English dictionary.  Two classes of input
     produce token.phonemes=None (silent audio after our crash-fix):
 
-    1. Non-breaking / typographic hyphens (U+2011-U+2014).
+    1. Non-breaking hyphens (U+2011).
     2. British English spellings absent from the CMU dictionary.
+
+    Dashes, invisible characters and link schemes are rewritten too, so that
+    nothing reaches misaki's espeak fallback that espeak cannot say.
     """
     import re
 
@@ -57,8 +66,16 @@ def _normalise_for_tts(text: str) -> str:
     text = re.sub(r"([a-zA-Z])‑([a-z])", r"\1\2", text)
     text = text.replace("‑", "-")  # remaining non-breaking hyphens → plain
     text = text.replace("‒", "-")  # figure dash
-    text = text.replace("–", " - ")  # en dash
-    text = text.replace("—", " - ")  # em dash
+    # Every dash is spoken as a spaced em dash, which spaCy tags as
+    # punctuation, so misaki gives it a pause. A plain hyphen standing between
+    # spaces is tagged HYPH instead: misaki hands it to espeak, which says
+    # nothing for it and phonemizer warns of a word count mismatch.
+    text = re.sub(r"\s*[\u2013\u2014]\s*", _SPOKEN_DASH, text)
+    text = re.sub(r"(?<=\S)[ \t]+-[ \t]+(?=\S)", _SPOKEN_DASH, text)
+    # Characters with nothing to say, which espeak would otherwise be asked to.
+    text = re.sub(_SILENT_CHARACTERS, "", text)
+    # Nobody reads a link's scheme aloud; espeak spells it letter by letter.
+    text = re.sub(r"\bhttps?://", "", text)
 
     def sub(pat: str, repl: str, t: str) -> str:
         return re.sub(pat, repl, t, flags=re.IGNORECASE)
@@ -304,7 +321,7 @@ class KokoroEngine(TTSEngine):
             ) from exc
 
         # Acquire the lock for both pipeline creation and inference. PyTorch
-        # models are not safe for concurrent calls from multiple threads, and
+        # models are not safe for concurrent calls from multiple threads;
         # serialising here prevents races between e.g. startup warmup and the
         # synthesis worker. Results are collected inside the lock so the lock is
         # released before yielding to callers.

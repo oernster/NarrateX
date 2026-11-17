@@ -11,8 +11,9 @@ publishes `docs/` and nothing above it, so the same five sizes exist twice. Two
 copies of a binary with nothing comparing them is precisely the arrangement
 that drifts.
 
-This asserts the whole set against a fresh render, which is the same check
-`python generate_icons.py --check` performs.
+This asserts the whole set against a fresh render, pixel for pixel, which is
+the same check `python generate_icons.py --check` performs. Pixels rather than
+bytes, since the bytes depend on the zlib Pillow was built with.
 """
 
 from __future__ import annotations
@@ -51,7 +52,7 @@ def test_every_icon_matches_a_fresh_render_of_the_master() -> None:
         if not path.is_file():
             missing.append(path.relative_to(root).as_posix())
             continue
-        if path.read_bytes() != expected:
+        if not generate_icons.same_picture(path.read_bytes(), expected):
             stale.append(path.relative_to(root).as_posix())
 
     details = "\n".join(

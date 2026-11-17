@@ -15,6 +15,7 @@ from voice_reader.domain.document.model import Document
 from voice_reader.infrastructure.books.text_decoding import decode_book_text
 from voice_reader.infrastructure.books import (
     epub_documents,
+    epub_reader,
     epub_structure,
     pdf_structure,
 )
@@ -184,17 +185,12 @@ class BookParser:
     def _parse_epub(self, path: Path) -> ParsedBook:
         try:
             import ebooklib
-            from ebooklib import epub
 
             def _read_epub(*, ignore_ncx: bool) -> object:
-                # EbookLib defaults `ignore_ncx=True`.
-                # Some real-world EPUB3 files (including KDP-valid exports) have a
-                # nav doc that triggers an IndexError in EbookLib's `_parse_nav()`.
-                # In those cases, allowing NCX parsing fixes loading.
-                return epub.read_epub(
-                    str(path),
-                    options={"ignore_ncx": bool(ignore_ncx)},
-                )
+                # EbookLib defaults `ignore_ncx=True`. A nav it still cannot
+                # parse (see `epub_reader` for the one it can now) falls back
+                # to the NCX below.
+                return epub_reader.read_epub(str(path), ignore_ncx=ignore_ncx)
 
             try:
                 book = _read_epub(ignore_ncx=True)

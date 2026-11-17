@@ -3,6 +3,7 @@ from __future__ import annotations
 import types
 from pathlib import Path
 
+from tests.infrastructure.ebooklib_fake import fake_epub
 from voice_reader.infrastructure.books.parser import BookParser
 
 
@@ -190,8 +191,8 @@ def test_parser_epub_uses_ebooklib_bs4_stubs(monkeypatch, tmp_path: Path) -> Non
         del options
         return FakeEpubBook()
 
-    fake_epub = types.SimpleNamespace(read_epub=fake_read_epub)
-    fake_ebooklib = types.SimpleNamespace(epub=fake_epub, ITEM_DOCUMENT=9)
+    stub_epub = fake_epub(fake_read_epub)
+    fake_ebooklib = types.SimpleNamespace(epub=stub_epub, ITEM_DOCUMENT=9)
 
     class FakeSoup:
         def __init__(self, html: bytes, parser: str) -> None:
@@ -246,8 +247,8 @@ def test_parser_epub_retries_ignore_ncx_when_default_read_fails(
             raise IndexError("nav parse failed")
         return FakeEpubBook()
 
-    fake_epub = types.SimpleNamespace(read_epub=fake_read_epub)
-    fake_ebooklib = types.SimpleNamespace(epub=fake_epub, ITEM_DOCUMENT=9)
+    stub_epub = fake_epub(fake_read_epub)
+    fake_ebooklib = types.SimpleNamespace(epub=stub_epub, ITEM_DOCUMENT=9)
 
     class FakeSoup:
         def __init__(self, html: bytes, parser: str) -> None:

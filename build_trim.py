@@ -23,6 +23,7 @@ asks of a shared library; nothing here merges or seals one.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -42,6 +43,12 @@ NON_RUNTIME_SUFFIXES = frozenset(
     {".c", ".cpp", ".h", ".hpp", ".cuh", ".pyx", ".pxd", ".pxi", ".lib", ".a", ".pyi"}
 )
 NON_RUNTIME_DIRS = frozenset({"tests"})
+# A test folder some code outside every test folder imports is runtime code
+# after all and stays: numpy 2.2's numpy.testing imports
+# numpy._core.tests._natype, which scipy.signal reaches via array_api_compat.
+_TESTS_IMPORT = re.compile(
+    r"^[ \t]*(?:from|import)[ \t]+((?:[A-Za-z_]\w*\.)+tests)\b", re.MULTILINE
+)
 
 # Qt modules the app never loads, named as Qt names them. VirtualKeyboard and
 # Pdf are unreachable on every platform: on Linux, read from every library's
@@ -117,10 +124,39 @@ def _remove(path: Path) -> int:
     return removed
 
 
-def _doomed(path: Path, *, windows: bool) -> bool:
+def _in_test_dir(path: Path) -> bool:
+    return any(part in NON_RUNTIME_DIRS for part in path.parts)
+
+
+def imported_test_packages(root: Path) -> frozenset[tuple[str, ...]]:
+    """Every test package that code outside a test folder in `root` imports.
+
+    Answered as the package's dotted name split into parts, matched later
+    against the tail of a folder's path, so it holds wherever the packages
+    sit in the bundle (site-packages, PyInstaller's _internal, a .app).
+    """
+
+    found: set[tuple[str, ...]] = set()
+    for source in root.rglob("*.py"):
+        relative = source.relative_to(root)
+        if _in_test_dir(relative.parent) or not source.is_file():
+            continue
+        text = source.read_text(encoding="utf-8", errors="replace")
+        for match in _TESTS_IMPORT.finditer(text):
+            found.add(tuple(match.group(1).split(".")))
+    return frozenset(found)
+
+
+def _is_needed_test_dir(path: Path, needed: frozenset[tuple[str, ...]]) -> bool:
+    return any(path.parts[-len(parts) :] == parts for parts in needed)
+
+
+def _doomed(
+    path: Path, *, windows: bool, needed: frozenset[tuple[str, ...]] = frozenset()
+) -> bool:
     if path.is_dir() and not path.is_symlink():
         return (
-            path.name in NON_RUNTIME_DIRS
+            (path.name in NON_RUNTIME_DIRS and not _is_needed_test_dir(path, needed))
             or _is_qt_translations(path)
             or _is_unused_qt(path, windows=windows)
         )
@@ -129,32 +165,53 @@ def _doomed(path: Path, *, windows: bool) -> bool:
     )
 
 
+def _sweep_dangling(root: Path) -> bool:
+    """Remove each link pointing at nothing and each empty folder; answer
+    whether anything went.
+
+    One pass is not enough: a folder emptied here can be the target of a link
+    already checked in this pass (a macOS bundle's Frameworks link sits at the
+    same depth as its Resources folder); removing a link can empty its folder
+    in turn. The caller repeats until a pass removes nothing.
+    """
+
+    changed = False
+    for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
+        if path.is_symlink() and not path.exists():
+            path.unlink()
+            changed = True
+        elif path.is_dir() and not path.is_symlink() and not any(path.iterdir()):
+            path.rmdir()
+            changed = True
+    return changed
+
+
 def trim_bundle(root: Path, *, windows: bool | None = None) -> int:
     """Remove from a built bundle what the app never uses; answer the bytes.
 
-    Walks top down so a removed folder is not walked into. A macOS bundle
+    A test folder that code outside every test folder imports is kept, since
+    that code needs it at run time. Walks top down so a removed folder is not
+    walked into. A macOS bundle
     links its files between Frameworks and Resources, so any link left
     pointing at nothing is removed too, then any folder left empty.
     """
 
     on_windows = os.name == "nt" if windows is None else windows
+    needed = imported_test_packages(root)
     removed = 0
     for current, dirs, files in os.walk(root):
         here = Path(current)
         for name in list(dirs):
             path = here / name
-            if _doomed(path, windows=on_windows):
+            if _doomed(path, windows=on_windows, needed=needed):
                 removed += _remove(path)
                 dirs.remove(name)
         for name in files:
             path = here / name
             if _doomed(path, windows=on_windows):
                 removed += _remove(path)
-    for path in sorted(root.rglob("*"), key=lambda p: len(p.parts), reverse=True):
-        if path.is_symlink() and not path.exists():
-            path.unlink()
-        elif path.is_dir() and not path.is_symlink() and not any(path.iterdir()):
-            path.rmdir()
+    while _sweep_dangling(root):
+        pass
     print(f"  Trimmed {removed / _MB:.1f} MB the app never uses from {root}")
     return removed
 

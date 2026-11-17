@@ -85,6 +85,34 @@ def test_elsewhere_only_the_unreachable_qt_modules_go(tmp_path: Path) -> None:
     assert not any((tmp_path / rel).exists() for rel in trimmed)
 
 
+def test_a_test_folder_runtime_code_imports_is_kept(tmp_path: Path) -> None:
+    # numpy 2.2's numpy.testing imports numpy._core.tests._natype; trimming
+    # that folder stopped scipy.signal importing at all, so Kokoro failed too.
+    utils = tmp_path / "_internal/numpy/testing/_private/utils.py"
+    _tree(
+        tmp_path,
+        (
+            "_internal/numpy/_core/tests/_natype.py",
+            "_internal/numpy/_core/tests/test_x.py",
+            "_internal/numpy/linalg/tests/test_linalg.py",
+            "_internal/spacy/tests/conftest.py",
+        ),
+    )
+    utils.parent.mkdir(parents=True)
+    utils.write_text("import os\n    from numpy._core.tests._natype import pd_NA\n")
+    # An import written inside a test folder keeps nothing.
+    (tmp_path / "_internal/spacy/tests/conftest.py").write_text(
+        "from numpy.linalg.tests import test_linalg\n"
+    )
+
+    build_trim.trim_bundle(tmp_path, windows=True)
+
+    assert (tmp_path / "_internal/numpy/_core/tests/_natype.py").exists()
+    assert utils.exists()
+    assert not (tmp_path / "_internal/numpy/linalg/tests").exists()
+    assert not (tmp_path / "_internal/spacy/tests").exists()
+
+
 def test_a_link_left_pointing_at_a_trimmed_file_goes_too(tmp_path: Path) -> None:
     target = tmp_path / "Frameworks" / "spacy" / "vocab.cpp"
     _tree(tmp_path, ("Frameworks/spacy/vocab.cpp", "Frameworks/spacy/keep.so"))
@@ -99,6 +127,28 @@ def test_a_link_left_pointing_at_a_trimmed_file_goes_too(tmp_path: Path) -> None
 
     assert not link.is_symlink()
     assert (tmp_path / "Frameworks/spacy/keep.so").exists()
+
+
+def test_a_link_to_a_folder_the_trim_empties_goes_too(tmp_path: Path) -> None:
+    # The macOS bundle's shape: Frameworks/torch/_C links to Resources/torch/_C,
+    # which holds only type stubs. The folder empties and goes in the same
+    # sweep that checks the link, which sits at the same depth and was checked
+    # first; codesign --verify --strict then refused the dangling link.
+    _tree(
+        tmp_path,
+        ("Resources/torch/_C/__init__.pyi", "Frameworks/torch/lib/libtorch.dylib"),
+    )
+    link = tmp_path / "Frameworks/torch/_C"
+    try:
+        os.symlink("../../Resources/torch/_C", link)
+    except OSError:
+        pytest.skip("this account may not create symbolic links")
+
+    build_trim.trim_bundle(tmp_path, windows=False)
+
+    assert not link.is_symlink()
+    assert not (tmp_path / "Resources/torch/_C").exists()
+    assert (tmp_path / "Frameworks/torch/lib/libtorch.dylib").exists()
 
 
 def test_the_command_line_trims_each_folder_named(tmp_path: Path) -> None:

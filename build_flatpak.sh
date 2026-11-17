@@ -349,6 +349,13 @@ modules:
       # Sources, headers, static libraries, test folders and the Qt modules
       # nothing loads: the rules every build shares, in build_trim.py.
       - python3 build_trim.py /app/lib/python3.13/site-packages
+      # uv installs no bytecode and /app is read-only once built, so without
+      # this every launch recompiles the app and each library from source (and
+      # repeats their warnings). After the trim, so nothing removed is compiled;
+      # by hash, since the commit to the Flatpak may not keep file times.
+      # PySide6's deploy tooling ships Jinja templates named *.tmpl.py.
+      - python3 -m compileall -q -j 0 --invalidation-mode unchecked-hash
+          -x '[.]tmpl[.]py' /app/lib/python3.13/site-packages /app/share/narratex
       - cp LICENSE LGPL3-LICENSE /app/share/narratex/
       # VERSION is the single source of truth; voice_reader/version.py reads it
       # from beside the package, so it has to be staged with the source.

@@ -28,7 +28,8 @@ def compute_book_cache_id(service: NarrationService) -> str:
     # Bump version when changing audio-affecting logic.
     # v15: narration follows the document model, so both the chunk boundaries
     # and the text spoken differ from every earlier cache.
-    version_tag = "v15"
+    # v16: every dash is spoken as a pause; a spaced hyphen was silent before.
+    version_tag = "v16"
     engine_tag = service.tts_engine.engine_name.strip().lower()
     payload = (
         f"{service._book.normalized_text}|"  # noqa: SLF001
